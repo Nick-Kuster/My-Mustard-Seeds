@@ -8,6 +8,18 @@ const routes = [
         path: '',
         component: () => import('pages/IndexPage.vue'),
       },
+      {
+        path: 'entry/new',
+        component: () => import('pages/NewEntryPage.vue'),
+      },
+      {
+        path: 'entry/:id',
+        component: () => import('pages/ViewEntryPage.vue'),
+      },
+      {
+        path: 'search',
+        component: () => import('pages/SearchPage.vue'),
+      },
     ],
   },
   {
