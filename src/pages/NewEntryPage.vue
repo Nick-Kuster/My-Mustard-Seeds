@@ -7,9 +7,6 @@
         <div class="q-gutter-md">
           <q-select v-model="entryType" :options="entryTypes" label="Type" class="q-mb-md"
             @update:model-value="handleTypeChange" />
-
-          <q-input v-if="entryType != 'Bible'" v-model="title" label="Title" class="q-mb-md" />
-
           <!-- Main Verse Selector for Bible type -->
           <div v-if="entryType === 'Bible'" class="q-mb-lg">
             <div class="text-subtitle1 text-weight-medium q-mb-sm">Main Verse</div>
@@ -23,6 +20,25 @@
 
             <VerseSelectionModal v-model="showVerseModal" @select="onVerseSelect" />
           </div>
+          <div v-else-if="entryType === 'Book'" class="q-mb-lg">
+            <div class="text-subtitle1 text-weight-medium q-mb-sm">Book</div>
+
+            <div v-if="selectedBook" class="q-mb-sm">
+              <div v-if="selectedBook" class="q-mb-md">
+                <div class="text-body1">{{ selectedBook.metadata.title }}</div>
+                <div class="text-caption text-grey-8">by {{ selectedBook.metadata.author }}</div>
+              </div>
+            </div>
+
+            <q-btn unelevated color="primary" :label="selectedBook ? 'Change Book' : 'Select Book'"
+              @click="showBookModal = true" />
+
+            <BookSelectionModal v-model="showBookModal" @select="onBookSelect" />
+
+            <q-input v-model="title" label="Chapter" class="q-mb-md" />
+          </div>
+
+          <q-input v-else v-model="title" label="Title" class="q-mb-md" />
 
           <!-- Header Sections -->
           <div v-for="(section, index) in headerSections" :key="'header-' + index" class="q-mb-md">
@@ -120,11 +136,14 @@ import { getEncryptionKey, encryptData } from 'src/utils/encryption'
 import VerseSelectionModal from 'components/VerseSelectionModal.vue'
 import LinkedVerses from 'components/LinkedVerses.vue'
 import VerseChip from 'components/VerseChip.vue'
+import BookSelectionModal from 'components/BookSelectionModal.vue'
 
 const router = useRouter()
 const $q = useQuasar()
 
 const showVerseModal = ref(false)
+const showBookModal = ref(false)
+const selectedBook = ref(null)
 const mainVerse = ref({})
 const title = ref('')
 const contentSections = ref([])
@@ -222,6 +241,14 @@ const removeSection = (index) => {
   contentSections.value.splice(index, 1)
 }
 
+const onBookSelect = (book) => {
+  selectedBook.value = book
+  // Optional: Automatically set the title if it's not set
+  if (!title.value) {
+    title.value = ''
+  }
+}
+
 const saveEntry = async () => {
   saving.value = true
   try {
@@ -232,15 +259,22 @@ const saveEntry = async () => {
 
     const encryptionKey = await getEncryptionKey(session.user.id)
 
-    const contentObject = contentSections.value.reduce((acc, section, index) => {
-      acc[`section${index + 1}`] = {
-        title: section.title,
-        content: section.content,
-        fieldType: section.fieldType,
-        headerProperty: section.headerProperty
-      }
-      return acc
-    }, {})
+    const contentObject = {
+      ...contentSections.value.reduce((acc, section, index) => {
+        acc[`section${index + 1}`] = {
+          title: section.title,
+          content: section.content,
+          fieldType: section.fieldType,
+          headerProperty: section.headerProperty
+        }
+        return acc
+      }, {}),
+      book: selectedBook.value ? {
+        id: selectedBook.value.id,
+        title: selectedBook.value.metadata.title,
+        author: selectedBook.value.metadata.author
+      } : null
+    }
 
     const encryptedContent = await encryptData(contentObject, encryptionKey)
 
