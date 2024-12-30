@@ -1,1 +1,37 @@
 // app global css in SCSS form
+// app global css in SCSS form
+body {
+  background-color: $body-background;
+}
+
+// Make cards stand out slightly from the background
+.q-card {
+  background-color: $card-background;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+// Optional: Add a subtle texture to the background
+// Uncomment if you want a paper-like texture
+// body {
+//   background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeBlend in='SourceGraphic' mode='multiply'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+//   background-repeat: repeat;
+//   background-position: center;
+// }
+
+// Make text slightly softer than pure black for better readability
+.text-body1,
+.text-body2 {
+  color: rgba(0, 0, 0, 0.87);
+}
+
+// Optional: Add smooth transitions for better UX
+.q-card {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+}

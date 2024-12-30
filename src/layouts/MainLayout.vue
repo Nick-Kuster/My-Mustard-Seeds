@@ -2,8 +2,11 @@
   <q-layout view="lHh Lpr lFf">
     <q-header elevated>
       <q-toolbar>
+
         <q-toolbar-title>
-          My Mustard Seeds
+          <router-link to="/" class="text-white text-decoration-none header-link">
+            My Mustard Seeds
+          </router-link>
         </q-toolbar-title>
 
         <q-btn flat dense round icon="logout" aria-label="Logout" @click="handleSignOut" />
@@ -35,3 +38,25 @@ const handleSignOut = async () => {
   }
 }
 </script>
+
+<style scoped>
+.text-decoration-none {
+  text-decoration: none;
+}
+
+.text-decoration-none:hover {
+  opacity: 0.9;
+}
+
+.header-link {
+  display: flex;
+  align-items: center;
+}
+
+.header-logo {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+</style>

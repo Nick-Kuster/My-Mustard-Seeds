@@ -42,23 +42,25 @@
           </div>
 
           <div class="q-mt-md">
-            <q-btn rounded unelevated color="grey-4" class="full-width" style="height: 40px" @click="addSection">
+            <q-btn rounded unelevated color="info" class="full-width" style="height: 40px" @click="addSection">
               <q-icon name="add" class="q-mr-sm" />
               Add Section
             </q-btn>
           </div>
 
-          <div class="row q-col-gutter-md q-mt-lg">
-            <div class="col-6">
-              <q-btn rounded unelevated color="grey" class="full-width" @click="router.push('/')"
-                style="height: 40px">Cancel</q-btn>
-            </div>
-            <div class="col-6">
-              <q-btn rounded unelevated color="primary" @click="saveEntry" class="full-width" :loading="saving"
-                style="height: 40px">
-                <span v-if="!saving">Plant Seed</span>
-                <span v-else>Planting...</span>
-              </q-btn>
+          <div class="q-mt-lg">
+            <div class="row q-col-gutter-x-sm">
+              <div class="col-6">
+                <q-btn rounded unelevated color="negative" class="full-width" @click="router.push('/')"
+                  style="height: 40px">Cancel</q-btn>
+              </div>
+              <div class="col-6">
+                <q-btn rounded unelevated color="primary" @click="saveEntry" class="full-width" :loading="saving"
+                  style="height: 40px">
+                  <span v-if="!saving">Plant Seed</span>
+                  <span v-else>Planting...</span>
+                </q-btn>
+              </div>
             </div>
           </div>
         </div>
@@ -89,29 +91,50 @@ const saving = ref(false)
 
 const linkedVerses = ref([])
 
-const entryTypes = ['Bible', 'Other']
+const entryTypes = ['Bible', 'Sermon', 'Book', 'Song', 'Other']
 const entryType = ref('Bible')
 
 const bibleSections = [
-  { title: 'Verses', content: '' },
   { title: 'Observations', content: '' },
   { title: 'Application', content: '' },
   { title: 'Prayer', content: '' }
 ]
 
+
+const sermonSections = [
+  { title: 'Author', content: '' },
+  { title: 'Observations', content: '' },
+  { title: 'Application', content: '' },
+  { title: 'Prayer', content: '' }
+]
+
+const songSections = [
+  { title: 'Songwriter', content: '' },
+  { title: 'Prayer', content: '' }
+]
+
 const handleTypeChange = (newType) => {
-  if (newType === 'Bible') {
-    contentSections.value = [...bibleSections]
-  } else {
-    contentSections.value = [{
-      title: '',
-      content: ''
-    }]
+  switch (newType) {
+    case 'Bible':
+      contentSections.value = [...bibleSections]
+      break
+    case 'Sermon':
+      contentSections.value = [...sermonSections]
+      break
+    case 'Song':
+      contentSections.value = [...songSections]
+      break
+    default:
+      contentSections.value = [{
+        title: '',
+        content: ''
+      }]
   }
 }
 
 const onVerseSelect = (verseData) => {
   mainVerse.value = verseData
+  title.value = verseData.display
 }
 
 const clearMainVerse = () => {
@@ -165,13 +188,14 @@ const saveEntry = async () => {
     if (entryError) throw entryError
 
     // Handle main verse for Bible type
-    if (entryType.value === 'Bible' && mainVerse.value.startVerseId) {
+    if (entryType.value === 'Bible' && mainVerse.value.startVerse) {
       const { error: mainVerseError } = await supabase
         .from('journal_verses')
         .insert({
           journal_id: entry.id,
-          start_verse_id: mainVerse.value.startVerseId,
-          end_verse_id: mainVerse.value.endVerseId
+          start_verse_id: mainVerse.value.startVerse,
+          end_verse_id: mainVerse.value.endVerse,
+          main_verse: true
         })
 
       if (mainVerseError) throw mainVerseError
@@ -181,8 +205,9 @@ const saveEntry = async () => {
     if (linkedVerses.value.length > 0) {
       const verseInserts = linkedVerses.value.map(verse => ({
         journal_id: entry.id,
-        start_verse_id: verse.startVerseId,
-        end_verse_id: verse.endVerseId
+        start_verse_id: verse.startVerse,
+        end_verse_id: verse.endVerse,
+        main_verse: false
       }))
 
       const { error: linkedVersesError } = await supabase

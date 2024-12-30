@@ -1,6 +1,6 @@
 <template>
   <q-dialog v-model="isOpen">
-    <q-card style="min-width: 350px; max-width: 600px">
+    <q-card class="verse-modal" style="min-width: 350px; max-width: 600px">
       <q-card-section class="row items-center">
         <div class="text-h6">{{ reference }}</div>
         <q-space />
@@ -15,7 +15,10 @@
           <div v-for="(verse, index) in verses" :key="index" class="q-mb-md">
             <div class="verse-content">
               <span class="verse-number text-weight-medium">{{ verse.verse }}</span>
-              {{ verse.content }}
+              ipsemdolorsetipsemdolorsetipsemdolorsetipsemdolorsetipsemdolorsetipsem
+              dolorsetipsemdolorsetipsemdolorsetipsemdolorsetipsemdolorse
+
+              tipsemdolorsetipsemdolorsetipsemdolorsetipsemdolorsetipsemdolorset
             </div>
           </div>
         </div>
@@ -25,7 +28,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { supabase } from 'src/boot/supabase'
 
 const props = defineProps({
@@ -34,8 +37,8 @@ const props = defineProps({
     type: String,
     default: ''
   },
-  startVerseId: String,
-  endVerseId: String
+  startVerse: Number,
+  endVerse: Number
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -49,18 +52,25 @@ const loading = ref(true)
 const verses = ref([])
 
 const fetchVerses = async () => {
-  if (!props.startVerseId || !props.endVerseId) return
+  if (!props.startVerse || !props.endVerse) {
+    console.log('Missing verse IDs:', { startVerse: props.startVerse, endVerse: props.endVerse })
+    return
+  }
 
   loading.value = true
   try {
+    console.log('Fetching verses with IDs:', { startVerse: props.startVerse, endVerse: props.endVerse })
+
     const { data, error } = await supabase
       .from('bible_verses')
       .select('verse, content')
-      .or(`and(id.gte.${props.startVerseId},id.lte.${props.endVerseId})`)
-      .order('verse')
+      .gte('verse_number', props.startVerse)
+      .lte('verse_number', props.endVerse)
+      .order('verse_number')
 
     if (error) throw error
-    verses.value = data || []
+    console.log('Fetched verse:', data)
+    verses.value = [data]
   } catch (error) {
     console.error('Error fetching verses:', error)
   } finally {
@@ -68,12 +78,33 @@ const fetchVerses = async () => {
   }
 }
 
-onMounted(() => {
-  fetchVerses()
-})
+watch(
+  () => props.modelValue,
+  (newValue) => {
+    if (newValue) {
+      fetchVerses()
+    }
+  }
+)
 </script>
 
 <style scoped>
+.verse-modal {
+  background-color: #FAF6E9;
+  /* Warm parchment color */
+}
+
+.verse-modal :deep(.q-card__section) {
+  background-color: #FAF6E9;
+}
+
+/* Style the header section slightly differently */
+.verse-modal :deep(.q-card__section:first-child) {
+  background-color: #F5EFD7;
+  /* Slightly darker for the header */
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
 .verse-number {
   margin-right: 0.5rem;
   color: #666;

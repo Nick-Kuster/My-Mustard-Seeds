@@ -5,8 +5,8 @@
       {{ verse.display }}
     </q-chip>
 
-    <VerseDisplayModal v-model="showVerseModal" :reference="verse.display" :start-verse-id="verse.startVerseId"
-      :end-verse-id="verse.endVerseId" />
+    <VerseDisplayModal v-model="showVerseModal" :reference="verse.display" :start-verse="verse.startVerse"
+      :end-verse="verse.endVerse" />
   </div>
 </template>
 

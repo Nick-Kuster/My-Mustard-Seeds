@@ -1,5 +1,5 @@
 <template>
-  <q-img src="landscape.png" class="fit absolute"></q-img>
+  <q-img src="bg.png" class="fit absolute"></q-img>
   <q-page class="flex flex-center">
     <div class="q-pa-md" style="max-width: 400px">
       <q-card class="q-pa-md">

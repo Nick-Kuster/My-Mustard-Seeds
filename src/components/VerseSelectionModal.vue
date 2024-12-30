@@ -1,6 +1,6 @@
 <template>
   <q-dialog v-model="isOpen" persistent>
-    <q-card style="min-width: 400px">
+    <q-card class="verse-selection-modal">
       <q-card-section class="row items-center">
         <div class="text-h6">Select Verse Range</div>
         <q-space />
@@ -173,7 +173,7 @@ watch([endChapter, endVerse], async () => {
 const confirmSelection = async () => {
   const { data: verses } = await supabase
     .from('bible_verses')
-    .select('id')
+    .select('verse_number')
     .eq('book', selectedBook.value.book)
     .or(`and(chapter.eq.${selectedChapter.value},verse.gte.${selectedVerse.value}),` +
       `and(chapter.gt.${selectedChapter.value},chapter.lt.${endChapter.value}),` +
@@ -197,8 +197,8 @@ const confirmSelection = async () => {
     }
 
     emit('select', {
-      startVerseId: verses[0].id,
-      endVerseId: verses[verses.length - 1].id,
+      startVerse: verses[0].verse_number,
+      endVerse: verses[verses.length - 1].verse_number,
       display: displayText
     })
   }
@@ -211,6 +211,11 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.verse-selection-modal {
+  width: 90vw;
+  max-width: 350px;
+}
+
 .verse-preview {
   background: #f5f5f5;
   padding: 8px;

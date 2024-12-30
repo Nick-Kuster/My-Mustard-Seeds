@@ -1,25 +1,35 @@
-// Quasar SCSS (& Sass) Variables
-// --------------------------------------------------
-// To customize the look and feel of this app, you can override
-// the Sass/SCSS variables found in Quasar's source Sass/SCSS files.
+// Quasar SCSS Variables
+// Garden-themed palette with pastoral, natural colors
 
-// Check documentation for full list of Quasar variables
+// Primary: A warm sage green - represents growth and nurturing
+$primary: #7c9082;
 
-// Your own variables (that are declared here) and Quasar's own
-// ones will be available out of the box in your .vue/.scss/.sass files
+// Secondary: Soft terracotta - represents fertile soil and earthiness
+$secondary: #9b6e4b;
 
-// It's highly recommended to change the default colors
-// to match your app's branding.
-// Tip: Use the "Theme Builder" on Quasar's documentation website.
+// Accent: Muted mustard - represents the mustard seed itself
+$accent: #d4b499;
 
-$primary: #d08292;
-$secondary: #f9b76b;
-$accent: #81432d;
+// Background variations
+$dark: #2c3639;
+$dark-page: #1c2124;
 
-$dark: #1d1d1d;
-$dark-page: #121212;
+$body-background: #faf9f6; // Warm off-white
+$card-background: #ffffff; // Pure white for cards
 
-$positive: #21ba45;
-$negative: #c10015;
-$info: #31ccec;
-$warning: #f2c037;
+// Semantic colors with natural tones
+$positive: #95b8a6; // Soft forest green
+$negative: #d88373; // Muted coral
+$info: #92b4bd; // Peaceful sky blue
+$warning: #e6c17b; // Warm honey
+
+// Additional theme colors (can be used in custom CSS)
+$garden-colors: (
+  'soil': #9b6e4b,
+  // Rich earth tone
+  'leaf': #aec3ae,
+  // Fresh leaf green
+  'stone': #e5e6e4,
+  // Light pebble grey
+  'blossom': #f9ebe0, // Soft petal pink
+);
