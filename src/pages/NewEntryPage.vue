@@ -7,6 +7,7 @@
         <div class="q-gutter-md">
           <q-select v-model="entryType" :options="entryTypes" label="Type" class="q-mb-md"
             @update:model-value="handleTypeChange" />
+
           <!-- Main Verse Selector for Bible type -->
           <div v-if="entryType === 'Bible'" class="q-mb-lg">
             <div class="text-subtitle1 text-weight-medium q-mb-sm">Main Verse</div>
@@ -20,11 +21,13 @@
 
             <VerseSelectionModal v-model="showVerseModal" @select="onVerseSelect" />
           </div>
+
+          <!-- Book Specific Select -->
           <div v-else-if="entryType === 'Book'" class="q-mb-lg">
             <div class="text-subtitle1 text-weight-medium q-mb-sm">Book</div>
 
             <div v-if="selectedBook" class="q-mb-sm">
-              <div v-if="selectedBook" class="q-mb-md">
+              <div class="q-mb-md">
                 <div class="text-body1">{{ selectedBook.metadata.title }}</div>
                 <div class="text-caption text-grey-8">by {{ selectedBook.metadata.author }}</div>
               </div>
@@ -36,6 +39,68 @@
             <BookSelectionModal v-model="showBookModal" @select="onBookSelect" />
 
             <q-input v-model="title" label="Chapter" class="q-mb-md" />
+          </div>
+
+          <!-- Sermon Specific Select -->
+          <div v-else-if="entryType === 'Sermon'" class="q-mb-lg">
+            <div class="text-subtitle1 text-weight-medium q-mb-sm">Pastor</div>
+            <div v-if="selectedPastor" class="q-mb-sm">
+              <div class="q-mb-md">
+                <div class="text-body1">{{ selectedPastor.metadata.name }}</div>
+                <div class="text-caption text-grey-8">{{ selectedPastor.metadata.church }}</div>
+              </div>
+            </div>
+
+            <q-btn unelevated color="primary" :label="selectedPastor ? 'Change Pastor' : 'Select Pastor'"
+              @click="showPastorModal = true" />
+
+            <PastorSelectionModal v-model="showPastorModal" @select="onPastorSelect" />
+          </div>
+
+          <!-- Devotional Specific Select -->
+          <div v-else-if="entryType === 'Devotional'" class="q-mb-lg">
+            <div class="text-subtitle1 text-weight-medium q-mb-sm">Ministry</div>
+            <div v-if="selectedMinistry" class="q-mb-sm">
+              <div class="q-mb-md">
+                <div class="text-body1">{{ selectedMinistry.metadata.name }}</div>
+              </div>
+            </div>
+
+            <q-btn unelevated color="primary" :label="selectedMinistry ? 'Change Ministry' : 'Select Ministry'"
+              @click="showMinistryModal = true" />
+
+            <MinistrySelectionModal v-model="showMinistryModal" @select="onMinistrySelect" />
+          </div>
+
+          <!-- Song Specific Select -->
+          <div v-else-if="entryType === 'Song'" class="q-mb-lg">
+            <div class="text-subtitle1 text-weight-medium q-mb-sm">Artist</div>
+            <div v-if="selectedArtist" class="q-mb-sm">
+              <div class="q-mb-md">
+                <div class="text-body1">{{ selectedArtist.metadata.name }}</div>
+              </div>
+            </div>
+
+            <q-btn unelevated color="primary" :label="selectedArtist ? 'Change Artist' : 'Select Artist'"
+              @click="showArtistModal = true" />
+
+            <SongArtistSelectionModal v-model="showArtistModal" @select="onArtistSelect" />
+          </div>
+
+          <!-- Podcast Specific Select -->
+          <div v-else-if="entryType === 'Podcast'" class="q-mb-lg">
+            <div class="text-subtitle1 text-weight-medium q-mb-sm">Name and Host</div>
+            <div v-if="selectedPodcast" class="q-mb-sm">
+              <div class="q-mb-md">
+                <div class="text-body1">{{ selectedPodcast.metadata.name }}</div>
+                <div class="text-body1">{{ selectedPodcast.metadata.host }}</div>
+              </div>
+            </div>
+
+            <q-btn unelevated color="primary" :label="selectedPodcast ? 'Change Podcast' : 'Select Podcast'"
+              @click="showPodcastModal = true" />
+
+            <PodcastSelectionModal v-model="showPodcastModal" @select="onPodcastSelect" />
           </div>
 
           <q-input v-else v-model="title" label="Title" class="q-mb-md" />
@@ -137,12 +202,27 @@ import VerseSelectionModal from 'components/VerseSelectionModal.vue'
 import LinkedVerses from 'components/LinkedVerses.vue'
 import VerseChip from 'components/VerseChip.vue'
 import BookSelectionModal from 'components/BookSelectionModal.vue'
+import PastorSelectionModal from 'components/PastorSelectionModal.vue'
+import PodcastSelectionModal from 'components/PodcastSelectionModal.vue'
+import SongArtistSelectionModal from 'components/SongArtistSelectionModal.vue'
+import MinistrySelectionModal from 'src/components/MinistrySelectionModal.vue'
 
 const router = useRouter()
 const $q = useQuasar()
 
+
+// Modals
 const showVerseModal = ref(false)
 const showBookModal = ref(false)
+const showPastorModal = ref(false)
+const showPodcastModal = ref(false)
+const showArtistModal = ref(false)
+const showMinistryModal = ref(false)
+const selectedPastor = ref(null)
+const selectedPodcast = ref(null)
+const selectedArtist = ref(null)
+const selectedMinistry = ref(null)
+
 const selectedBook = ref(null)
 const mainVerse = ref({})
 const title = ref('')
@@ -150,7 +230,7 @@ const contentSections = ref([])
 const saving = ref(false)
 const linkedVerses = ref([])
 
-const entryTypes = ['Bible', 'Sermon', 'Book', 'Song', 'Podcast', 'Other']
+const entryTypes = ['Bible', 'Sermon', 'Devotional', 'Book', 'Song', 'Podcast', 'Other']
 const entryType = ref('Bible')
 
 const getTodayDate = () => {
@@ -186,6 +266,12 @@ const songSections = [
   createSection('Lyrics', '', 'longText')
 ]
 
+const devotionSections = [
+  createSection('Observations', '', 'longText'),
+  createSection('Application', '', 'longText')
+]
+
+
 const prayerSection = createSection('Prayer', '', 'longText')
 
 // Computed property to filter header sections
@@ -211,6 +297,9 @@ const handleTypeChange = (newType) => {
         ...s,
         content: s.fieldType === 'date' ? today : s.content
       }))
+      break
+    case 'Devotion':
+      newSections = devotionSections.map(s => ({ ...s }))
       break
     case 'Song':
       newSections = songSections.map(s => ({
@@ -249,6 +338,34 @@ const onBookSelect = (book) => {
   }
 }
 
+const onPastorSelect = (pastor) => {
+  selectedPastor.value = pastor
+  if (!title.value) {
+    title.value = `Notes on ${pastor.metadata.name}`
+  }
+}
+
+const onPodcastSelect = (podcast) => {
+  selectedPodcast.value = podcast
+  if (!title.value) {
+    title.value = `Notes on ${podcast.metadata.title}`
+  }
+}
+
+const onArtistSelect = (artist) => {
+  selectedArtist.value = artist
+  if (!title.value) {
+    title.value = `Notes on ${artist.metadata.name}`
+  }
+}
+
+const onMinistrySelect = (ministry) => {
+  selectedMinistry.value = ministry
+  if (!title.value) {
+    title.value = `Notes on ${ministry.metadata.name}`
+  }
+}
+
 const saveEntry = async () => {
   saving.value = true
   try {
@@ -273,6 +390,24 @@ const saveEntry = async () => {
         id: selectedBook.value.id,
         title: selectedBook.value.metadata.title,
         author: selectedBook.value.metadata.author
+      } : null,
+      pastor: selectedPastor.value ? {
+        id: selectedPastor.value.id,
+        name: selectedPastor.value.metadata.name,
+        church: selectedPastor.value.metadata.church
+      } : null,
+      podcast: selectedPodcast.value ? {
+        id: selectedPodcast.value.id,
+        title: selectedPodcast.value.metadata.title,
+        host: selectedPodcast.value.metadata.host,
+      } : null,
+      songArtist: selectedArtist.value ? {
+        id: selectedArtist.value.id,
+        name: selectedArtist.value.metadata.name
+      } : null,
+      ministry: selectedMinistry.value ? {
+        id: selectedMinistry.value.id,
+        name: selectedMinistry.value.metadata.name
       } : null
     }
 
