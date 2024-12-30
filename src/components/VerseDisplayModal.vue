@@ -7,7 +7,7 @@
         <q-btn icon="close" flat round dense v-close-popup />
       </q-card-section>
 
-      <q-card-section class="q-pt-none">
+      <q-card-section class="q-pt-lg">
         <div v-if="loading" class="text-center q-pa-md">
           <q-spinner color="primary" size="2em" />
         </div>
@@ -15,10 +15,7 @@
           <div v-for="(verse, index) in verses" :key="index" class="q-mb-md">
             <div class="verse-content">
               <span class="verse-number text-weight-medium">{{ verse.verse }}</span>
-              ipsemdolorsetipsemdolorsetipsemdolorsetipsemdolorsetipsemdolorsetipsem
-              dolorsetipsemdolorsetipsemdolorsetipsemdolorsetipsemdolorse
-
-              tipsemdolorsetipsemdolorsetipsemdolorsetipsemdolorsetipsemdolorset
+              {{ verse.content }}
             </div>
           </div>
         </div>
@@ -70,7 +67,7 @@ const fetchVerses = async () => {
 
     if (error) throw error
     console.log('Fetched verse:', data)
-    verses.value = [data]
+    verses.value = data || []
   } catch (error) {
     console.error('Error fetching verses:', error)
   } finally {

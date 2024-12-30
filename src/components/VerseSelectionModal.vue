@@ -171,16 +171,25 @@ watch([endChapter, endVerse], async () => {
 })
 
 const confirmSelection = async () => {
-  const { data: verses } = await supabase
+  // First get the verse_number for the start verse
+  const { data: startVerseData } = await supabase
     .from('bible_verses')
     .select('verse_number')
     .eq('book', selectedBook.value.book)
-    .or(`and(chapter.eq.${selectedChapter.value},verse.gte.${selectedVerse.value}),` +
-      `and(chapter.gt.${selectedChapter.value},chapter.lt.${endChapter.value}),` +
-      `and(chapter.eq.${endChapter.value},verse.lte.${endVerse.value})`)
-    .order('chapter, verse')
+    .eq('chapter', selectedChapter.value)
+    .eq('verse', selectedVerse.value)
+    .single()
 
-  if (verses) {
+  // Then get the verse_number for the end verse
+  const { data: endVerseData } = await supabase
+    .from('bible_verses')
+    .select('verse_number')
+    .eq('book', selectedBook.value.book)
+    .eq('chapter', endChapter.value)
+    .eq('verse', endVerse.value)
+    .single()
+
+  if (startVerseData && endVerseData) {
     let displayText = ''
 
     // Same chapter and verse
@@ -197,14 +206,13 @@ const confirmSelection = async () => {
     }
 
     emit('select', {
-      startVerse: verses[0].verse_number,
-      endVerse: verses[verses.length - 1].verse_number,
+      startVerse: startVerseData.verse_number,
+      endVerse: endVerseData.verse_number,
       display: displayText
     })
   }
   isOpen.value = false
 }
-
 onMounted(async () => {
   await bibleData.loadBooks()
 })

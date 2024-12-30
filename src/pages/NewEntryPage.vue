@@ -8,7 +8,7 @@
           <q-select v-model="entryType" :options="entryTypes" label="Type" class="q-mb-md"
             @update:model-value="handleTypeChange" />
 
-          <q-input v-model="title" label="Title" class="q-mb-md" />
+          <q-input v-if="entryType != 'Bible'" v-model="title" label="Title" class="q-mb-md" />
           <!-- Main Verse Selector for Bible type -->
           <div v-if="entryType === 'Bible'" class="q-mb-lg">
             <div class="text-subtitle1 text-weight-medium q-mb-sm">Main Verse</div>
@@ -91,27 +91,26 @@ const saving = ref(false)
 
 const linkedVerses = ref([])
 
-const entryTypes = ['Bible', 'Sermon', 'Book', 'Song', 'Other']
+const entryTypes = ['Bible', 'Sermon', 'Book', 'Song', 'Podcast', 'Other']
 const entryType = ref('Bible')
 
 const bibleSections = [
   { title: 'Observations', content: '' },
-  { title: 'Application', content: '' },
-  { title: 'Prayer', content: '' }
+  { title: 'Application', content: '' }
 ]
 
 
 const sermonSections = [
   { title: 'Author', content: '' },
   { title: 'Observations', content: '' },
-  { title: 'Application', content: '' },
-  { title: 'Prayer', content: '' }
+  { title: 'Application', content: '' }
 ]
 
 const songSections = [
-  { title: 'Songwriter', content: '' },
-  { title: 'Prayer', content: '' }
+  { title: 'Songwriter', content: '' }
 ]
+
+const prayerSection = { title: 'Prayer', content: '' }
 
 const handleTypeChange = (newType) => {
   switch (newType) {
@@ -130,6 +129,7 @@ const handleTypeChange = (newType) => {
         content: ''
       }]
   }
+  contentSections.value.push(prayerSection)
 }
 
 const onVerseSelect = (verseData) => {
