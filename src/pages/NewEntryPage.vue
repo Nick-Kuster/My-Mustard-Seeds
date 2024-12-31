@@ -36,8 +36,8 @@
             <q-btn unelevated color="primary" :label="selectedBook ? 'Change Book' : 'Select Book'"
               @click="showBookModal = true" />
 
-            <BookSelectionModal v-model="showBookModal" @select="onBookSelect" />
-
+            <ResourceSelectionModal v-model="showBookModal" resource-type="book" :config="bookConfig"
+              @select="onBookSelect" />
             <q-input v-model="title" label="Chapter" class="q-mb-md" />
           </div>
 
@@ -201,11 +201,11 @@ import { getEncryptionKey, encryptData } from 'src/utils/encryption'
 import VerseSelectionModal from 'components/VerseSelectionModal.vue'
 import LinkedVerses from 'components/LinkedVerses.vue'
 import VerseChip from 'components/VerseChip.vue'
-import BookSelectionModal from 'components/BookSelectionModal.vue'
 import PastorSelectionModal from 'components/PastorSelectionModal.vue'
 import PodcastSelectionModal from 'components/PodcastSelectionModal.vue'
 import SongArtistSelectionModal from 'components/SongArtistSelectionModal.vue'
 import MinistrySelectionModal from 'src/components/MinistrySelectionModal.vue'
+import ResourceSelectionModal from 'components/ResourceSelectionModal.vue'
 
 const router = useRouter()
 const $q = useQuasar()

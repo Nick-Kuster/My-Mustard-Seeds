@@ -83,8 +83,12 @@ function getEmptyResource() {
 
 // Each component will override this to use their specific resource type
 const filteredResources = computed(() => {
-  if (!searchTerm.value) return []  // Override in each component
-  return []  // Override in each component
+  if (!searchTerm.value) return resourcesStore.podcastResources
+  const search = searchTerm.value.toLowerCase()
+  return resourcesStore.podcastResources.filter(podcast =>
+    podcast.metadata.name.toLowerCase().includes(search) ||
+    podcast.metadata.host.toLowerCase().includes(search)
+  )
 })
 
 const selectResource = (resource) => {
@@ -96,7 +100,7 @@ const addResource = async () => {
   saving.value = true
   try {
     // Each component will override this with their specific resource type
-    const resource = await resourcesStore.addResource(RESOURCE_TYPES.BOOK, newResource.value)
+    const resource = await resourcesStore.addResource(RESOURCE_TYPES.PODCAST, newResource.value)
     selectResource(resource)
     showAddForm.value = false
     newResource.value = getEmptyResource()

@@ -99,7 +99,7 @@ const addResource = async () => {
   saving.value = true
   try {
     // Each component will override this with their specific resource type
-    const resource = await resourcesStore.addResource(RESOURCE_TYPES.BOOK, newResource.value)
+    const resource = await resourcesStore.addResource(RESOURCE_TYPES.CHURCH, newResource.value)
     selectResource(resource)
     showAddForm.value = false
     newResource.value = getEmptyResource()

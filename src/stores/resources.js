@@ -20,14 +20,10 @@ export const METADATA_TEMPLATES = {
   [RESOURCE_TYPES.PODCAST]: {
     title: '',
     host: '',
-    platform: '',
-    url: '',
   },
   [RESOURCE_TYPES.PASTOR]: {
     name: '',
     church: '',
-    denomination: '',
-    website: '',
   },
   [RESOURCE_TYPES.SONG_ARTIST]: {
     name: '',

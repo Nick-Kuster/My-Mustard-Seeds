@@ -20,7 +20,6 @@
           </div>
           <div v-else-if="filteredResources.length === 0" class="text-center q-pa-md">
             No artists found
-            <q-btn flat color="primary" label="Add New Artist" @click="showAddForm = true" />
           </div>
           <q-list v-else separator>
             <q-item v-for="resource in filteredResources" :key="resource.id" clickable
@@ -81,8 +80,11 @@ function getEmptyResource() {
 
 // Each component will override this to use their specific resource type
 const filteredResources = computed(() => {
-  if (!searchTerm.value) return []  // Override in each component
-  return []  // Override in each component
+  if (!searchTerm.value) return resourcesStore.songArtistResources
+  const search = searchTerm.value.toLowerCase()
+  return resourcesStore.songArtistResources.filter(podcast =>
+    podcast.metadata.name.toLowerCase().includes(search)
+  )
 })
 
 const selectResource = (resource) => {
@@ -94,7 +96,7 @@ const addResource = async () => {
   saving.value = true
   try {
     // Each component will override this with their specific resource type
-    const resource = await resourcesStore.addResource(RESOURCE_TYPES.BOOK, newResource.value)
+    const resource = await resourcesStore.addResource(RESOURCE_TYPES.SONG_ARTIST, newResource.value)
     selectResource(resource)
     showAddForm.value = false
     newResource.value = getEmptyResource()
