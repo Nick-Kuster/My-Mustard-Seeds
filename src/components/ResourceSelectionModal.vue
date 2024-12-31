@@ -1,5 +1,5 @@
 <template>
-  <q-dialog v-model="isOpen" persistent>
+  <q-dialog v-model="modelValue" persistent @update:model-value="updateModelValue">
     <q-card style="min-width: 350px; max-width: 600px">
       <q-card-section class="row items-center">
         <div class="text-h6">Select {{ resourceConfig.title }}</div>
@@ -62,19 +62,17 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useResourcesStore } from 'stores/resources'
+import { getResourceConfig } from 'src/configs/resourceConfigs'
 
 const props = defineProps({
   modelValue: Boolean,
   resourceType: {
     type: String,
     required: true
-  },
-  config: {
-    type: Object,
-    required: true
   }
 })
 
+const resourceConfig = computed(() => getResourceConfig(props.resourceType))
 const emit = defineEmits(['update:modelValue', 'select'])
 const resourcesStore = useResourcesStore()
 
@@ -83,13 +81,11 @@ const saving = ref(false)
 const searchTerm = ref('')
 const showAddForm = ref(false)
 
-const resourceConfig = computed(() => props.config)
 
-const isOpen = computed({
-  get: () => props.modelValue,
-  set: (value) => emit('update:modelValue', value)
-})
-
+const modelValue = computed(() => props.modelValue)
+const updateModelValue = (value) => {
+  emit('update:modelValue', value)
+}
 const newResource = ref({})
 
 const filteredResources = computed(() => {
@@ -114,7 +110,7 @@ const getDisplaySubtitle = (resource) => {
 
 const selectResource = (resource) => {
   emit('select', resource)
-  isOpen.value = false
+  emit('update:modelValue', false)
 }
 
 const addResource = async () => {

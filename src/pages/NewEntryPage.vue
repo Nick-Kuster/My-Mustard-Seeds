@@ -36,7 +36,7 @@
             <q-btn unelevated color="primary" :label="selectedBook ? 'Change Book' : 'Select Book'"
               @click="showBookModal = true" />
 
-            <ResourceSelectionModal v-model="showBookModal" resource-type="book" :config="bookConfig"
+            <ResourceSelectionModal v-model="showBookModal" :resource-type="RESOURCE_TYPES.BOOK"
               @select="onBookSelect" />
             <q-input v-model="title" label="Chapter" class="q-mb-md" />
           </div>
@@ -54,7 +54,8 @@
             <q-btn unelevated color="primary" :label="selectedPastor ? 'Change Pastor' : 'Select Pastor'"
               @click="showPastorModal = true" />
 
-            <PastorSelectionModal v-model="showPastorModal" @select="onPastorSelect" />
+            <ResourceSelectionModal v-model="showPastorModal" :resource-type="RESOURCE_TYPES.PASTOR"
+              @select="onPastorSelect" />
           </div>
 
           <!-- Devotional Specific Select -->
@@ -69,7 +70,8 @@
             <q-btn unelevated color="primary" :label="selectedMinistry ? 'Change Ministry' : 'Select Ministry'"
               @click="showMinistryModal = true" />
 
-            <MinistrySelectionModal v-model="showMinistryModal" @select="onMinistrySelect" />
+            <ResourceSelectionModal v-model="showMinistryModal" :resource-type="RESOURCE_TYPES.MINISTRY"
+              @select="onMinistrySelect" />
           </div>
 
           <!-- Song Specific Select -->
@@ -84,7 +86,8 @@
             <q-btn unelevated color="primary" :label="selectedArtist ? 'Change Artist' : 'Select Artist'"
               @click="showArtistModal = true" />
 
-            <SongArtistSelectionModal v-model="showArtistModal" @select="onArtistSelect" />
+            <ResourceSelectionModal v-model="showArtistModal" :resource-type="RESOURCE_TYPES.SONG_ARTIST"
+              @select="onArtistSelect" />
           </div>
 
           <!-- Podcast Specific Select -->
@@ -92,15 +95,16 @@
             <div class="text-subtitle1 text-weight-medium q-mb-sm">Name and Host</div>
             <div v-if="selectedPodcast" class="q-mb-sm">
               <div class="q-mb-md">
-                <div class="text-body1">{{ selectedPodcast.metadata.name }}</div>
-                <div class="text-body1">{{ selectedPodcast.metadata.host }}</div>
+                <div class="text-body1">{{ selectedPodcast.metadata.title }}</div>
+                <div class="text-caption text-grey-8">by {{ selectedPodcast.metadata.host }}</div>
               </div>
             </div>
 
             <q-btn unelevated color="primary" :label="selectedPodcast ? 'Change Podcast' : 'Select Podcast'"
               @click="showPodcastModal = true" />
 
-            <PodcastSelectionModal v-model="showPodcastModal" @select="onPodcastSelect" />
+            <ResourceSelectionModal v-model="showPodcastModal" :resource-type="RESOURCE_TYPES.PODCAST"
+              @select="onPodcastSelect" />
           </div>
 
           <q-input v-else v-model="title" label="Title" class="q-mb-md" />
@@ -198,13 +202,10 @@ import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { supabase } from 'src/boot/supabase'
 import { getEncryptionKey, encryptData } from 'src/utils/encryption'
+import { RESOURCE_TYPES } from 'stores/resources'
 import VerseSelectionModal from 'components/VerseSelectionModal.vue'
 import LinkedVerses from 'components/LinkedVerses.vue'
 import VerseChip from 'components/VerseChip.vue'
-import PastorSelectionModal from 'components/PastorSelectionModal.vue'
-import PodcastSelectionModal from 'components/PodcastSelectionModal.vue'
-import SongArtistSelectionModal from 'components/SongArtistSelectionModal.vue'
-import MinistrySelectionModal from 'src/components/MinistrySelectionModal.vue'
 import ResourceSelectionModal from 'components/ResourceSelectionModal.vue'
 
 const router = useRouter()
