@@ -8,7 +8,7 @@
       </q-card-section>
 
       <q-card-section>
-        <div v-if="!showAddForm">
+        <div v-if="!showAddForm && !editingResource">
           <!-- Search field -->
           <q-input v-model="searchTerm" :label="`Search ${resourceConfig.title.toLowerCase()}`" dense class="q-mb-md"
             clearable>
@@ -33,6 +33,16 @@
                   {{ getDisplaySubtitle(resource) }}
                 </q-item-label>
               </q-item-section>
+              <q-item-section side>
+                <div class="row no-wrap items-center">
+                  <q-btn flat round dense color="primary" icon="edit" @click.stop="startEdit(resource)">
+                    <q-tooltip>Edit {{ resourceConfig.title.toLowerCase() }}</q-tooltip>
+                  </q-btn>
+                  <q-btn flat round dense color="negative" icon="delete" @click.stop="confirmDelete(resource)">
+                    <q-tooltip>Delete {{ resourceConfig.title.toLowerCase() }}</q-tooltip>
+                  </q-btn>
+                </div>
+              </q-item-section>
             </q-item>
           </q-list>
 
@@ -42,25 +52,51 @@
           </div>
         </div>
 
-        <!-- Add form -->
+        <!-- Add/Edit form -->
         <div v-else>
-          <q-form @submit="addResource" class="q-gutter-md">
-            <q-input v-for="(field, key) in resourceConfig.fields" :key="key" v-model="newResource[key]"
+          <q-form @submit="editingResource ? updateResource() : addResource()" class="q-gutter-md">
+            <div class="text-subtitle1 q-mb-sm">
+              {{ editingResource ? `Edit ${resourceConfig.title}` : `Add New ${resourceConfig.title}` }}
+            </div>
+
+            <q-input v-for="(field, key) in resourceConfig.fields" :key="key" v-model="formData[key]"
               :label="`${field.label} ${field.required ? '*' : ''}`"
               :rules="field.required ? [val => !!val || `${field.label} is required`] : []" />
+
             <div class="row q-mt-lg">
-              <q-btn flat label="Back" color="primary" @click="showAddForm = false" class="q-mr-sm" />
-              <q-btn type="submit" label="Save" color="primary" :loading="saving" />
+              <q-btn flat label="Cancel" color="primary" @click="cancelForm" class="q-mr-sm" />
+              <q-btn type="submit" :label="editingResource ? 'Save Changes' : 'Save'" color="primary"
+                :loading="saving" />
             </div>
           </q-form>
         </div>
       </q-card-section>
     </q-card>
   </q-dialog>
+
+  <!-- Delete Confirmation Dialog -->
+  <q-dialog v-model="showDeleteDialog" persistent>
+    <q-card style="min-width: 300px">
+      <q-card-section class="row items-center">
+        <div class="text-h6">Delete {{ resourceConfig.title }}</div>
+      </q-card-section>
+
+      <q-card-section>
+        Are you sure you want to delete "{{ resourceToDelete ? getDisplayTitle(resourceToDelete) : '' }}"?
+        This action cannot be undone.
+      </q-card-section>
+
+      <q-card-actions align="right">
+        <q-btn flat label="Cancel" color="primary" v-close-popup />
+        <q-btn flat label="Delete" color="negative" :loading="deleting" @click="deleteResource" />
+      </q-card-actions>
+    </q-card>
+  </q-dialog>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useQuasar } from 'quasar'
 import { useResourcesStore } from 'stores/resources'
 import { getResourceConfig } from 'src/configs/resourceConfigs'
 
@@ -72,21 +108,25 @@ const props = defineProps({
   }
 })
 
+const $q = useQuasar()
 const resourceConfig = computed(() => getResourceConfig(props.resourceType))
 const emit = defineEmits(['update:modelValue', 'select'])
 const resourcesStore = useResourcesStore()
 
 const loading = ref(false)
 const saving = ref(false)
+const deleting = ref(false)
 const searchTerm = ref('')
 const showAddForm = ref(false)
-
+const showDeleteDialog = ref(false)
+const resourceToDelete = ref(null)
+const editingResource = ref(null)
+const formData = ref({})
 
 const modelValue = computed(() => props.modelValue)
 const updateModelValue = (value) => {
   emit('update:modelValue', value)
 }
-const newResource = ref({})
 
 const filteredResources = computed(() => {
   const resources = resourcesStore.getResourcesByType(props.resourceType)
@@ -113,15 +153,84 @@ const selectResource = (resource) => {
   emit('update:modelValue', false)
 }
 
+const startEdit = (resource) => {
+  editingResource.value = resource
+  formData.value = { ...resource.metadata }
+}
+
+const cancelForm = () => {
+  editingResource.value = null
+  showAddForm.value = false
+  formData.value = {}
+}
+
+const updateResource = async () => {
+  if (!editingResource.value) return
+
+  saving.value = true
+  try {
+    await resourcesStore.updateResource(editingResource.value.id, formData.value)
+    cancelForm()
+    $q.notify({
+      type: 'positive',
+      message: `${resourceConfig.value.title} updated successfully`
+    })
+  } catch (error) {
+    console.error(`Error updating ${props.resourceType}:`, error)
+    $q.notify({
+      type: 'negative',
+      message: `Error updating ${resourceConfig.value.title.toLowerCase()}`
+    })
+  } finally {
+    saving.value = false
+  }
+}
+
+const confirmDelete = (resource) => {
+  resourceToDelete.value = resource
+  showDeleteDialog.value = true
+}
+
+const deleteResource = async () => {
+  if (!resourceToDelete.value) return
+
+  deleting.value = true
+  try {
+    await resourcesStore.deleteResource(resourceToDelete.value.id)
+    showDeleteDialog.value = false
+    resourceToDelete.value = null
+    $q.notify({
+      type: 'positive',
+      message: `${resourceConfig.value.title} deleted successfully`
+    })
+  } catch (error) {
+    console.error(`Error deleting ${props.resourceType}:`, error)
+    $q.notify({
+      type: 'negative',
+      message: `Error deleting ${resourceConfig.value.title.toLowerCase()}`
+    })
+  } finally {
+    deleting.value = false
+  }
+}
+
 const addResource = async () => {
   saving.value = true
   try {
-    const resource = await resourcesStore.addResource(props.resourceType, newResource.value)
+    const resource = await resourcesStore.addResource(props.resourceType, formData.value)
     selectResource(resource)
     showAddForm.value = false
-    newResource.value = resourcesStore.getMetadataTemplate(props.resourceType)
+    formData.value = resourcesStore.getMetadataTemplate(props.resourceType)
+    $q.notify({
+      type: 'positive',
+      message: `${resourceConfig.value.title} added successfully`
+    })
   } catch (error) {
     console.error(`Error adding ${props.resourceType}:`, error)
+    $q.notify({
+      type: 'negative',
+      message: `Error adding ${resourceConfig.value.title.toLowerCase()}`
+    })
   } finally {
     saving.value = false
   }
@@ -131,7 +240,12 @@ onMounted(async () => {
   loading.value = true
   try {
     await resourcesStore.loadResources()
-    newResource.value = resourcesStore.getMetadataTemplate(props.resourceType)
+    formData.value = resourcesStore.getMetadataTemplate(props.resourceType)
+  } catch {
+    $q.notify({
+      type: 'negative',
+      message: 'Error loading resources'
+    })
   } finally {
     loading.value = false
   }

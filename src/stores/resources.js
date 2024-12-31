@@ -72,24 +72,6 @@ export const useResourcesStore = defineStore('resources', () => {
     }
   }
 
-  // Get subtitle for a resource based on its type
-  const getResourceSubtitle = (resource) => {
-    switch (resource.type) {
-      case RESOURCE_TYPES.BOOK:
-        return `by ${resource.metadata.author}`
-      case RESOURCE_TYPES.PODCAST:
-        return `hosted by ${resource.metadata.host}`
-      case RESOURCE_TYPES.PASTOR:
-        return resource.metadata.church
-      case RESOURCE_TYPES.SONG_ARTIST:
-      case RESOURCE_TYPES.CHURCH:
-      case RESOURCE_TYPES.MINISTRY:
-        return null
-      default:
-        return null
-    }
-  }
-
   // Actions
   const loadResources = async () => {
     loading.value = true
@@ -138,38 +120,10 @@ export const useResourcesStore = defineStore('resources', () => {
 
       if (supabaseError) throw supabaseError
 
-      resources.value.unshift(data) // Add to beginning of array
+      resources.value.unshift(data)
       return data
     } catch (err) {
       console.error('Error adding resource:', err)
-      error.value = err.message
-      throw err
-    } finally {
-      loading.value = false
-    }
-  }
-
-  const updateResource = async (id, metadata) => {
-    loading.value = true
-    error.value = null
-    try {
-      const { data, error: supabaseError } = await supabase
-        .from('resources')
-        .update({ metadata })
-        .eq('id', id)
-        .select()
-        .single()
-
-      if (supabaseError) throw supabaseError
-
-      const index = resources.value.findIndex((r) => r.id === id)
-      if (index !== -1) {
-        resources.value[index] = data
-      }
-
-      return data
-    } catch (err) {
-      console.error('Error updating resource:', err)
       error.value = err.message
       throw err
     } finally {
@@ -181,13 +135,53 @@ export const useResourcesStore = defineStore('resources', () => {
     loading.value = true
     error.value = null
     try {
-      const { error: supabaseError } = await supabase.from('resources').delete().eq('id', id)
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session) throw new Error('No active session')
+
+      const { error: supabaseError } = await supabase.from('resources').delete().match({ id })
 
       if (supabaseError) throw supabaseError
 
+      // Remove from local state
       resources.value = resources.value.filter((r) => r.id !== id)
     } catch (err) {
       console.error('Error deleting resource:', err)
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const updateResource = async (id, metadata) => {
+    loading.value = true
+    error.value = null
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session) throw new Error('No active session')
+
+      const { data, error: supabaseError } = await supabase
+        .from('resources')
+        .update({ metadata })
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (supabaseError) throw supabaseError
+
+      // Update in local state
+      const index = resources.value.findIndex((r) => r.id === id)
+      if (index !== -1) {
+        resources.value[index] = data
+      }
+
+      return data
+    } catch (err) {
+      console.error('Error updating resource:', err)
       error.value = err.message
       throw err
     } finally {
@@ -206,12 +200,11 @@ export const useResourcesStore = defineStore('resources', () => {
     getResourceById,
     getMetadataTemplate,
     getResourceDisplayName,
-    getResourceSubtitle,
 
     // Actions
     loadResources,
     addResource,
-    updateResource,
     deleteResource,
+    updateResource,
   }
 })
