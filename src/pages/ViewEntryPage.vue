@@ -23,7 +23,7 @@
           </div>
 
           <template v-if="decryptedContent">
-            <div v-for="(section, key) in decryptedContent" :key="key" class="q-mb-lg">
+            <div v-for="(section, key) in decryptedContent.sections" :key="key" class="q-mb-lg">
               <div class="text-subtitle1 text-weight-medium q-mb-sm">{{ section.title }}</div>
               <div class="text-body1" style="white-space: pre-wrap">{{ section.content }}</div>
             </div>
@@ -107,7 +107,6 @@ const fetchEntry = async () => {
     const encryptionKey = await getEncryptionKey(session.user.id)
     const decrypted = await decryptData(data.content, encryptionKey)
     decryptedContent.value = decrypted
-
     if (!decrypted) {
       $q.notify({
         type: 'negative',

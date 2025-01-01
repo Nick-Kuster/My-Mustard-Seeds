@@ -174,7 +174,7 @@ const confirmSelection = async () => {
   // First get the verse_number for the start verse
   const { data: startVerseData } = await supabase
     .from('bible_verses')
-    .select('verse_number')
+    .select('id, verse_number')
     .eq('book', selectedBook.value.book)
     .eq('chapter', selectedChapter.value)
     .eq('verse', selectedVerse.value)
@@ -183,7 +183,7 @@ const confirmSelection = async () => {
   // Then get the verse_number for the end verse
   const { data: endVerseData } = await supabase
     .from('bible_verses')
-    .select('verse_number')
+    .select('id, verse_number')
     .eq('book', selectedBook.value.book)
     .eq('chapter', endChapter.value)
     .eq('verse', endVerse.value)
@@ -206,7 +206,9 @@ const confirmSelection = async () => {
     }
 
     emit('select', {
+      startVerseId: startVerseData.id,
       startVerse: startVerseData.verse_number,
+      endVerseId: endVerseData.id,
       endVerse: endVerseData.verse_number,
       display: displayText
     })

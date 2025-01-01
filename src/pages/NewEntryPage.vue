@@ -157,7 +157,7 @@
                   style="height: 32px" class="q-px-xs" />
               </div>
               <div class="col-auto q-ml-sm">
-                <q-btn round flat color="grey" icon="delete" size="sm" @click="removeSection(index)"
+                <q-btn round flat color="negative" icon="delete" size="sm" @click="removeSection(index)"
                   v-if="contentSections.length > 1" />
               </div>
             </div>
@@ -184,12 +184,12 @@
             <div class="row q-col-gutter-x-sm">
               <div class="col-6">
                 <q-btn rounded unelevated color="negative" class="full-width" @click="router.push('/')"
-                  style="height: 40px">Cancel</q-btn>
+                  style="height: 40px"><q-icon name="cancel" class="q-mr-sm" /> Cancel</q-btn>
               </div>
               <div class="col-6">
                 <q-btn rounded unelevated color="primary" @click="saveEntry" class="full-width" :loading="saving"
                   style="height: 40px">
-                  <span v-if="!saving">Plant Seed</span>
+                  <span v-if="!saving"><q-icon name="fa fa-cross" class="q-mr-sm" /> Plant Seed</span>
                   <span v-else>Planting...</span>
                 </q-btn>
               </div>
@@ -383,17 +383,8 @@ const saveEntry = async () => {
     }
 
     const encryptionKey = await getEncryptionKey(session.user.id)
-
     const contentObject = {
-      ...contentSections.value.reduce((acc, section, index) => {
-        acc[`section${index + 1}`] = {
-          title: section.title,
-          content: section.content,
-          fieldType: section.fieldType,
-          headerProperty: section.headerProperty
-        }
-        return acc
-      }, {}),
+      sections: contentSections.value,
       book: selectedBook.value ? {
         id: selectedBook.value.id,
         title: selectedBook.value.metadata.title,
