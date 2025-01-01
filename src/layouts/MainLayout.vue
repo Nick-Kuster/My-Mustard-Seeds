@@ -6,6 +6,8 @@
         <q-toolbar-title>
           <router-link to="/" class="text-white text-decoration-none header-link">
             My Mustard Seeds
+
+            <q-icon size="xs" class="q-ml-sm fa-solid fa-cross" />
           </router-link>
         </q-toolbar-title>
 
