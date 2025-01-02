@@ -29,7 +29,9 @@ BEGIN
             'start_verse_id', jv.start_verse_id,
             'end_verse_id', jv.end_verse_id,
             'main_verse', jv.main_verse,
+            'start_verse_number', start_bv.verse_number,
             'start_verse', start_bv.verse,
+            'end_verse_number', end_bv.verse_number,
             'end_verse', end_bv.verse,
             'start_chapter', start_bv.chapter,
             'end_chapter', end_bv.chapter,
@@ -38,7 +40,7 @@ BEGIN
         FROM journal_verses jv
         JOIN bible_verses start_bv ON start_bv.id = jv.start_verse_id
         JOIN bible_verses end_bv ON end_bv.id = jv.end_verse_id
-        WHERE jv.journal_id = p_entry_id
+        WHERE jv.journal_id = '3193d54f-979b-4aab-934a-6dddb71c7f8a'
     ),
     -- Tags data
     tags_json AS (

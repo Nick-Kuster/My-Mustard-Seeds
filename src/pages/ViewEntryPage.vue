@@ -7,6 +7,7 @@
         </div>
 
         <template v-else>
+          <!-- Header Section -->
           <div class="row items-center q-mb-md">
             <div class="col">
               <div class="text-h5">{{ entry.title }}</div>
@@ -22,11 +23,60 @@
             </div>
           </div>
 
-          <template v-if="decryptedContent">
-            <div v-for="(section, key) in decryptedContent.sections" :key="key" class="q-mb-lg">
-              <div class="text-subtitle1 text-weight-medium q-mb-sm">{{ section.title }}</div>
-              <div class="text-body1" style="white-space: pre-wrap">{{ section.content }}</div>
+          <!-- Main Verse Section (for Bible entries) -->
+          <template v-if="entry.type === 'Bible' && verses.length > 0">
+            <div class="q-mb-md">
+              <div v-for="verse in verses" :key="verse.start_verse_id" class="q-mb-sm">
+                <VerseChip :verse="{
+                  display: formatVerseReference(verse),
+                  startVerse: verse.start_verse_number,
+                  endVerse: verse.end_verse_number
+                }" :color="verse.main_verse ? 'primary' : 'secondary'" :removable="false" />
+              </div>
             </div>
+          </template>
+
+          <!-- Resource Section -->
+          <template v-if="resources.length > 0">
+            <div class="q-mb-md">
+              <div class="text-subtitle1 text-weight-medium q-mb-sm">Resource</div>
+              <div v-for="resource in resources" :key="resource.id" class="q-mb-sm">
+                <q-chip :color="resource.primary_resource ? 'primary' : 'secondary'" text-color="white">
+                  {{ getResourceDisplay(resource) }}
+                </q-chip>
+              </div>
+            </div>
+          </template>
+
+          <!-- Tags Section -->
+          <template v-if="tags.length > 0">
+            <div class="q-mb-md">
+              <div class="text-subtitle1 text-weight-medium q-mb-sm">Tags</div>
+              <div class="row q-gutter-sm">
+                <q-chip v-for="tag in tags" :key="tag.id" color="info" text-color="white">
+                  {{ tag.name }}
+                </q-chip>
+              </div>
+            </div>
+          </template>
+
+          <!-- Content Sections -->
+          <template v-if="decryptedContent">
+            <!-- Header Sections -->
+            <template v-for="section in decryptedContent.sections.filter(s => s.headerProperty)" :key="section.title">
+              <div class="q-mb-md">
+                <div class="text-subtitle1 text-weight-medium q-mb-sm">{{ section.title }}</div>
+                <div class="text-body1">{{ section.content }}</div>
+              </div>
+            </template>
+
+            <!-- Regular Sections -->
+            <template v-for="section in decryptedContent.sections.filter(s => !s.headerProperty)" :key="section.title">
+              <div class="q-mb-lg">
+                <div class="text-subtitle1 text-weight-medium q-mb-sm">{{ section.title }}</div>
+                <div class="text-body1" style="white-space: pre-wrap">{{ section.content }}</div>
+              </div>
+            </template>
           </template>
 
           <div v-else class="text-center text-grey q-pa-lg">
@@ -54,9 +104,6 @@
       </div>
     </div>
   </q-page>
-  {{ verses }}
-  {{ tags }}
-  {{ resources }}
 </template>
 
 <script setup>
@@ -65,6 +112,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { supabase } from 'src/boot/supabase'
 import { getEncryptionKey, decryptData } from 'src/utils/encryption'
+import VerseChip from 'components/VerseChip.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -75,9 +123,9 @@ const decryptedContent = ref(null)
 const loading = ref(true)
 const showDeleteDialog = ref(false)
 const deleting = ref(false)
-const verses = ref({})
-const tags = ref({})
-const resources = ref({})
+const verses = ref([])
+const tags = ref([])
+const resources = ref([])
 
 const formatDate = (dateString) => {
   return new Date(dateString).toLocaleDateString(undefined, {
@@ -88,12 +136,41 @@ const formatDate = (dateString) => {
   })
 }
 
+const formatVerseReference = (verseData) => {
+  if (!verseData) return ''
+  const { book, start_chapter, start_verse, end_chapter, end_verse } = verseData
+  if (start_chapter === end_chapter && start_verse === end_verse) {
+    return `${book} ${start_chapter}:${start_verse}`
+  } else if (start_chapter === end_chapter) {
+    return `${book} ${start_chapter}:${start_verse}-${end_verse}`
+  } else {
+    return `${book} ${start_chapter}:${start_verse}-${end_chapter}:${end_verse}`
+  }
+}
+
+const getResourceDisplay = (resource) => {
+  if (!resource) return ''
+  switch (entry.value?.type) {
+    case 'Book':
+      return `${resource.metadata.title} by ${resource.metadata.author}`
+    case 'Sermon':
+      return `${resource.metadata.name} from ${resource.metadata.church}`
+    case 'Podcast':
+      return `${resource.metadata.title} with ${resource.metadata.host}`
+    case 'Song':
+      return resource.metadata.name
+    case 'Devotional':
+      return resource.metadata.name
+    default:
+      return ''
+  }
+}
+
 const fetchEntry = async () => {
   try {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error('No active session')
 
-    // Call the stored procedure
     const { data, error } = await supabase
       .rpc('get_journal_entry_details', {
         p_entry_id: route.params.id,
@@ -105,11 +182,10 @@ const fetchEntry = async () => {
 
     const [entryDetails] = data
     entry.value = entryDetails.entry_data
-    verses.value = entryDetails.verses_data
-    tags.value = entryDetails.tags_data
-    resources.value = entryDetails.resources_data
+    verses.value = entryDetails.verses_data || []
+    tags.value = entryDetails.tags_data || []
+    resources.value = entryDetails.resources_data || []
 
-    // Decrypt content
     const encryptionKey = await getEncryptionKey(session.user.id)
     const decrypted = await decryptData(entry.value.content, encryptionKey)
     decryptedContent.value = decrypted
@@ -131,7 +207,6 @@ const fetchEntry = async () => {
     loading.value = false
   }
 }
-
 
 const confirmDelete = () => {
   showDeleteDialog.value = true
