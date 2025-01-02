@@ -40,7 +40,7 @@ BEGIN
         FROM journal_verses jv
         JOIN bible_verses start_bv ON start_bv.id = jv.start_verse_id
         JOIN bible_verses end_bv ON end_bv.id = jv.end_verse_id
-        WHERE jv.journal_id = '3193d54f-979b-4aab-934a-6dddb71c7f8a'
+        WHERE jv.journal_id = p_entry_id
     ),
     -- Tags data
     tags_json AS (
