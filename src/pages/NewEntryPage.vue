@@ -16,8 +16,8 @@
               <VerseChip :verse="mainVerse" color="primary" @remove="clearMainVerse" />
             </div>
 
-            <q-btn unelevated color="primary" :label="mainVerse.display ? 'Change Verse' : 'Select Verse'"
-              @click="showVerseModal = true" />
+            <q-btn icon="fa fa-book-bible" unelevated color="primary"
+              :label="mainVerse.display ? 'Change Verse' : 'Select Verse'" @click="showVerseModal = true" />
 
             <VerseSelectionModal v-model="showVerseModal" @select="onVerseSelect" />
           </div>
@@ -262,15 +262,12 @@ const bibleSections = [
 ]
 
 const sermonSections = [
-  createSection('Author', '', 'shortText', true),
   createSection('Date', '', 'date', true),
   createSection('Observations', '', 'longText'),
   createSection('Application', '', 'longText')
 ]
 
 const songSections = [
-  createSection('Songwriter', '', 'shortText', true),
-  createSection('Date First Heard', '', 'date', true),
   createSection('Lyrics', '', 'longText')
 ]
 
@@ -385,29 +382,29 @@ const saveEntry = async () => {
     const encryptionKey = await getEncryptionKey(session.user.id)
     const contentObject = {
       sections: contentSections.value,
-      book: selectedBook.value ? {
-        id: selectedBook.value.id,
-        title: selectedBook.value.metadata.title,
-        author: selectedBook.value.metadata.author
-      } : null,
-      pastor: selectedPastor.value ? {
-        id: selectedPastor.value.id,
-        name: selectedPastor.value.metadata.name,
-        church: selectedPastor.value.metadata.church
-      } : null,
-      podcast: selectedPodcast.value ? {
-        id: selectedPodcast.value.id,
-        title: selectedPodcast.value.metadata.title,
-        host: selectedPodcast.value.metadata.host,
-      } : null,
-      songArtist: selectedArtist.value ? {
-        id: selectedArtist.value.id,
-        name: selectedArtist.value.metadata.name
-      } : null,
-      ministry: selectedMinistry.value ? {
-        id: selectedMinistry.value.id,
-        name: selectedMinistry.value.metadata.name
-      } : null
+      // book: selectedBook.value ? {
+      //   id: selectedBook.value.id,
+      //   title: selectedBook.value.metadata.title,
+      //   author: selectedBook.value.metadata.author
+      // } : null,
+      // pastor: selectedPastor.value ? {
+      //   id: selectedPastor.value.id,
+      //   name: selectedPastor.value.metadata.name,
+      //   church: selectedPastor.value.metadata.church
+      // } : null,
+      // podcast: selectedPodcast.value ? {
+      //   id: selectedPodcast.value.id,
+      //   title: selectedPodcast.value.metadata.title,
+      //   host: selectedPodcast.value.metadata.host,
+      // } : null,
+      // songArtist: selectedArtist.value ? {
+      //   id: selectedArtist.value.id,
+      //   name: selectedArtist.value.metadata.name
+      // } : null,
+      // ministry: selectedMinistry.value ? {
+      //   id: selectedMinistry.value.id,
+      //   name: selectedMinistry.value.metadata.name
+      // } : null
     }
 
     const encryptedContent = await encryptData(contentObject, encryptionKey)
@@ -453,11 +450,47 @@ const saveEntry = async () => {
       if (linkedVersesError) throw linkedVersesError
     }
 
+    let resourceId = null
+    switch (entryType.value) {
+      case 'Book':
+        resourceId = selectedBook.value.id;
+        break;
+      case 'Sermon':
+        resourceId = selectedPastor.value.id;
+        break;
+      case 'Podcast':
+        resourceId = selectedPodcast.value.id;
+        break;
+      case 'Song':
+        resourceId = selectedArtist.value.id;
+        break;
+      case 'Devotional':
+        resourceId = selectedMinistry.value.id;
+        break;
+      default:
+        break;
+    }
+
+    if (resourceId) {
+      const { error: journalResourceError } = await supabase
+        .from('journal_resources')
+        .insert({
+          journal_id: entry.id,
+          resource_id: resourceId,
+          primary_resource: true,
+          user_id: session.user_id
+        })
+
+      if (journalResourceError) throw journalResourceError
+    }
+
+
     // Handle tags
     if (selectedTags.value.length > 0) {
       const tagInserts = selectedTags.value.map(tag => ({
         journal_id: entry.id,
-        tag_id: tag.id
+        tag_id: tag.id,
+        user_id: session.user_id
       }))
 
       const { error: tagError } = await supabase

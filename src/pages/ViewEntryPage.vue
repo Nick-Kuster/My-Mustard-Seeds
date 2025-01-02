@@ -54,6 +54,9 @@
       </div>
     </div>
   </q-page>
+  {{ verses }}
+  {{ tags }}
+  {{ resources }}
 </template>
 
 <script setup>
@@ -72,6 +75,9 @@ const decryptedContent = ref(null)
 const loading = ref(true)
 const showDeleteDialog = ref(false)
 const deleting = ref(false)
+const verses = ref({})
+const tags = ref({})
+const resources = ref({})
 
 const formatDate = (dateString) => {
   return new Date(dateString).toLocaleDateString(undefined, {
@@ -85,28 +91,29 @@ const formatDate = (dateString) => {
 const fetchEntry = async () => {
   try {
     const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      throw new Error('No active session')
-    }
+    if (!session) throw new Error('No active session')
 
+    // Call the stored procedure
     const { data, error } = await supabase
-      .from('journal_entries')
-      .select('*')
-      .eq('id', route.params.id)
-      .single()
+      .rpc('get_journal_entry_details', {
+        p_entry_id: route.params.id,
+        p_user_id: session.user.id
+      })
 
     if (error) throw error
-    if (!data) throw new Error('Entry not found')
+    if (!data || !data.length) throw new Error('Entry not found')
 
-    if (data.user_id !== session.user.id) {
-      throw new Error('Unauthorized')
-    }
+    const [entryDetails] = data
+    entry.value = entryDetails.entry_data
+    verses.value = entryDetails.verses_data
+    tags.value = entryDetails.tags_data
+    resources.value = entryDetails.resources_data
 
-    entry.value = data
-
+    // Decrypt content
     const encryptionKey = await getEncryptionKey(session.user.id)
-    const decrypted = await decryptData(data.content, encryptionKey)
+    const decrypted = await decryptData(entry.value.content, encryptionKey)
     decryptedContent.value = decrypted
+
     if (!decrypted) {
       $q.notify({
         type: 'negative',
@@ -124,6 +131,7 @@ const fetchEntry = async () => {
     loading.value = false
   }
 }
+
 
 const confirmDelete = () => {
   showDeleteDialog.value = true
