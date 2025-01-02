@@ -12,8 +12,9 @@
 
 
     <!-- Add verse button -->
-    <q-btn unelevated color="secondary" :label="linkedVerses.length ? 'Add Another Verse' : 'Add Linked Verse'"
-      @click="showVerseModal = true" :icon="linkedVerses.length ? 'add' : 'link'" />
+    <q-btn unelevated color="secondary" v-if="!displayOnly"
+      :label="linkedVerses.length ? 'Add Another Verse' : 'Add Linked Verse'" @click="showVerseModal = true"
+      :icon="linkedVerses.length ? 'add' : 'link'" />
 
     <!-- Reuse the same verse selection modal -->
     <VerseSelectionModal v-model="showVerseModal" @select="onVerseSelect" />

@@ -8,26 +8,17 @@
 
         <template v-else>
           <!-- Header Section -->
-          <div class="row items-center q-mb-md">
-            <div class="col">
-              <div class="text-h5">{{ entry.title }}</div>
-              <div class="text-caption text-grey">
-                {{ formatDate(entry.created_at) }} • {{ entry.type }}
-              </div>
-            </div>
-            <div class="col-auto">
-              <div class="row q-gutter-sm">
-                <q-btn rounded unelevated color="primary" icon="edit" style="height: 40px"
-                  @click="router.push(`/entry/${entry.id}/edit`)" />
-                <q-btn rounded unelevated color="negative" icon="delete" style="height: 40px" @click="confirmDelete" />
-                <q-btn rounded unelevated color="grey" label="Back" @click="router.push('/')" style="height: 40px" />
-              </div>
+          <div class="q-mb-lg">
+            <div class="text-h5">{{ entry.title }}</div>
+            <div class="text-caption text-grey q-mt-sm">
+              {{ formatDate(entry.created_at) }} • {{ entry.type }}
             </div>
           </div>
 
           <!-- Main Verse Section (for Bible entries) -->
           <template v-if="entry.type === 'Bible' && mainVerse">
             <div class="q-mb-md">
+              <div class="text-subtitle1 text-weight-medium q-mb-sm">Main Verse</div>
               <VerseChip :verse="{
                 display: mainVerse.display,
                 startVerse: mainVerse.startVerse,
@@ -84,11 +75,33 @@
             </template>
           </template>
 
+
           <div v-else class="text-center text-grey q-pa-lg">
             Unable to decrypt entry content
           </div>
         </template>
 
+        <div class="q-mt-xl">
+          <q-btn rounded unelevated color="info" class="full-width" style="height: 40px"
+            @click="router.push(`/entry/${entry.id}/edit`)">
+            <q-icon name="edit" class="q-mr-sm" />
+            Edit
+          </q-btn>
+        </div>
+
+        <div class="q-mt-lg">
+          <div class="row q-col-gutter-x-sm">
+            <div class="col-6">
+              <q-btn rounded unelevated color="grey" class="full-width" @click="router.push('/')"
+                style="height: 40px"><q-icon name="arrow_back" class="q-mr-sm" /> Back</q-btn>
+            </div>
+            <div class="col-6">
+              <q-btn rounded unelevated color="negative" @click="confirmDelete" class="full-width" style="height: 40px">
+                <q-icon name="delete" class="q-mr-sm" />Delete
+              </q-btn>
+            </div>
+          </div>
+        </div>
         <!-- Delete Confirmation Dialog -->
         <q-dialog v-model="showDeleteDialog" persistent>
           <q-card style="min-width: 300px">
@@ -101,7 +114,7 @@
             </q-card-section>
 
             <q-card-actions align="right">
-              <q-btn flat label="Cancel" color="primary" v-close-popup />
+              <q-btn flat label="Back" color="primary" v-close-popup />
               <q-btn flat label="Delete" color="negative" :loading="deleting" @click="deleteEntry" />
             </q-card-actions>
           </q-card>

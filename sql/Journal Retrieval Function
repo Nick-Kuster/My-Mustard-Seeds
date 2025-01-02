@@ -57,6 +57,7 @@ BEGIN
         SELECT json_agg(json_build_object(
             'id', r.id,
             'type', r.type,
+            'primary_resource', jr.primary_resource,
             'metadata', r.metadata
         )) as resources_data
         FROM resources r

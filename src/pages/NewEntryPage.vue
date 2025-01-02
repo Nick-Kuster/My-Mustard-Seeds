@@ -381,30 +381,7 @@ const saveEntry = async () => {
 
     const encryptionKey = await getEncryptionKey(session.user.id)
     const contentObject = {
-      sections: contentSections.value,
-      // book: selectedBook.value ? {
-      //   id: selectedBook.value.id,
-      //   title: selectedBook.value.metadata.title,
-      //   author: selectedBook.value.metadata.author
-      // } : null,
-      // pastor: selectedPastor.value ? {
-      //   id: selectedPastor.value.id,
-      //   name: selectedPastor.value.metadata.name,
-      //   church: selectedPastor.value.metadata.church
-      // } : null,
-      // podcast: selectedPodcast.value ? {
-      //   id: selectedPodcast.value.id,
-      //   title: selectedPodcast.value.metadata.title,
-      //   host: selectedPodcast.value.metadata.host,
-      // } : null,
-      // songArtist: selectedArtist.value ? {
-      //   id: selectedArtist.value.id,
-      //   name: selectedArtist.value.metadata.name
-      // } : null,
-      // ministry: selectedMinistry.value ? {
-      //   id: selectedMinistry.value.id,
-      //   name: selectedMinistry.value.metadata.name
-      // } : null
+      sections: contentSections.value
     }
 
     const encryptedContent = await encryptData(contentObject, encryptionKey)
