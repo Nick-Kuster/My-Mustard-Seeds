@@ -6,7 +6,7 @@
     <div v-if="linkedVerses.length > 0" class="q-mb-md">
       <div class="row q-gutter-sm">
         <VerseChip v-for="(verse, index) in linkedVerses" :key="index" :verse="verse" color="secondary"
-          @remove="removeVerse(index)" />
+          @remove="removeVerse(index)" :removable="!displayOnly" />
       </div>
     </div>
 
@@ -29,6 +29,10 @@ const props = defineProps({
   modelValue: {
     type: Array,
     default: () => []
+  },
+  displayOnly: {
+    type: Boolean,
+    default: false
   }
 })
 

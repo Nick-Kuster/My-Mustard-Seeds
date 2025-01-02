@@ -11,10 +11,17 @@ const routes = [
       {
         path: 'entry/new',
         component: () => import('pages/NewEntryPage.vue'),
+        meta: { requiresAuth: true },
       },
       {
         path: 'entry/:id',
         component: () => import('pages/ViewEntryPage.vue'),
+        meta: { requiresAuth: true },
+      },
+      {
+        path: '/entry/:id/edit',
+        component: () => import('pages/EditEntryPage.vue'),
+        meta: { requiresAuth: true },
       },
       {
         path: 'search',

@@ -17,6 +17,8 @@
             </div>
             <div class="col-auto">
               <div class="row q-gutter-sm">
+                <q-btn rounded unelevated color="primary" icon="edit" style="height: 40px"
+                  @click="router.push(`/entry/${entry.id}/edit`)" />
                 <q-btn rounded unelevated color="negative" icon="delete" style="height: 40px" @click="confirmDelete" />
                 <q-btn rounded unelevated color="grey" label="Back" @click="router.push('/')" style="height: 40px" />
               </div>
@@ -24,15 +26,13 @@
           </div>
 
           <!-- Main Verse Section (for Bible entries) -->
-          <template v-if="entry.type === 'Bible' && verses.length > 0">
+          <template v-if="entry.type === 'Bible' && mainVerse">
             <div class="q-mb-md">
-              <div v-for="verse in verses" :key="verse.start_verse_id" class="q-mb-sm">
-                <VerseChip :verse="{
-                  display: formatVerseReference(verse),
-                  startVerse: verse.start_verse_number,
-                  endVerse: verse.end_verse_number
-                }" :color="verse.main_verse ? 'primary' : 'secondary'" :removable="false" />
-              </div>
+              <VerseChip :verse="{
+                display: mainVerse.display,
+                startVerse: mainVerse.startVerse,
+                endVerse: mainVerse.endVerse
+              }" color="primary" :removable="false" />
             </div>
           </template>
 
@@ -47,6 +47,11 @@
               </div>
             </div>
           </template>
+
+          <!-- Linked Verses for all types -->
+          <div class="q-mb-lg">
+            <LinkedVerses v-model="linkedVerses" :displayOnly="true" />
+          </div>
 
           <!-- Tags Section -->
           <template v-if="tags.length > 0">
@@ -113,11 +118,11 @@ import { useQuasar } from 'quasar'
 import { supabase } from 'src/boot/supabase'
 import { getEncryptionKey, decryptData } from 'src/utils/encryption'
 import VerseChip from 'components/VerseChip.vue'
+import LinkedVerses from 'components/LinkedVerses.vue'
 
 const router = useRouter()
 const route = useRoute()
 const $q = useQuasar()
-
 const entry = ref(null)
 const decryptedContent = ref(null)
 const loading = ref(true)
@@ -125,6 +130,8 @@ const showDeleteDialog = ref(false)
 const deleting = ref(false)
 const verses = ref([])
 const tags = ref([])
+const mainVerse = ref({})
+const linkedVerses = ref([])
 const resources = ref([])
 
 const formatDate = (dateString) => {
@@ -189,6 +196,30 @@ const fetchEntry = async () => {
     const encryptionKey = await getEncryptionKey(session.user.id)
     const decrypted = await decryptData(entry.value.content, encryptionKey)
     decryptedContent.value = decrypted
+
+    // Handle verses
+    if (verses.value && verses.value.length) {
+      const mainVerseData = verses.value.find(v => v.main_verse)
+      const linkedVersesData = verses.value.filter(v => !v.main_verse)
+
+      if (mainVerseData) {
+        mainVerse.value = {
+          startVerseId: mainVerseData.start_verse_id,
+          endVerseId: mainVerseData.end_verse_id,
+          startVerse: mainVerseData.start_verse_number,
+          endVerse: mainVerseData.end_verse_number,
+          display: formatVerseReference(mainVerseData)
+        }
+      }
+
+      linkedVerses.value = linkedVersesData.map(verse => ({
+        startVerseId: verse.start_verse_id,
+        endVerseId: verse.end_verse_id,
+        startVerse: mainVerseData.start_verse_number,
+        endVerse: mainVerseData.end_verse_number,
+        display: formatVerseReference(verse)
+      }))
+    }
 
     if (!decrypted) {
       $q.notify({
