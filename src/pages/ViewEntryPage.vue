@@ -9,14 +9,14 @@
         <template v-else>
           <!-- Header Section -->
           <div class="q-mb-lg">
-            <div class="text-h5">{{ entry.title }}</div>
+            <div class="text-h5">{{ entry?.title }}</div>
             <div class="text-caption text-grey q-mt-sm">
-              {{ formatDate(entry.created_at) }} • {{ entry.type }}
+              {{ formatDate(entry?.created_at) }} • {{ entry?.type }}
             </div>
           </div>
 
           <!-- Main Verse Section (for Bible entries) -->
-          <template v-if="entry.type === 'Bible' && mainVerse">
+          <template v-if="entry?.type === 'Bible' && mainVerse">
             <div class="q-mb-md">
               <div class="text-subtitle1 text-weight-medium q-mb-sm">Main Verse</div>
               <VerseChip :verse="{
@@ -75,7 +75,6 @@
             </template>
           </template>
 
-
           <div v-else class="text-center text-grey q-pa-lg">
             Unable to decrypt entry content
           </div>
@@ -83,7 +82,7 @@
 
         <div class="q-mt-xl">
           <q-btn rounded unelevated color="info" class="full-width" style="height: 40px"
-            @click="router.push(`/entry/${entry.id}/edit`)">
+            @click="router.push(`/entry/${entry?.id}/edit`)">
             <q-icon name="edit" class="q-mr-sm" />
             Edit
           </q-btn>
@@ -92,8 +91,8 @@
         <div class="q-mt-lg">
           <div class="row q-col-gutter-x-sm">
             <div class="col-6">
-              <q-btn rounded unelevated color="grey" class="full-width" @click="router.push('/')"
-                style="height: 40px"><q-icon name="arrow_back" class="q-mr-sm" /> Back</q-btn>
+              <q-btn rounded unelevated color="grey" class="full-width" @click="goBack" style="height: 40px"><q-icon
+                  name="arrow_back" class="q-mr-sm" /> Back</q-btn>
             </div>
             <div class="col-6">
               <q-btn rounded unelevated color="negative" @click="confirmDelete" class="full-width" style="height: 40px">
@@ -102,6 +101,7 @@
             </div>
           </div>
         </div>
+
         <!-- Delete Confirmation Dialog -->
         <q-dialog v-model="showDeleteDialog" persistent>
           <q-card style="min-width: 300px">
@@ -125,20 +125,21 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { supabase } from 'src/boot/supabase'
-import { getEncryptionKey, decryptData } from 'src/utils/encryption'
 import VerseChip from 'components/VerseChip.vue'
 import LinkedVerses from 'components/LinkedVerses.vue'
+import { useJournalStore } from 'stores/journalData'
 
 const router = useRouter()
 const route = useRoute()
 const $q = useQuasar()
+const journalStore = useJournalStore()
+
 const entry = ref(null)
 const decryptedContent = ref(null)
-const loading = ref(true)
 const showDeleteDialog = ref(false)
 const deleting = ref(false)
 const verses = ref([])
@@ -146,6 +147,7 @@ const tags = ref([])
 const mainVerse = ref({})
 const linkedVerses = ref([])
 const resources = ref([])
+const loading = computed(() => journalStore.loading)
 
 const formatDate = (dateString) => {
   return new Date(dateString).toLocaleDateString(undefined, {
@@ -154,6 +156,14 @@ const formatDate = (dateString) => {
     month: 'long',
     day: 'numeric'
   })
+}
+
+const goBack = () => {
+  if (route.query.from === 'home') {
+    router.push('/')
+  } else {
+    router.push('/search')
+  }
 }
 
 const formatVerseReference = (verseData) => {
@@ -188,27 +198,17 @@ const getResourceDisplay = (resource) => {
 
 const fetchEntry = async () => {
   try {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) throw new Error('No active session')
+    const entryData = await journalStore.getEntry(route.params.id)
+    console.log(entryData)
+    if (!entryData) {
+      throw new Error('Entry not found')
+    }
 
-    const { data, error } = await supabase
-      .rpc('get_journal_entry_details', {
-        p_entry_id: route.params.id,
-        p_user_id: session.user.id
-      })
-
-    if (error) throw error
-    if (!data || !data.length) throw new Error('Entry not found')
-
-    const [entryDetails] = data
-    entry.value = entryDetails.entry_data
-    verses.value = entryDetails.verses_data || []
-    tags.value = entryDetails.tags_data || []
-    resources.value = entryDetails.resources_data || []
-
-    const encryptionKey = await getEncryptionKey(session.user.id)
-    const decrypted = await decryptData(entry.value.content, encryptionKey)
-    decryptedContent.value = decrypted
+    entry.value = entryData
+    verses.value = entryData.verses || []
+    tags.value = entryData.tags || []
+    resources.value = entryData.resources || []
+    decryptedContent.value = entryData.decryptedContent
 
     // Handle verses
     if (verses.value && verses.value.length) {
@@ -228,13 +228,19 @@ const fetchEntry = async () => {
       linkedVerses.value = linkedVersesData.map(verse => ({
         startVerseId: verse.start_verse_id,
         endVerseId: verse.end_verse_id,
-        startVerse: mainVerseData.start_verse_number,
-        endVerse: mainVerseData.end_verse_number,
-        display: formatVerseReference(verse)
+        startVerse: verse.start_verse_number,
+        endVerse: verse.end_verse_number,
+        display: formatVerseReference({
+          book: verse.book,
+          start_chapter: verse.start_chapter,
+          start_verse: verse.start_verse,
+          end_chapter: verse.end_chapter,
+          end_verse: verse.end_verse
+        })
       }))
     }
 
-    if (!decrypted) {
+    if (!entryData.decryptedContent) {
       $q.notify({
         type: 'negative',
         message: 'Unable to decrypt entry content'
@@ -247,8 +253,6 @@ const fetchEntry = async () => {
       message: error.message || 'Error loading entry'
     })
     router.push('/')
-  } finally {
-    loading.value = false
   }
 }
 
@@ -266,12 +270,15 @@ const deleteEntry = async () => {
 
     if (error) throw error
 
+    // Remove from store
+    await journalStore.removeEntry(route.params.id)
+
     showDeleteDialog.value = false
     $q.notify({
       type: 'positive',
       message: 'Entry deleted successfully'
     })
-    router.push('/')
+    goBack()
   } catch (error) {
     console.error('Error deleting entry:', error)
     $q.notify({

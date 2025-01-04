@@ -213,10 +213,11 @@ import LinkedVerses from 'components/LinkedVerses.vue'
 import VerseChip from 'components/VerseChip.vue'
 import ResourceSelectionModal from 'components/ResourceSelectionModal.vue'
 import TagSelector from 'components/TagSelector.vue'
+import { useJournalStore } from 'stores/journalData'
 
 const router = useRouter()
 const $q = useQuasar()
-
+const journalStore = useJournalStore()
 
 // Modals
 const showVerseModal = ref(false)
@@ -481,6 +482,8 @@ const saveEntry = async () => {
       type: 'positive',
       message: 'Your seed has been planted!'
     })
+
+    await journalStore.addEntry(journalStore.getEntry(entry.id))
 
     router.push('/')
   } catch (error) {

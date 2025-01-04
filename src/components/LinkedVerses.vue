@@ -1,7 +1,6 @@
 <template>
   <div class="linked-verses">
     <div class="text-subtitle1 text-weight-medium q-mb-sm">Linked Verses</div>
-
     <!-- Display selected verses as chips -->
     <div v-if="linkedVerses.length > 0" class="q-mb-md">
       <div class="row q-gutter-sm">
@@ -9,20 +8,17 @@
           @remove="removeVerse(index)" :removable="!displayOnly" />
       </div>
     </div>
-
-
     <!-- Add verse button -->
     <q-btn unelevated color="secondary" v-if="!displayOnly"
       :label="linkedVerses.length ? 'Add Another Verse' : 'Add Linked Verse'" @click="showVerseModal = true"
       :icon="linkedVerses.length ? 'add' : 'link'" />
-
     <!-- Reuse the same verse selection modal -->
     <VerseSelectionModal v-model="showVerseModal" @select="onVerseSelect" />
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import VerseSelectionModal from './VerseSelectionModal.vue'
 import VerseChip from 'components/VerseChip.vue'
 
@@ -38,9 +34,13 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue'])
-
 const showVerseModal = ref(false)
-const linkedVerses = ref(props.modelValue || [])
+const linkedVerses = ref([])
+
+// Watch for changes in modelValue prop
+watch(() => props.modelValue, (newValue) => {
+  linkedVerses.value = [...newValue]
+}, { immediate: true, deep: true })
 
 const onVerseSelect = (verseData) => {
   linkedVerses.value.push(verseData)

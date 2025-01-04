@@ -63,7 +63,10 @@ const formatDate = (dateString) => {
 }
 
 const viewEntry = (id) => {
-  router.push(`/entry/${id}`)
+  router.push({
+    path: `/entry/${id}`,
+    query: { from: 'home' }
+  })
 }
 
 onMounted(() => {

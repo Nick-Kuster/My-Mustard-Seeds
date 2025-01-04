@@ -22,14 +22,13 @@
                 <div class="col-auto" style="width: 40px">
                   <q-icon name="yard" />
                 </div>
-                <div class="col text-left">Search My Seeds</div>
+                <div class="col text-left">Browse My Seeds</div>
               </div>
             </q-btn>
           </div>
         </div>
 
-        <!-- Recent entries section -->
-        <RecentEntries />
+        <SearchPage />
       </div>
     </div>
   </q-page>
@@ -37,7 +36,7 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
-import RecentEntries from 'components/RecentEntries.vue'
+import SearchPage from 'pages/SearchPage.vue'
 
 const router = useRouter()
 </script>
