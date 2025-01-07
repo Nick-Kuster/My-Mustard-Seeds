@@ -2,21 +2,82 @@
   <q-page class="q-pa-md">
     <div class="row q-col-gutter-md justify-center">
       <div class="col-12 col-sm-8 col-md-6">
-        <q-input v-model="searchTerm" outlined label="Search your seeds" class="q-mb-md">
-          <template v-slot:prepend>
-            <q-icon name="search" />
-          </template>
-          <template v-slot:append v-if="searchTerm">
-            <q-icon name="clear" class="cursor-pointer" @click="clearSearch" />
-          </template>
-        </q-input>
+        <!-- Option 1: Smaller Filter Button -->
+        <div class="row items-center q-mb-md">
+          <div class="col">
+            <q-input v-model="searchTerm" outlined label="Search your seeds">
+              <template v-slot:prepend>
+                <q-icon name="search" />
+              </template>
+              <template v-slot:append>
+                <template v-if="searchTerm">
+                  <q-icon name="clear" class="cursor-pointer" @click="clearSearch" />
+                </template>
+                <q-btn flat dense round color="primary" icon="filter_list" @click="showFilterModal = true">
+                  <q-badge v-if="activeFilterCount" color="primary" floating>
+                    {{ activeFilterCount }}
+                  </q-badge>
+                </q-btn>
+              </template>
+            </q-input>
+          </div>
+        </div>
+
+        <!-- Option 2: Filter Button Below Search (commented out) -->
+        <!-- <div class="q-mb-md">
+          <q-input v-model="searchTerm" outlined label="Search your seeds" class="q-mb-sm">
+            <template v-slot:prepend>
+              <q-icon name="search" />
+            </template>
+            <template v-slot:append v-if="searchTerm">
+              <q-icon name="clear" class="cursor-pointer" @click="clearSearch" />
+            </template>
+          </q-input>
+          <q-btn
+            outline
+            color="primary"
+            icon="filter_list"
+            label="Filter Seeds"
+            @click="showFilterModal = true"
+            class="full-width"
+            size="sm"
+          >
+            <q-badge
+              v-if="activeFilterCount"
+              color="primary"
+              floating
+              transparent
+            >
+              {{ activeFilterCount }}
+            </q-badge>
+          </q-btn>
+        </div> -->
+
+        <!-- Active Filters Display -->
+        <div v-if="hasActiveFilters" class="q-mb-md">
+          <div class="row q-col-gutter-sm items-center">
+            <template v-for="(filters, type) in journalStore.selectedFacets" :key="type">
+              <template v-for="filter in filters" :key="filter">
+                <div class="col-auto">
+                  <q-chip removable @remove="removeFilter(type, filter)" size="sm">
+                    {{ filter }}
+                  </q-chip>
+                </div>
+              </template>
+            </template>
+            <div class="col-auto">
+              <q-btn flat dense color="grey" label="Clear all filters" @click="clearAllFilters" size="sm" />
+            </div>
+          </div>
+        </div>
 
         <div v-if="loading" class="text-center q-pa-lg">
           <q-spinner color="primary" size="3em" />
         </div>
 
-        <div v-else-if="!journalStore.filteredEntries.length && searchTerm" class="text-center text-grey q-pa-lg">
-          No seeds found matching your search
+        <div v-else-if="!journalStore.filteredEntries.length && (searchTerm || hasActiveFilters)"
+          class="text-center text-grey q-pa-lg">
+          No seeds found matching your criteria
         </div>
 
         <template v-else-if="journalStore.filteredEntries.length">
@@ -51,6 +112,9 @@
         </template>
       </div>
     </div>
+
+    <!-- Filter Modal -->
+    <FilterModal v-model="showFilterModal" />
   </q-page>
 </template>
 
@@ -58,6 +122,7 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useJournalStore } from 'stores/journalData'
+import FilterModal from 'components/FilterModal.vue'
 
 const router = useRouter()
 const journalStore = useJournalStore()
@@ -65,12 +130,23 @@ const searchTerm = ref('')
 const searchTimeout = ref(null)
 const currentPage = ref(1)
 const itemsPerPage = ref(10)
+const showFilterModal = ref(false)
 
 const {
   loading,
   fetchEntries,
-  setSearchTerm
+  setSearchTerm,
 } = journalStore
+
+// Computed properties for filters
+const hasActiveFilters = computed(() => {
+  return Object.values(journalStore.selectedFacets).some(filters => filters.length > 0)
+})
+
+const activeFilterCount = computed(() => {
+  return Object.values(journalStore.selectedFacets)
+    .reduce((total, filters) => total + filters.length, 0)
+})
 
 // Computed properties for pagination
 const totalPages = computed(() => {
@@ -101,6 +177,16 @@ watch(itemsPerPage, () => {
 
 const clearSearch = () => {
   searchTerm.value = ''
+}
+
+const removeFilter = (type, value) => {
+  const currentFilters = [...journalStore.selectedFacets[type]]
+  const updatedFilters = currentFilters.filter(filter => filter !== value)
+  journalStore.updateFacet(type, updatedFilters)
+}
+
+const clearAllFilters = () => {
+  journalStore.clearFacets()
 }
 
 const formatDate = (dateString) => {

@@ -159,11 +159,7 @@ const formatDate = (dateString) => {
 }
 
 const goBack = () => {
-  if (route.query.from === 'home') {
-    router.push('/')
-  } else {
-    router.push('/search')
-  }
+  router.push('/')
 }
 
 const formatVerseReference = (verseData) => {

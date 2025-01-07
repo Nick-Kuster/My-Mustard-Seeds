@@ -28,7 +28,7 @@
           </div>
         </div>
 
-        <SearchPage />
+        <RecentEntries />
       </div>
     </div>
   </q-page>
@@ -36,7 +36,7 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
-import SearchPage from 'pages/SearchPage.vue'
+import RecentEntries from 'src/components/RecentEntries.vue';
 
 const router = useRouter()
 </script>
