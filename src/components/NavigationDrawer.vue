@@ -20,29 +20,36 @@
           <q-item-section>Plant a Seed</q-item-section>
         </q-item>
 
-        <q-item clickable v-ripple to="/search">
-          <q-item-section avatar>
-            <q-icon name="search" />
-          </q-item-section>
-          <q-item-section>Search Seeds</q-item-section>
-        </q-item>
-
         <q-separator spaced />
 
-        <q-item-label header>Categories</q-item-label>
+        <q-item-label header>Harvest Seeds By</q-item-label>
 
         <q-item clickable v-ripple to="/type/Bible">
           <q-item-section avatar>
             <q-icon name="menu_book" />
           </q-item-section>
-          <q-item-section>Bible Studies</q-item-section>
+          <q-item-section>Verses</q-item-section>
         </q-item>
 
         <q-item clickable v-ripple to="/type/Sermon">
           <q-item-section avatar>
             <q-icon name="church" />
           </q-item-section>
-          <q-item-section>Sermon Notes</q-item-section>
+          <q-item-section>Sermons</q-item-section>
+        </q-item>
+
+        <q-item clickable v-ripple to="/type/Book">
+          <q-item-section avatar>
+            <q-icon name="menu_book" />
+          </q-item-section>
+          <q-item-section>Book</q-item-section>
+        </q-item>
+
+        <q-item clickable v-ripple to="/type/Book">
+          <q-item-section avatar>
+            <q-icon name="church" />
+          </q-item-section>
+          <q-item-section>Ministry</q-item-section>
         </q-item>
 
         <q-item clickable v-ripple to="/type/Song">
@@ -50,6 +57,13 @@
             <q-icon name="music_note" />
           </q-item-section>
           <q-item-section>Song Reflections</q-item-section>
+        </q-item>
+
+        <q-item clickable v-ripple to="/type/Podcast">
+          <q-item-section avatar>
+            <q-icon name="music_note" />
+          </q-item-section>
+          <q-item-section>Podcasts</q-item-section>
         </q-item>
       </q-list>
     </q-scroll-area>
