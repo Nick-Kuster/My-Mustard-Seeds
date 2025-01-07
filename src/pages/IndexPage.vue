@@ -15,17 +15,6 @@
               </div>
             </q-btn>
           </div>
-          <div class="col-12">
-            <q-btn rounded unelevated color="secondary" class="full-width custom-button"
-              @click="router.push('/search')">
-              <div class="row full-width items-center">
-                <div class="col-auto" style="width: 40px">
-                  <q-icon name="yard" />
-                </div>
-                <div class="col text-left">Browse My Seeds</div>
-              </div>
-            </q-btn>
-          </div>
         </div>
 
         <RecentEntries />

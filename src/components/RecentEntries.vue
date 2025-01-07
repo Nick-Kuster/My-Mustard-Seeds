@@ -1,35 +1,32 @@
 <template>
   <div class="q-mt-lg">
-    <div class="row items-center q-mb-md">
-      <div class="col">
-        <h5 class="text-h6 q-my-none">My Seeds</h5>
-      </div>
-      <div class="col">
-        <q-input v-model="searchTerm" dense outlined placeholder="Search seeds..." class="float-right"
-          style="width: 200px">
-          <template v-slot:prepend>
-            <q-icon name="search" />
-          </template>
-          <template v-slot:append v-if="searchTerm">
-            <q-icon name="clear" class="cursor-pointer" @click="searchTerm = ''" />
-          </template>
-        </q-input>
-      </div>
-    </div>
+    <h5 class="text-h6 q-mb-md">My Seeds</h5>
+
+    <q-input v-model="searchTerm" outlined placeholder="Search seeds..." class="q-mb-md">
+      <template v-slot:prepend>
+        <q-icon name="search" />
+      </template>
+      <template v-slot:append v-if="searchTerm">
+        <q-icon name="clear" class="cursor-pointer" @click="searchTerm = ''" />
+      </template>
+    </q-input>
 
     <EntryList :entries="paginatedEntries" :loading="journalStore.loading" :show-preview="!!searchTerm"
       empty-message="No seeds planted yet. Start your journey by planting your first seed." />
 
     <!-- Pagination Controls -->
     <div v-if="filteredEntries.length > 0">
-      <div class="row justify-between items-center q-mt-md">
-        <div class="col-auto">
-          <q-select v-model="itemsPerPage" :options="[5, 10, 25, 50]" label="Items per page" dense outlined
-            style="width: 120px" />
-        </div>
-        <div class="col-auto">
+      <!-- Pagination Controls Container -->
+      <div class="q-mt-md">
+        <!-- Pagination centered -->
+        <div class="row justify-center q-mb-sm">
           <q-pagination v-model="currentPage" :max="totalPages" :max-pages="6" :boundary-numbers="true" direction-links
             unelevated color="primary" active-color="primary" />
+        </div>
+        <!-- Items per page selector - right aligned -->
+        <div class="row justify-end">
+          <q-select v-model="itemsPerPage" :options="[5, 10, 25, 50]" label="Items per page" dense outlined
+            style="width: 120px" />
         </div>
       </div>
     </div>
