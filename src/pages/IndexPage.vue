@@ -1,7 +1,7 @@
 <template>
   <q-page class="q-pa-md">
-    <div class="row q-col-gutter-md justify-center">
-      <div class="col-12 col-sm-6 col-md-4">
+    <div class="row justify-center q-col-gutter-md">
+      <div class="col-12 col-sm-8 col-md-6 col-lg-4">
         <!-- Main action buttons -->
         <div class="row q-col-gutter-y-md justify-center q-mb-lg">
           <div class="col-12">
@@ -16,16 +16,14 @@
             </q-btn>
           </div>
         </div>
-
         <RecentEntries />
       </div>
     </div>
   </q-page>
 </template>
-
 <script setup>
 import { useRouter } from 'vue-router'
-import RecentEntries from 'src/components/RecentEntries.vue';
+import RecentEntries from 'src/components/RecentEntries.vue'
 
 const router = useRouter()
 </script>
