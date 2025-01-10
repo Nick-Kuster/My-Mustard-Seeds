@@ -43,15 +43,18 @@
 
           <!-- Sermon Specific Select -->
           <div v-else-if="entryType === 'Sermon'" class="q-mb-lg">
-            <div class="text-subtitle1 text-weight-medium q-mb-sm">Pastor</div>
             <div v-if="selectedPastor" class="q-mb-sm">
               <div class="q-mb-md">
-                <div class="text-body1">{{ selectedPastor.metadata.name }}</div>
-                <div class="text-caption text-grey-8">{{ selectedPastor.metadata.church }}</div>
+
+                <div class="text-body1"><strong>Sermon:</strong> {{ selectedSermon.metadata.title }}</div>
+                <div class="text-body1"><strong>Series:</strong> {{ selectedSeries.metadata.title }}</div>
+                <div class="text-caption text-grey-8">By {{ selectedPastor.metadata.name }} From
+                  {{ selectedPastor.metadata.church }}</div>
+                <div class="text-caption text-grey-8">On {{ selectedSermon.metadata.date }}</div>
               </div>
             </div>
 
-            <q-btn unelevated color="primary" :label="selectedPastor ? 'Change Pastor' : 'Select Pastor'"
+            <q-btn unelevated color="primary" :label="selectedPastor ? 'Change Sermon' : 'Select Sermon'"
               @click="showPastorModal = true" />
 
             <ResourceSelectionModal v-model="showPastorModal" :resource-type="RESOURCE_TYPES.PASTOR"
@@ -226,12 +229,17 @@ const showPastorModal = ref(false)
 const showPodcastModal = ref(false)
 const showArtistModal = ref(false)
 const showMinistryModal = ref(false)
+
+// Selected Resources
 const selectedPastor = ref(null)
+const selectedSeries = ref(null)
+const selectedSermon = ref(null)
 const selectedPodcast = ref(null)
 const selectedArtist = ref(null)
 const selectedMinistry = ref(null)
-
 const selectedBook = ref(null)
+const selectedChapter = ref(null)
+
 const mainVerse = ref({})
 const title = ref('')
 const contentSections = ref([])
@@ -263,7 +271,6 @@ const bibleSections = [
 ]
 
 const sermonSections = [
-  createSection('Date', '', 'date', true),
   createSection('Observations', '', 'longText'),
   createSection('Application', '', 'longText')
 ]
@@ -336,41 +343,72 @@ const removeSection = (index) => {
   contentSections.value.splice(index, 1)
 }
 
-const onBookSelect = (book) => {
-  selectedBook.value = book
-  // Optional: Automatically set the title if it's not set
-  if (!title.value) {
-    title.value = ''
+const handleResourceSelection = (selections) => {
+  // selections is now an array of resources in order of selection
+  if (!Array.isArray(selections) || selections.length === 0) return
+
+  // Last item in array is always the final selection
+  const finalSelection = selections[selections.length - 1]
+
+  switch (entryType.value) {
+    case 'Sermon':
+      if (selections.length >= 3) {
+        selectedPastor.value = selections[0]
+        selectedSeries.value = selections[1]
+        selectedSermon.value = selections[2]
+        title.value = selectedSermon.value.metadata.title
+      } else if (selections.length === 2) {
+        selectedPastor.value = selections[0]
+        selectedSeries.value = selections[1]
+        selectedSermon.value = null
+        title.value = `${selectedPastor.value.metadata.name} - ${selectedSeries.value.metadata.title}`
+      } else {
+        selectedPastor.value = selections[0]
+        selectedSeries.value = null
+        selectedSermon.value = null
+        title.value = `Notes from ${selectedPastor.value.metadata.name}`
+      }
+      break
+
+    case 'Book':
+      if (selections.length === 2) {
+        selectedBook.value = selections[0]
+        selectedChapter.value = selections[1]
+        title.value = `${selectedBook.value.metadata.title} - ${selectedChapter.value.metadata.title}`
+      } else {
+        selectedBook.value = selections[0]
+        selectedChapter.value = null
+        title.value = selectedBook.value.metadata.title
+      }
+      break
+
+    case 'Podcast':
+      selectedPodcast.value = finalSelection
+      title.value = `Notes on ${selectedPodcast.value.metadata.title}`
+      break
+
+    case 'Song':
+      selectedArtist.value = finalSelection
+      title.value = `Notes on ${selectedArtist.value.metadata.name}`
+      break
+
+    case 'Devotional':
+      selectedMinistry.value = finalSelection
+      title.value = `Notes on ${selectedMinistry.value.metadata.name}`
+      break
   }
 }
 
-const onPastorSelect = (pastor) => {
-  selectedPastor.value = pastor
-  if (!title.value) {
-    title.value = `Notes on ${pastor.metadata.name}`
-  }
-}
 
-const onPodcastSelect = (podcast) => {
-  selectedPodcast.value = podcast
-  if (!title.value) {
-    title.value = `Notes on ${podcast.metadata.title}`
-  }
-}
+const onBookSelect = handleResourceSelection
 
-const onArtistSelect = (artist) => {
-  selectedArtist.value = artist
-  if (!title.value) {
-    title.value = `Notes on ${artist.metadata.name}`
-  }
-}
+const onPastorSelect = handleResourceSelection
 
-const onMinistrySelect = (ministry) => {
-  selectedMinistry.value = ministry
-  if (!title.value) {
-    title.value = `Notes on ${ministry.metadata.name}`
-  }
-}
+const onPodcastSelect = handleResourceSelection
+
+const onArtistSelect = handleResourceSelection
+
+const onMinistrySelect = handleResourceSelection
 
 const saveEntry = async () => {
   saving.value = true

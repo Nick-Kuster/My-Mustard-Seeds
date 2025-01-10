@@ -7,14 +7,17 @@ const configs = {
       title: {
         label: 'Title',
         required: true,
+        type: 'text',
       },
       author: {
         label: 'Author',
         required: true,
+        type: 'text',
       },
       year: {
         label: 'Publication Year',
         required: false,
+        type: 'text',
       },
     },
     allowedChildren: [RESOURCE_TYPES.CHAPTER],
@@ -28,10 +31,12 @@ const configs = {
       title: {
         label: 'Title',
         required: true,
+        type: 'text',
       },
       number: {
         label: 'Chapter Number',
         required: true,
+        type: 'text',
       },
     },
     getDisplayTitle: (resource) =>
@@ -45,14 +50,17 @@ const configs = {
       title: {
         label: 'Series Title',
         required: true,
+        type: 'text',
       },
       year: {
         label: 'Year',
         required: false,
+        type: 'text',
       },
       description: {
         label: 'Description',
         required: false,
+        type: 'text',
       },
     },
     allowedChildren: [RESOURCE_TYPES.SERMON],
@@ -67,14 +75,17 @@ const configs = {
       title: {
         label: 'Title',
         required: true,
+        type: 'text',
       },
       date: {
         label: 'Date Preached',
         required: false,
+        type: 'date',
       },
       description: {
         label: 'Description',
         required: false,
+        type: 'text',
       },
     },
     getDisplayTitle: (resource) => resource.metadata.title,
@@ -87,10 +98,12 @@ const configs = {
       name: {
         label: 'Name',
         required: true,
+        type: 'text',
       },
       church: {
         label: 'Church',
         required: false,
+        type: 'text',
       },
     },
     allowedChildren: [RESOURCE_TYPES.SERMON_SERIES, RESOURCE_TYPES.SERMON],
@@ -104,6 +117,7 @@ const configs = {
       name: {
         label: 'Name',
         required: true,
+        type: 'text',
       },
     },
     getDisplayTitle: (resource) => resource.metadata.name,
@@ -116,10 +130,12 @@ const configs = {
       name: {
         label: 'Name',
         required: true,
+        type: 'text',
       },
       location: {
         label: 'Location',
         required: false,
+        type: 'text',
       },
     },
     getDisplayTitle: (resource) => resource.metadata.name,
@@ -132,10 +148,12 @@ const configs = {
       name: {
         label: 'Name',
         required: true,
+        type: 'text',
       },
       website: {
         label: 'Website',
         required: false,
+        type: 'text',
       },
     },
     getDisplayTitle: (resource) => resource.metadata.name,
@@ -148,10 +166,12 @@ const configs = {
       title: {
         label: 'Title',
         required: true,
+        type: 'text',
       },
       host: {
         label: 'Host',
         required: false,
+        type: 'text',
       },
     },
     getDisplayTitle: (resource) => resource.metadata.title,
