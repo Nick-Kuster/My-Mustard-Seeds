@@ -521,7 +521,8 @@ const saveEntry = async () => {
       message: 'Your seed has been planted!'
     })
 
-    await journalStore.addEntry(journalStore.getEntry(entry.id))
+    const newEntry = await journalStore.getEntry(entry.id);
+    await journalStore.addEntry(newEntry)
 
     router.push('/')
   } catch (error) {
