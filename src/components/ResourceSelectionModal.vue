@@ -1,5 +1,5 @@
 <template>
-  <q-dialog v-model="modelValue" persistent @update:model-value="updateModelValue">
+  <q-dialog v-model="isOpen" persistent>
     <q-card style="min-width: 350px; max-width: 600px">
       <q-card-section class="row items-center">
         <div class="text-h6">Select {{ resourceConfig.title }}</div>
@@ -17,7 +17,7 @@
             </template>
           </q-input>
 
-          <!-- Resource list -->
+          <!-- Resource list with child resources -->
           <div v-if="loading" class="text-center q-pa-md">
             <q-spinner color="primary" size="2em" />
           </div>
@@ -25,25 +25,92 @@
             No {{ resourceConfig.title.toLowerCase() }} found
           </div>
           <q-list v-else separator>
-            <q-item v-for="resource in filteredResources" :key="resource.id" clickable
-              @click="selectResource(resource)">
-              <q-item-section>
-                <q-item-label>{{ getDisplayTitle(resource) }}</q-item-label>
-                <q-item-label caption v-if="getDisplaySubtitle(resource)">
-                  {{ getDisplaySubtitle(resource) }}
-                </q-item-label>
-              </q-item-section>
-              <q-item-section side>
-                <div class="row no-wrap items-center">
-                  <q-btn flat round dense color="primary" icon="edit" @click.stop="startEdit(resource)">
-                    <q-tooltip>Edit {{ resourceConfig.title.toLowerCase() }}</q-tooltip>
-                  </q-btn>
-                  <q-btn flat round dense color="negative" icon="delete" @click.stop="confirmDelete(resource)">
-                    <q-tooltip>Delete {{ resourceConfig.title.toLowerCase() }}</q-tooltip>
-                  </q-btn>
-                </div>
-              </q-item-section>
-            </q-item>
+            <!-- Parent Resources -->
+            <template v-for="resource in filteredResources" :key="resource.id">
+              <q-expansion-item :label="getDisplayTitle(resource)" :caption="getDisplaySubtitle(resource)"
+                v-if="canHaveChildren(resource)" :default-opened="expandedResources[resource.id]"
+                @after-show="() => loadChildResources(resource.id)" class="resource-item">
+                <template v-slot:header>
+                  <q-item-section avatar v-if="!hideSelection">
+                    <q-radio v-model="selectedResourceId" :val="resource.id" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>{{ getDisplayTitle(resource) }}</q-item-label>
+                    <q-item-label caption v-if="getDisplaySubtitle(resource)">
+                      {{ getDisplaySubtitle(resource) }}
+                    </q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <div class="row no-wrap items-center">
+                      <q-btn flat round dense color="primary" icon="add" v-if="canAddChild(resource)"
+                        @click.stop="startAddChild(resource)">
+                        <q-tooltip>Add child resource</q-tooltip>
+                      </q-btn>
+                      <q-btn flat round dense color="primary" icon="edit" @click.stop="startEdit(resource)">
+                        <q-tooltip>Edit {{ resourceConfig.title.toLowerCase() }}</q-tooltip>
+                      </q-btn>
+                      <q-btn flat round dense color="negative" icon="delete" @click.stop="confirmDelete(resource)">
+                        <q-tooltip>Delete {{ resourceConfig.title.toLowerCase() }}</q-tooltip>
+                      </q-btn>
+                    </div>
+                  </q-item-section>
+                </template>
+
+                <!-- Child Resources -->
+                <q-list separator class="q-pl-md">
+                  <template v-if="childResources[resource.id]">
+                    <q-item v-for="child in childResources[resource.id]" :key="child.id" clickable
+                      @click="selectResource(child)" class="child-resource">
+                      <q-item-section avatar v-if="!hideSelection">
+                        <q-radio v-model="selectedResourceId" :val="child.id" />
+                      </q-item-section>
+                      <q-item-section>
+                        <q-item-label>{{ getDisplayTitle(child) }}</q-item-label>
+                        <q-item-label caption v-if="getDisplaySubtitle(child)">
+                          {{ getDisplaySubtitle(child) }}
+                        </q-item-label>
+                      </q-item-section>
+                      <q-item-section side>
+                        <div class="row no-wrap items-center">
+                          <q-btn flat round dense color="primary" icon="edit" @click.stop="startEdit(child)">
+                            <q-tooltip>Edit {{ resourceConfig.title.toLowerCase() }}</q-tooltip>
+                          </q-btn>
+                          <q-btn flat round dense color="negative" icon="delete" @click.stop="confirmDelete(child)">
+                            <q-tooltip>Delete {{ resourceConfig.title.toLowerCase() }}</q-tooltip>
+                          </q-btn>
+                        </div>
+                      </q-item-section>
+                    </q-item>
+                  </template>
+                  <div v-else-if="loadingChildren[resource.id]" class="text-center q-pa-sm">
+                    <q-spinner color="primary" size="1em" />
+                  </div>
+                </q-list>
+              </q-expansion-item>
+
+              <!-- Regular resource item without children -->
+              <q-item v-else clickable @click="selectResource(resource)">
+                <q-item-section avatar v-if="!hideSelection">
+                  <q-radio v-model="selectedResourceId" :val="resource.id" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>{{ getDisplayTitle(resource) }}</q-item-label>
+                  <q-item-label caption v-if="getDisplaySubtitle(resource)">
+                    {{ getDisplaySubtitle(resource) }}
+                  </q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <div class="row no-wrap items-center">
+                    <q-btn flat round dense color="primary" icon="edit" @click.stop="startEdit(resource)">
+                      <q-tooltip>Edit {{ resourceConfig.title.toLowerCase() }}</q-tooltip>
+                    </q-btn>
+                    <q-btn flat round dense color="negative" icon="delete" @click.stop="confirmDelete(resource)">
+                      <q-tooltip>Delete {{ resourceConfig.title.toLowerCase() }}</q-tooltip>
+                    </q-btn>
+                  </div>
+                </q-item-section>
+              </q-item>
+            </template>
           </q-list>
 
           <!-- Add new button -->
@@ -54,9 +121,10 @@
 
         <!-- Add/Edit form -->
         <div v-else>
-          <q-form @submit="editingResource ? updateResource() : addResource()" class="q-gutter-md">
+          <q-form @submit="editingResource ? updateResource() : (addingChildTo ? addChildResource() : addResource())"
+            class="q-gutter-md">
             <div class="text-subtitle1 q-mb-sm">
-              {{ editingResource ? `Edit ${resourceConfig.title}` : `Add New ${resourceConfig.title}` }}
+              {{ formTitle }}
             </div>
 
             <q-input v-for="(field, key) in resourceConfig.fields" :key="key" v-model="formData[key]"
@@ -94,8 +162,10 @@
   </q-dialog>
 </template>
 
+
+
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useResourcesStore } from 'stores/resources'
 import { getResourceConfig } from 'src/configs/resourceConfigs'
@@ -105,14 +175,24 @@ const props = defineProps({
   resourceType: {
     type: String,
     required: true
+  },
+  hideSelection: {
+    type: Boolean,
+    default: false
+  },
+  parentResource: {
+    type: Object,
+    default: null
   }
 })
+
 
 const $q = useQuasar()
 const resourceConfig = computed(() => getResourceConfig(props.resourceType))
 const emit = defineEmits(['update:modelValue', 'select'])
 const resourcesStore = useResourcesStore()
 
+// State
 const loading = ref(false)
 const saving = ref(false)
 const deleting = ref(false)
@@ -122,11 +202,21 @@ const showDeleteDialog = ref(false)
 const resourceToDelete = ref(null)
 const editingResource = ref(null)
 const formData = ref({})
+const selectedResourceId = ref(null)
+const childResources = ref({})
+const loadingChildren = ref({})
+const expandedResources = ref({})
+const addingChildTo = ref(null)
 
-const modelValue = computed(() => props.modelValue)
-const updateModelValue = (value) => {
-  emit('update:modelValue', value)
-}
+// Computed
+const formTitle = computed(() => {
+  if (editingResource.value) return `Edit ${resourceConfig.value.title}`
+  if (addingChildTo.value) {
+    const childType = resourcesStore.canHaveChildOfType(addingChildTo.value.type)[0]
+    return `Add New ${getResourceConfig(childType).title}`
+  }
+  return `Add New ${resourceConfig.value.title}`
+})
 
 const filteredResources = computed(() => {
   const resources = resourcesStore.getResourcesByType(props.resourceType)
@@ -134,10 +224,15 @@ const filteredResources = computed(() => {
 
   const search = searchTerm.value.toLowerCase()
   return resources.filter(resource => {
-    const title = resourceConfig.value.getDisplayTitle(resource).toLowerCase()
-    const subtitle = resourceConfig.value.getDisplaySubtitle(resource)?.toLowerCase()
+    const title = getDisplayTitle(resource).toLowerCase()
+    const subtitle = getDisplaySubtitle(resource)?.toLowerCase()
     return title.includes(search) || (subtitle && subtitle.includes(search))
   })
+})
+// Methods
+const isOpen = computed({
+  get: () => props.modelValue,
+  set: (value) => emit('update:modelValue', value)
 })
 
 const getDisplayTitle = (resource) => {
@@ -146,6 +241,44 @@ const getDisplayTitle = (resource) => {
 
 const getDisplaySubtitle = (resource) => {
   return resourceConfig.value.getDisplaySubtitle(resource)
+}
+
+const canHaveChildren = (resource) => {
+  console.log('Resource type:', resource.type)
+  const allowedTypes = resourcesStore.canHaveChildOfType(resource.type)
+  console.log('Allowed types:', allowedTypes)
+  return Array.isArray(allowedTypes) && allowedTypes.length > 0
+}
+
+const canAddChild = (resource) => {
+  return resourcesStore.canHaveChildOfType(resource.type).length > 0
+}
+
+const loadChildResources = async (parentId) => {
+  console.log('Loading children for parent:', parentId)
+  if (childResources.value[parentId] || loadingChildren.value[parentId]) {
+    console.log('Already loaded or loading:', {
+      existing: childResources.value[parentId],
+      loading: loadingChildren.value[parentId]
+    })
+    return
+  }
+
+  loadingChildren.value[parentId] = true
+  try {
+    console.log('Fetching child resources...')
+    const children = await resourcesStore.getChildResources(parentId)
+    console.log('Received children:', children)
+    childResources.value[parentId] = children
+  } catch (error) {
+    console.error('Error loading child resources:', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Error loading child resources'
+    })
+  } finally {
+    loadingChildren.value[parentId] = false
+  }
 }
 
 const selectResource = (resource) => {
@@ -158,10 +291,74 @@ const startEdit = (resource) => {
   formData.value = { ...resource.metadata }
 }
 
+const startAddChild = (parentResource) => {
+  addingChildTo.value = parentResource
+  const childType = resourcesStore.canHaveChildOfType(parentResource.type)[0]
+  formData.value = resourcesStore.getMetadataTemplate(childType)
+  showAddForm.value = true
+}
+
 const cancelForm = () => {
   editingResource.value = null
+  addingChildTo.value = null
   showAddForm.value = false
-  formData.value = {}
+  formData.value = resourcesStore.getMetadataTemplate(props.resourceType)
+}
+
+const addResource = async () => {
+  saving.value = true
+  try {
+    const resource = await resourcesStore.addResource(props.resourceType, formData.value)
+    selectResource(resource)
+    showAddForm.value = false
+    formData.value = resourcesStore.getMetadataTemplate(props.resourceType)
+    $q.notify({
+      type: 'positive',
+      message: `${resourceConfig.value.title} added successfully`
+    })
+  } catch (error) {
+    console.error('Error adding resource:', error)
+    $q.notify({
+      type: 'negative',
+      message: `Error adding ${resourceConfig.value.title.toLowerCase()}`
+    })
+  } finally {
+    saving.value = false
+  }
+}
+
+const addChildResource = async () => {
+  if (!addingChildTo.value) return
+
+  saving.value = true
+  try {
+    const childType = resourcesStore.canHaveChildOfType(addingChildTo.value.type)[0]
+    const child = await resourcesStore.addChildResource(
+      addingChildTo.value.id,
+      childType,
+      formData.value
+    )
+
+    // Update local state
+    if (!childResources.value[addingChildTo.value.id]) {
+      childResources.value[addingChildTo.value.id] = []
+    }
+    childResources.value[addingChildTo.value.id].push(child)
+
+    cancelForm()
+    $q.notify({
+      type: 'positive',
+      message: 'Child resource added successfully'
+    })
+  } catch (error) {
+    console.error('Error adding child resource:', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Error adding child resource'
+    })
+  } finally {
+    saving.value = false
+  }
 }
 
 const updateResource = async () => {
@@ -169,14 +366,36 @@ const updateResource = async () => {
 
   saving.value = true
   try {
-    await resourcesStore.updateResource(editingResource.value.id, formData.value)
+    const updated = await resourcesStore.updateResource(editingResource.value.id, formData.value)
+
+    // Update in local state
+    const isChild = Object.values(childResources.value).some(children =>
+      children.some(child => child.id === updated.id)
+    )
+
+    if (isChild) {
+      // Update in child resources
+      Object.keys(childResources.value).forEach(parentId => {
+        const index = childResources.value[parentId].findIndex(r => r.id === updated.id)
+        if (index !== -1) {
+          childResources.value[parentId][index] = updated
+        }
+      })
+    } else {
+      // Update in main resources list
+      const index = filteredResources.value.findIndex(r => r.id === updated.id)
+      if (index !== -1) {
+        resourcesStore.resources[index] = updated
+      }
+    }
+
     cancelForm()
     $q.notify({
       type: 'positive',
       message: `${resourceConfig.value.title} updated successfully`
     })
   } catch (error) {
-    console.error(`Error updating ${props.resourceType}:`, error)
+    console.error('Error updating resource:', error)
     $q.notify({
       type: 'negative',
       message: `Error updating ${resourceConfig.value.title.toLowerCase()}`
@@ -196,15 +415,29 @@ const deleteResource = async () => {
 
   deleting.value = true
   try {
-    await resourcesStore.deleteResource(resourceToDelete.value.id)
+    await resourcesStore.deleteResourceAndChildren(resourceToDelete.value.id)
+
+    // Update local state
+    const parentId = Object.keys(childResources.value).find(pid =>
+      childResources.value[pid].some(child => child.id === resourceToDelete.value.id)
+    )
+
+    if (parentId) {
+      // Remove from child resources
+      childResources.value[parentId] = childResources.value[parentId].filter(
+        r => r.id !== resourceToDelete.value.id
+      )
+    }
+
     showDeleteDialog.value = false
     resourceToDelete.value = null
+
     $q.notify({
       type: 'positive',
       message: `${resourceConfig.value.title} deleted successfully`
     })
   } catch (error) {
-    console.error(`Error deleting ${props.resourceType}:`, error)
+    console.error('Error deleting resource:', error)
     $q.notify({
       type: 'negative',
       message: `Error deleting ${resourceConfig.value.title.toLowerCase()}`
@@ -214,27 +447,16 @@ const deleteResource = async () => {
   }
 }
 
-const addResource = async () => {
-  saving.value = true
-  try {
-    const resource = await resourcesStore.addResource(props.resourceType, formData.value)
-    selectResource(resource)
+watch(() => props.modelValue, (newVal) => {
+  if (!newVal) {
+    searchTerm.value = ''
     showAddForm.value = false
-    formData.value = resourcesStore.getMetadataTemplate(props.resourceType)
-    $q.notify({
-      type: 'positive',
-      message: `${resourceConfig.value.title} added successfully`
-    })
-  } catch (error) {
-    console.error(`Error adding ${props.resourceType}:`, error)
-    $q.notify({
-      type: 'negative',
-      message: `Error adding ${resourceConfig.value.title.toLowerCase()}`
-    })
-  } finally {
-    saving.value = false
+    editingResource.value = null
+    addingChildTo.value = null
+    formData.value = {}
+    selectedResourceId.value = null
   }
-}
+})
 
 onMounted(async () => {
   loading.value = true
@@ -251,3 +473,13 @@ onMounted(async () => {
   }
 })
 </script>
+
+<style scoped>
+.child-resource {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.resource-item {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+</style>
