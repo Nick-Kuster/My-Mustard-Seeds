@@ -1,16 +1,23 @@
 import { RESOURCE_TYPES } from '../constants/resourceTypes'
 
 const configs = {
+  [RESOURCE_TYPES.AUTHOR]: {
+    title: 'Author',
+    fields: {
+      name: {
+        label: 'Name',
+        required: true,
+        type: 'text',
+      },
+    },
+    allowedChildren: [RESOURCE_TYPES.BOOK, RESOURCE_TYPES.ARTICLE],
+    getDisplayTitle: (resource) => resource.metadata.name,
+  },
   [RESOURCE_TYPES.BOOK]: {
     title: 'Book',
     fields: {
       title: {
         label: 'Title',
-        required: true,
-        type: 'text',
-      },
-      author: {
-        label: 'Author',
         required: true,
         type: 'text',
       },
@@ -177,6 +184,94 @@ const configs = {
     getDisplayTitle: (resource) => resource.metadata.title,
     getDisplaySubtitle: (resource) =>
       resource.metadata.host ? `Hosted by ${resource.metadata.host}` : null,
+  },
+
+  [RESOURCE_TYPES.ANSWERED_PRAYER]: {
+    title: 'Answered Prayer',
+    fields: {
+      title: {
+        label: 'Title',
+        required: false,
+        type: 'text',
+      },
+      date: {
+        label: 'Date',
+        required: false,
+        type: 'date',
+      },
+    },
+  },
+
+  [RESOURCE_TYPES.GROUP]: {
+    title: 'Group',
+    fields: {
+      name: {
+        label: 'Name',
+        required: true,
+        type: 'text',
+      },
+      leader: {
+        label: 'Leader',
+        required: true,
+        type: 'text',
+      },
+      church: {
+        label: 'Church',
+        required: false,
+        type: 'text',
+      },
+    },
+    getDisplayTitle: (resource) => resource.metadata.name,
+    getDisplaySubtitle: (resource) =>
+      `Lead by ${resource.metadata.leader} At ${resource.metadata.church}`,
+  },
+
+  [RESOURCE_TYPES.SHOW]: {
+    title: 'Show',
+    fields: {
+      name: {
+        label: 'Name',
+        required: true,
+        type: 'text',
+      },
+    },
+    allowedChildren: [RESOURCE_TYPES.SEASON],
+    getDisplayTitle: (resource) => resource.metadata.name,
+  },
+
+  [RESOURCE_TYPES.SEASON]: {
+    title: 'Season',
+    fields: {
+      seasonNumber: {
+        label: 'Name',
+        required: true,
+        type: 'text',
+      },
+    },
+    allowedChildren: [RESOURCE_TYPES.EPISODE],
+    getDisplayTitle: (resource) => `Season ${resource.metadata.seasonNumber}`,
+  },
+
+  [RESOURCE_TYPES.EPISODE]: {
+    title: 'Episode',
+    fields: {
+      name: {
+        label: 'Name',
+        required: true,
+        type: 'text',
+      },
+      episiodeNumber: {
+        label: 'Episode Number',
+        required: true,
+        type: 'text',
+      },
+    },
+    getDisplayTitle: (resource) => resource.metadata.name,
+    getDisplaySubtitle: (resource) => `Episode ${resource.metadata.episiodeNumber}`,
+  },
+
+  [RESOURCE_TYPES.Article]: {
+    title: 'Article',
   },
 }
 

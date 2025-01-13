@@ -1,4 +1,5 @@
 export const RESOURCE_TYPES = {
+  AUTHOR: 'Author',
   BOOK: 'Book',
   PODCAST: 'Podcast',
   PASTOR: 'Pastor',
@@ -8,4 +9,11 @@ export const RESOURCE_TYPES = {
   SERMON_SERIES: 'SermonSeries',
   SERMON: 'Sermon',
   CHAPTER: 'Chapter',
+  SHOW: 'Show',
+  SEASON: 'Season',
+  EPISODE: 'Episode',
+  ARTICLE: 'Article',
+  PUBLICATION: 'Publication',
+  GROUP: 'Group',
+  ANSWERED_PRAYER: 'AnsweredPrayer',
 }

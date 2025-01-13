@@ -28,7 +28,7 @@
 
             <div v-if="selectedBook" class="q-mb-sm">
               <div class="q-mb-md">
-                <div class="text-body1">{{ selectedBook.metadata.title }}</div>
+                <div class="text-body1">{{ selectedBook }}</div>
                 <div class="text-caption text-grey-8">by {{ selectedBook.metadata.author }}</div>
               </div>
             </div>
@@ -36,9 +36,26 @@
             <q-btn unelevated color="primary" :label="selectedBook ? 'Change Book' : 'Select Book'"
               @click="showBookModal = true" />
 
-            <ResourceSelectionModal v-model="showBookModal" :resource-type="RESOURCE_TYPES.BOOK"
+            <ResourceSelectionModal v-model="showBookModal" :resource-type="RESOURCE_TYPES.AUTHOR"
               @select="onBookSelect" />
-            <q-input v-model="title" label="Chapter" class="q-mb-md" />
+          </div>
+
+          <!-- Article Specific Select -->
+          <div v-else-if="entryType === 'Article'" class="q-mb-lg">
+            <div class="text-subtitle1 text-weight-medium q-mb-sm">Article</div>
+
+            <div v-if="selectedArticle" class="q-mb-sm">
+              <div class="q-mb-md">
+                <div class="text-body1">{{ selectedArticle.metadata.title }}</div>
+                <div class="text-caption text-grey-8">by {{ selectedArticle.metadata.author }}</div>
+              </div>
+            </div>
+
+            <q-btn unelevated color="primary" :label="selectedArticle ? 'Change Article' : 'Select Article'"
+              @click="showArticleModal = true" />
+
+            <ResourceSelectionModal v-model="showArticleModal" :resource-type="RESOURCE_TYPES.AUTHOR"
+              @select="onArticleSelect" />
           </div>
 
           <!-- Sermon Specific Select -->
@@ -225,6 +242,7 @@ const journalStore = useJournalStore()
 // Modals
 const showVerseModal = ref(false)
 const showBookModal = ref(false)
+const showArticleModal = ref(false)
 const showPastorModal = ref(false)
 const showPodcastModal = ref(false)
 const showArtistModal = ref(false)
@@ -238,6 +256,7 @@ const selectedPodcast = ref(null)
 const selectedArtist = ref(null)
 const selectedMinistry = ref(null)
 const selectedBook = ref(null)
+const selectedArticle = ref(null)
 const selectedChapter = ref(null)
 
 const mainVerse = ref({})
@@ -247,7 +266,7 @@ const saving = ref(false)
 const linkedVerses = ref([])
 const selectedTags = ref([])
 
-const entryTypes = ['Bible', 'Sermon', 'Devotional', 'Book', 'Song', 'Podcast', 'Other']
+const entryTypes = ['Bible', 'Sermon', 'Devotional', 'Book', 'Article', 'Song', 'Podcast', 'Other']
 const entryType = ref('Bible')
 
 const getTodayDate = () => {

@@ -12,11 +12,8 @@ export const useResourcesStore = defineStore('resources', () => {
 
   // Helper functions
   const canHaveChildOfType = (parentType) => {
-    console.log('Checking allowed types for:', parentType)
     const config = getResourceConfig(parentType)
-    console.log('Config:', config)
     const allowedTypes = config.allowedChildren || []
-    console.log('Allowed types:', allowedTypes)
     return allowedTypes
   }
   // Getters
@@ -34,23 +31,6 @@ export const useResourcesStore = defineStore('resources', () => {
 
   const getResourceById = (id) => {
     return resources.value.find((resource) => resource.id === id)
-  }
-
-  // Get display name for a resource based on its type
-  const getResourceDisplayName = (resource) => {
-    switch (resource.type) {
-      case RESOURCE_TYPES.BOOK:
-        return resource.metadata.title
-      case RESOURCE_TYPES.PODCAST:
-        return resource.metadata.title
-      case RESOURCE_TYPES.PASTOR:
-      case RESOURCE_TYPES.SONG_ARTIST:
-      case RESOURCE_TYPES.CHURCH:
-      case RESOURCE_TYPES.MINISTRY:
-        return resource.metadata.name
-      default:
-        return 'Unnamed Resource'
-    }
   }
 
   const getChildResources = async (parentId) => {
@@ -259,7 +239,6 @@ export const useResourcesStore = defineStore('resources', () => {
     getResourcesByType,
     getResourceById,
     getMetadataTemplate,
-    getResourceDisplayName,
     getChildResources,
     canHaveChildOfType,
 
