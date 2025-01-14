@@ -10,32 +10,31 @@
 
           <!-- Main Verse Selector for Bible type -->
           <div v-if="entryType === 'Bible'" class="q-mb-lg">
-            <div class="text-subtitle1 text-weight-medium q-mb-sm">Main Verse</div>
-
-            <div v-if="mainVerse.display" class="q-mb-sm">
-              <VerseChip :verse="mainVerse" color="primary" @remove="clearMainVerse" />
+            <div class="row items-center no-wrap q-mb-sm section-header" role="button" @click="showVerseModal = true">
+              <div class="text-subtitle1 text-weight-medium">Main Verse</div>
+              <q-btn flat round dense color="primary" icon="fa fa-book-bible" class="q-ml-xs" />
             </div>
 
-            <q-btn icon="fa fa-book-bible" unelevated color="primary"
-              :label="mainVerse.display ? 'Change Verse' : 'Select Verse'" @click="showVerseModal = true" />
+            <div v-if="mainVerse.display" class="row q-gutter-sm">
+              <VerseChip :verse="mainVerse" color="primary" @remove="clearMainVerse" />
+            </div>
 
             <VerseSelectionModal v-model="showVerseModal" @select="onVerseSelect" />
           </div>
 
           <!-- Book Specific Select -->
           <div v-else-if="entryType === 'Book'" class="q-mb-lg">
-
-            <div v-if="selectedBook" class="q-mb-sm">
-              <div class="q-mb-md">
-                <div class="text-body1">Chapter: {{
-                  selectedChapter.metadata.number }} {{ selectedChapter.metadata.title }}</div>
-                <div class="text-caption text-grey-8">From {{ selectedBook.metadata.title }} </div>
-                <div class="text-caption text-grey-8">by {{ selectedAuthor.metadata.name }}</div>
-              </div>
+            <div class="row items-center no-wrap q-mb-sm section-header" role="button" @click="showBookModal = true">
+              <div class="text-subtitle1 text-weight-medium">Book</div>
+              <q-btn flat round dense color="primary" icon="menu_book" class="q-ml-xs" />
             </div>
 
-            <q-btn unelevated color="primary" :label="selectedBook ? 'Change Book' : 'Select Book'"
-              @click="showBookModal = true" />
+            <div v-if="selectedBook" class="q-mb-md">
+              <div class="text-body1">Chapter: {{ selectedChapter.metadata.number }} {{ selectedChapter.metadata.title
+                }}</div>
+              <div class="text-caption text-grey-8">From {{ selectedBook.metadata.title }} </div>
+              <div class="text-caption text-grey-8">by {{ selectedAuthor.metadata.name }}</div>
+            </div>
 
             <ResourceSelectionModal v-model="showBookModal" :resource-type="RESOURCE_TYPES.AUTHOR"
               @select="onBookSelect" />
@@ -43,39 +42,38 @@
 
           <!-- Group Specific Select -->
           <div v-else-if="entryType === 'Group'" class="q-mb-lg">
-
-            <div v-if="selectedGroup" class="q-mb-sm">
-              <div class="q-mb-md">
-                <div class="text-body1">{{ selectedGroup.metadata.name }}</div>
-                <div class="text-caption text-grey-8"><span v-if="selectedGroup.metadata.leader">Led by {{
-                  selectedGroup.metadata.leader }} </span><span v-if="selectedGroup.metadata.church"> at {{
-                      selectedGroup.metadata.church }}</span></div>
-              </div>
+            <div class="row items-center no-wrap q-mb-sm section-header" role="button" @click="showGroupModal = true">
+              <div class="text-subtitle1 text-weight-medium">Group</div>
+              <q-btn flat round dense color="primary" icon="group" class="q-ml-xs" />
             </div>
 
-            <q-btn unelevated color="primary" :label="selectedGroup ? 'Change Group' : 'Select Group'"
-              @click="showGroupModal = true" />
+            <div v-if="selectedGroup" class="q-mb-md">
+              <div class="text-body1">{{ selectedGroup.metadata.name }}</div>
+              <div class="text-caption text-grey-8">
+                <span v-if="selectedGroup.metadata.leader">Led by {{ selectedGroup.metadata.leader }}</span>
+                <span v-if="selectedGroup.metadata.church"> at {{ selectedGroup.metadata.church }}</span>
+              </div>
+            </div>
 
             <ResourceSelectionModal v-model="showGroupModal" :resource-type="RESOURCE_TYPES.GROUP"
               @select="onGroupSelect" />
           </div>
 
-
           <!-- Show Specific Select -->
           <div v-else-if="entryType === 'Show'" class="q-mb-lg">
-
-            <div v-if="selectedShow" class="q-mb-sm">
-              <div class="q-mb-md">
-                <div class="text-body1">{{ selectedShow.metadata.name }}</div>
-                <div class="text-caption text-grey-8"><span v-if="selectedSeason.metadata.seasonNumber">S{{
-                  selectedSeason.metadata.seasonNumber }} </span><span v-if="selectedEpisode.metadata.episodeNumber">
-                    E{{
-                      selectedEpisode.metadata.episodeNumber }} {{ selectedEpisode.metadata.name }}</span></div>
-              </div>
+            <div class="row items-center no-wrap q-mb-sm section-header" role="button" @click="showShowModal = true">
+              <div class="text-subtitle1 text-weight-medium">Show</div>
+              <q-btn flat round dense color="primary" icon="tv" class="q-ml-xs" />
             </div>
 
-            <q-btn unelevated color="primary" :label="selectedShow ? 'Change Episode' : 'Select Episode'"
-              @click="showShowModal = true" />
+            <div v-if="selectedShow" class="q-mb-md">
+              <div class="text-body1">{{ selectedShow.metadata.name }}</div>
+              <div class="text-caption text-grey-8">
+                <span v-if="selectedSeason.metadata.seasonNumber">S{{ selectedSeason.metadata.seasonNumber }}</span>
+                <span v-if="selectedEpisode.metadata.episodeNumber"> E{{ selectedEpisode.metadata.episodeNumber }}
+                  {{ selectedEpisode.metadata.name }}</span>
+              </div>
+            </div>
 
             <ResourceSelectionModal v-model="showShowModal" :resource-type="RESOURCE_TYPES.SHOW"
               @select="onShowSelect" />
@@ -83,18 +81,18 @@
 
           <!-- Sermon Specific Select -->
           <div v-else-if="entryType === 'Sermon'" class="q-mb-lg">
-            <div v-if="selectedPastor" class="q-mb-sm">
-              <div class="q-mb-md">
-                <div class="text-body1"><strong>Sermon:</strong> {{ selectedSermon.metadata.title }}</div>
-                <div class="text-body1"><strong>Series:</strong> {{ selectedSeries.metadata.title }}</div>
-                <div class="text-caption text-grey-8">By {{ selectedPastor.metadata.name }} From
-                  {{ selectedPastor.metadata.church }}</div>
-                <div class="text-caption text-grey-8">On {{ selectedSermon.metadata.date }}</div>
-              </div>
+            <div class="row items-center no-wrap q-mb-sm section-header" role="button" @click="showPastorModal = true">
+              <div class="text-subtitle1 text-weight-medium">Sermon</div>
+              <q-btn flat round dense color="primary" icon="church" class="q-ml-xs" />
             </div>
 
-            <q-btn unelevated color="primary" :label="selectedPastor ? 'Change Sermon' : 'Select Sermon'"
-              @click="showPastorModal = true" />
+            <div v-if="selectedPastor" class="q-mb-md">
+              <div class="text-body1"><strong>Sermon:</strong> {{ selectedSermon.metadata.title }}</div>
+              <div class="text-body1"><strong>Series:</strong> {{ selectedSeries.metadata.title }}</div>
+              <div class="text-caption text-grey-8">By {{ selectedPastor.metadata.name }} From {{
+                selectedPastor.metadata.church }}</div>
+              <div class="text-caption text-grey-8">On {{ selectedSermon.metadata.date }}</div>
+            </div>
 
             <ResourceSelectionModal v-model="showPastorModal" :resource-type="RESOURCE_TYPES.PASTOR"
               @select="onPastorSelect" />
@@ -102,14 +100,15 @@
 
           <!-- Devotional Specific Select -->
           <div v-else-if="entryType === 'Devotional'" class="q-mb-lg">
-            <div class="text-subtitle1 text-weight-medium q-mb-sm">Ministry</div>
-            <div v-if="selectedMinistry" class="q-mb-sm">
-              <div class="q-mb-md">
-                <div class="text-body1">{{ selectedMinistry.metadata.name }}</div>
-              </div>
+            <div class="row items-center no-wrap q-mb-sm section-header" role="button"
+              @click="showMinistryModal = true">
+              <div class="text-subtitle1 text-weight-medium">Ministry</div>
+              <q-btn flat round dense color="primary" icon="menu_book" class="q-ml-xs" />
             </div>
-            <q-btn unelevated color="primary" :label="selectedMinistry ? 'Change Ministry' : 'Select Ministry'"
-              @click="showMinistryModal = true" />
+
+            <div v-if="selectedMinistry" class="q-mb-md">
+              <div class="text-body1">{{ selectedMinistry.metadata.name }}</div>
+            </div>
 
             <ResourceSelectionModal v-model="showMinistryModal" :resource-type="RESOURCE_TYPES.MINISTRY"
               @select="onMinistrySelect" />
@@ -117,15 +116,14 @@
 
           <!-- Song Specific Select -->
           <div v-else-if="entryType === 'Song'" class="q-mb-lg">
-            <div class="text-subtitle1 text-weight-medium q-mb-sm">Artist</div>
-            <div v-if="selectedArtist" class="q-mb-sm">
-              <div class="q-mb-md">
-                <div class="text-body1">{{ selectedArtist.metadata.name }}</div>
-              </div>
+            <div class="row items-center no-wrap q-mb-sm section-header" role="button" @click="showArtistModal = true">
+              <div class="text-subtitle1 text-weight-medium">Artist</div>
+              <q-btn flat round dense color="primary" icon="music_note" class="q-ml-xs" />
             </div>
 
-            <q-btn unelevated color="primary" :label="selectedArtist ? 'Change Artist' : 'Select Artist'"
-              @click="showArtistModal = true" />
+            <div v-if="selectedArtist" class="q-mb-md">
+              <div class="text-body1">{{ selectedArtist.metadata.name }}</div>
+            </div>
 
             <ResourceSelectionModal v-model="showArtistModal" :resource-type="RESOURCE_TYPES.SONG_ARTIST"
               @select="onArtistSelect" />
@@ -133,22 +131,19 @@
 
           <!-- Podcast Specific Select -->
           <div v-else-if="entryType === 'Podcast'" class="q-mb-lg">
-            <div class="text-subtitle1 text-weight-medium q-mb-sm">Name and Host</div>
-            <div v-if="selectedPodcast" class="q-mb-sm">
-              <div class="q-mb-md">
-                <div class="text-body1">{{ selectedPodcast.metadata.title }}</div>
-                <div class="text-caption text-grey-8">by {{ selectedPodcast.metadata.host }}</div>
-              </div>
+            <div class="row items-center no-wrap q-mb-sm section-header" role="button" @click="showPodcastModal = true">
+              <div class="text-subtitle1 text-weight-medium">Podcast</div>
+              <q-btn flat round dense color="primary" icon="podcasts" class="q-ml-xs" />
             </div>
 
-            <q-btn unelevated color="primary" :label="selectedPodcast ? 'Change Podcast' : 'Select Podcast'"
-              @click="showPodcastModal = true" />
+            <div v-if="selectedPodcast" class="q-mb-md">
+              <div class="text-body1">{{ selectedPodcast.metadata.title }}</div>
+              <div class="text-caption text-grey-8">by {{ selectedPodcast.metadata.host }}</div>
+            </div>
 
             <ResourceSelectionModal v-model="showPodcastModal" :resource-type="RESOURCE_TYPES.PODCAST"
               @select="onPodcastSelect" />
           </div>
-
-          <q-input v-else v-model="title" label="Title" class="q-mb-md" />
 
           <!-- Header Sections -->
           <div v-for="(section, index) in headerSections" :key="'header-' + index" class="q-mb-md">
@@ -607,3 +602,21 @@ onMounted(() => {
   contentSections.value = [...bibleSections, { ...prayerSection }]
 })
 </script>
+
+<style scoped>
+.section-header {
+  cursor: pointer;
+  padding: 4px 8px;
+  margin: -4px -8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.section-header:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.section-header .q-btn {
+  pointer-events: none;
+}
+</style>

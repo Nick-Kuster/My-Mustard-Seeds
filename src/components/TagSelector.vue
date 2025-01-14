@@ -1,23 +1,17 @@
 <template>
-  <div class="tag-selector">
-    <div class="text-subtitle1 text-weight-medium q-mb-sm">Tags</div>
-
-    <!-- Selected Tags -->
-    <div v-if="selectedTags.length > 0" class="q-mb-sm">
-      <div class="row q-gutter-sm">
-        <q-chip v-for="tag in selectedTags" :key="tag.id" removable @remove="removeTag(tag)" color="info"
-          text-color="white">
-          {{ tag.name }}
-        </q-chip>
-      </div>
+  <div class="q-mb-lg">
+    <div class="row items-center no-wrap q-mb-sm section-header" role="button" @click="showModal = true">
+      <div class="text-subtitle1 text-weight-medium">Tags</div>
+      <q-btn flat round dense color="info" icon="label" class="q-ml-xs" />
     </div>
 
-    <!-- Tag Selection Button -->
-    <q-btn unelevated color="info" :label="selectedTags.length ? 'Add More Tags' : 'Add Tags'" icon="label"
-      @click="showModal = true">
-    </q-btn>
+    <div v-if="selectedTags.length > 0" class="row q-gutter-sm">
+      <q-chip v-for="tag in selectedTags" :key="tag.id" removable @remove="removeTag(tag)" color="info"
+        text-color="white">
+        {{ tag.name }}
+      </q-chip>
+    </div>
 
-    <!-- Tag Selection Modal -->
     <TagSelectionModal v-model="showModal" v-model:selectedTags="selectedTags" />
   </div>
 </template>
@@ -34,7 +28,6 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue'])
-
 const showModal = ref(false)
 const selectedTags = ref(props.modelValue || [])
 
@@ -53,3 +46,21 @@ watch(() => props.modelValue, (newVal) => {
   selectedTags.value = newVal || []
 }, { deep: true })
 </script>
+
+<style scoped>
+.section-header {
+  cursor: pointer;
+  padding: 4px 8px;
+  margin: -4px -8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.section-header:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.section-header .q-btn {
+  pointer-events: none;
+}
+</style>

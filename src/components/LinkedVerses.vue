@@ -1,20 +1,18 @@
 <template>
-  <div class="linked-verses">
-    <div class="text-subtitle1 text-weight-medium q-mb-sm">Linked Verses</div>
-    <!-- Display selected verses as chips -->
-    <div v-if="linkedVerses.length > 0" class="q-mb-md">
-      <div class="row q-gutter-sm">
-        <VerseChip v-for="(verse, index) in linkedVerses" :key="index" :verse="verse" color="secondary"
-          @remove="removeVerse(index)" :removable="!displayOnly" />
-      </div>
+  <div class="q-mb-lg">
+    <div class="row items-center no-wrap q-mb-sm section-header" role="button" @click="showVerseModal = true">
+      <div class="text-subtitle1 text-weight-medium">Linked Verses</div>
+      <q-btn flat round dense color="secondary" icon="link" class="q-ml-xs" />
     </div>
-    <!-- Add verse button -->
-    <q-btn unelevated color="secondary" v-if="!displayOnly"
-      :label="linkedVerses.length ? 'Add Another Verse' : 'Add Linked Verse'" @click="showVerseModal = true"
-      :icon="linkedVerses.length ? 'add' : 'link'" />
-    <!-- Reuse the same verse selection modal -->
+
+    <div v-if="linkedVerses.length > 0" class="row q-gutter-sm">
+      <VerseChip v-for="(verse, index) in linkedVerses" :key="index" :verse="verse" color="secondary"
+        @remove="removeVerse(index)" :removable="!displayOnly" />
+    </div>
+
     <VerseSelectionModal v-model="showVerseModal" @select="onVerseSelect" />
   </div>
+
 </template>
 
 <script setup>
@@ -52,3 +50,21 @@ const removeVerse = (index) => {
   emit('update:modelValue', linkedVerses.value)
 }
 </script>
+
+<style scoped>
+.section-header {
+  cursor: pointer;
+  padding: 4px 8px;
+  margin: -4px -8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.section-header:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.section-header .q-btn {
+  pointer-events: none;
+}
+</style>
