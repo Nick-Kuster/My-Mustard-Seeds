@@ -10,7 +10,7 @@ const configs = {
         type: 'text',
       },
     },
-    allowedChildren: [RESOURCE_TYPES.BOOK, RESOURCE_TYPES.ARTICLE],
+    allowedChildren: [RESOURCE_TYPES.BOOK],
     getDisplayTitle: (resource) => resource.metadata.name,
   },
   [RESOURCE_TYPES.BOOK]: {
@@ -113,7 +113,7 @@ const configs = {
         type: 'text',
       },
     },
-    allowedChildren: [RESOURCE_TYPES.SERMON_SERIES, RESOURCE_TYPES.SERMON],
+    allowedChildren: [RESOURCE_TYPES.SERMON_SERIES],
     getDisplayTitle: (resource) => resource.metadata.name,
     getDisplaySubtitle: (resource) => resource.metadata.church,
   },
@@ -186,22 +186,6 @@ const configs = {
       resource.metadata.host ? `Hosted by ${resource.metadata.host}` : null,
   },
 
-  [RESOURCE_TYPES.ANSWERED_PRAYER]: {
-    title: 'Answered Prayer',
-    fields: {
-      title: {
-        label: 'Title',
-        required: false,
-        type: 'text',
-      },
-      date: {
-        label: 'Date',
-        required: false,
-        type: 'date',
-      },
-    },
-  },
-
   [RESOURCE_TYPES.GROUP]: {
     title: 'Group',
     fields: {
@@ -243,7 +227,7 @@ const configs = {
     title: 'Season',
     fields: {
       seasonNumber: {
-        label: 'Name',
+        label: 'Season',
         required: true,
         type: 'text',
       },
@@ -260,18 +244,14 @@ const configs = {
         required: true,
         type: 'text',
       },
-      episiodeNumber: {
+      episodeNumber: {
         label: 'Episode Number',
         required: true,
         type: 'text',
       },
     },
     getDisplayTitle: (resource) => resource.metadata.name,
-    getDisplaySubtitle: (resource) => `Episode ${resource.metadata.episiodeNumber}`,
-  },
-
-  [RESOURCE_TYPES.Article]: {
-    title: 'Article',
+    getDisplaySubtitle: (resource) => `Episode ${resource.metadata.episodeNumber}`,
   },
 }
 

@@ -24,12 +24,13 @@
 
           <!-- Book Specific Select -->
           <div v-else-if="entryType === 'Book'" class="q-mb-lg">
-            <div class="text-subtitle1 text-weight-medium q-mb-sm">Book</div>
 
             <div v-if="selectedBook" class="q-mb-sm">
               <div class="q-mb-md">
-                <div class="text-body1">{{ selectedBook }}</div>
-                <div class="text-caption text-grey-8">by {{ selectedBook.metadata.author }}</div>
+                <div class="text-body1">Chapter: {{
+                  selectedChapter.metadata.number }} {{ selectedChapter.metadata.title }}</div>
+                <div class="text-caption text-grey-8">From {{ selectedBook.metadata.title }} </div>
+                <div class="text-caption text-grey-8">by {{ selectedAuthor.metadata.name }}</div>
               </div>
             </div>
 
@@ -40,29 +41,50 @@
               @select="onBookSelect" />
           </div>
 
-          <!-- Article Specific Select -->
-          <div v-else-if="entryType === 'Article'" class="q-mb-lg">
-            <div class="text-subtitle1 text-weight-medium q-mb-sm">Article</div>
+          <!-- Group Specific Select -->
+          <div v-else-if="entryType === 'Group'" class="q-mb-lg">
 
-            <div v-if="selectedArticle" class="q-mb-sm">
+            <div v-if="selectedGroup" class="q-mb-sm">
               <div class="q-mb-md">
-                <div class="text-body1">{{ selectedArticle.metadata.title }}</div>
-                <div class="text-caption text-grey-8">by {{ selectedArticle.metadata.author }}</div>
+                <div class="text-body1">{{ selectedGroup.metadata.name }}</div>
+                <div class="text-caption text-grey-8"><span v-if="selectedGroup.metadata.leader">Led by {{
+                  selectedGroup.metadata.leader }} </span><span v-if="selectedGroup.metadata.church"> at {{
+                      selectedGroup.metadata.church }}</span></div>
               </div>
             </div>
 
-            <q-btn unelevated color="primary" :label="selectedArticle ? 'Change Article' : 'Select Article'"
-              @click="showArticleModal = true" />
+            <q-btn unelevated color="primary" :label="selectedGroup ? 'Change Group' : 'Select Group'"
+              @click="showGroupModal = true" />
 
-            <ResourceSelectionModal v-model="showArticleModal" :resource-type="RESOURCE_TYPES.AUTHOR"
-              @select="onArticleSelect" />
+            <ResourceSelectionModal v-model="showGroupModal" :resource-type="RESOURCE_TYPES.GROUP"
+              @select="onGroupSelect" />
+          </div>
+
+
+          <!-- Show Specific Select -->
+          <div v-else-if="entryType === 'Show'" class="q-mb-lg">
+
+            <div v-if="selectedShow" class="q-mb-sm">
+              <div class="q-mb-md">
+                <div class="text-body1">{{ selectedShow.metadata.name }}</div>
+                <div class="text-caption text-grey-8"><span v-if="selectedSeason.metadata.seasonNumber">S{{
+                  selectedSeason.metadata.seasonNumber }} </span><span v-if="selectedEpisode.metadata.episodeNumber">
+                    E{{
+                      selectedEpisode.metadata.episodeNumber }} {{ selectedEpisode.metadata.name }}</span></div>
+              </div>
+            </div>
+
+            <q-btn unelevated color="primary" :label="selectedShow ? 'Change Episode' : 'Select Episode'"
+              @click="showShowModal = true" />
+
+            <ResourceSelectionModal v-model="showShowModal" :resource-type="RESOURCE_TYPES.SHOW"
+              @select="onShowSelect" />
           </div>
 
           <!-- Sermon Specific Select -->
           <div v-else-if="entryType === 'Sermon'" class="q-mb-lg">
             <div v-if="selectedPastor" class="q-mb-sm">
               <div class="q-mb-md">
-
                 <div class="text-body1"><strong>Sermon:</strong> {{ selectedSermon.metadata.title }}</div>
                 <div class="text-body1"><strong>Series:</strong> {{ selectedSeries.metadata.title }}</div>
                 <div class="text-caption text-grey-8">By {{ selectedPastor.metadata.name }} From
@@ -86,7 +108,6 @@
                 <div class="text-body1">{{ selectedMinistry.metadata.name }}</div>
               </div>
             </div>
-
             <q-btn unelevated color="primary" :label="selectedMinistry ? 'Change Ministry' : 'Select Ministry'"
               @click="showMinistryModal = true" />
 
@@ -153,16 +174,17 @@
             </template>
           </div>
 
+
           <!-- Linked Verses for all types -->
           <div class="q-mb-lg">
             <LinkedVerses v-model="linkedVerses" />
           </div>
 
+
           <!-- Tags -->
           <div class="q-mb-lg">
             <TagSelector v-model="selectedTags" />
           </div>
-
           <!-- Dynamic Sections -->
           <div v-for="(section, index) in regularSections" :key="index" class="q-mb-md">
             <div class="row items-center q-mb-sm">
@@ -242,11 +264,13 @@ const journalStore = useJournalStore()
 // Modals
 const showVerseModal = ref(false)
 const showBookModal = ref(false)
-const showArticleModal = ref(false)
 const showPastorModal = ref(false)
 const showPodcastModal = ref(false)
 const showArtistModal = ref(false)
 const showMinistryModal = ref(false)
+const showGroupModal = ref(false)
+const showShowModal = ref(false)
+
 
 // Selected Resources
 const selectedPastor = ref(null)
@@ -256,8 +280,12 @@ const selectedPodcast = ref(null)
 const selectedArtist = ref(null)
 const selectedMinistry = ref(null)
 const selectedBook = ref(null)
-const selectedArticle = ref(null)
+const selectedAuthor = ref(null)
 const selectedChapter = ref(null)
+const selectedGroup = ref(null)
+const selectedShow = ref(null)
+const selectedSeason = ref(null)
+const selectedEpisode = ref(null)
 
 const mainVerse = ref({})
 const title = ref('')
@@ -266,7 +294,7 @@ const saving = ref(false)
 const linkedVerses = ref([])
 const selectedTags = ref([])
 
-const entryTypes = ['Bible', 'Sermon', 'Devotional', 'Book', 'Article', 'Song', 'Podcast', 'Other']
+const entryTypes = ['Bible', 'Sermon', 'Answered Prayer / Miracle', 'Devotional', 'Group', 'Book', 'Article', 'Song', 'Podcast', 'Show', 'Other']
 const entryType = ref('Bible')
 
 const getTodayDate = () => {
@@ -295,6 +323,7 @@ const sermonSections = [
 ]
 
 const songSections = [
+  createSection('Song Title', '', 'shortText', true),
   createSection('Lyrics', '', 'longText')
 ]
 
@@ -303,6 +332,9 @@ const devotionSections = [
   createSection('Application', '', 'longText')
 ]
 
+const miracleSections = [
+  createSection('Date', '', 'date', true)
+]
 
 const prayerSection = createSection('Prayer', '', 'longText')
 
@@ -319,7 +351,7 @@ const regularSections = computed(() => {
 const handleTypeChange = (newType) => {
   const today = getTodayDate()
   let newSections = []
-
+  title.value = '';
   switch (newType) {
     case 'Bible':
       newSections = bibleSections.map(s => ({ ...s }))
@@ -339,6 +371,12 @@ const handleTypeChange = (newType) => {
         content: s.fieldType === 'date' ? today : s.content
       }))
       break
+    case 'Answered Prayer / Miracle':
+      newSections = miracleSections.map(s => ({
+        ...s,
+        content: s.fieldType === 'date' ? today : s.content
+      }))
+      break;
     default:
       newSections = [createSection()]
   }
@@ -390,9 +428,10 @@ const handleResourceSelection = (selections) => {
       break
 
     case 'Book':
-      if (selections.length === 2) {
-        selectedBook.value = selections[0]
-        selectedChapter.value = selections[1]
+      if (selections.length === 3) {
+        selectedAuthor.value = selections[0]
+        selectedBook.value = selections[1]
+        selectedChapter.value = selections[2]
         title.value = `${selectedBook.value.metadata.title} - ${selectedChapter.value.metadata.title}`
       } else {
         selectedBook.value = selections[0]
@@ -415,19 +454,28 @@ const handleResourceSelection = (selections) => {
       selectedMinistry.value = finalSelection
       title.value = `Notes on ${selectedMinistry.value.metadata.name}`
       break
+
+    case 'Group':
+      selectedGroup.value = finalSelection
+      title.value = `Notes on ${selectedGroup.value.metadata.name}`
+      break
+
+    case 'Show':
+      selectedShow.value = selections[0]
+      selectedSeason.value = selections[1]
+      selectedEpisode.value = selections[2]
+      title.value = `${selectedShow.value.metadata.name} Season ${selectedSeason.value.seasonNumber} Episode ${selectedEpisode.value.episodeNumber}`
   }
 }
 
 
 const onBookSelect = handleResourceSelection
-
 const onPastorSelect = handleResourceSelection
-
 const onPodcastSelect = handleResourceSelection
-
 const onArtistSelect = handleResourceSelection
-
 const onMinistrySelect = handleResourceSelection
+const onGroupSelect = handleResourceSelection
+const onShowSelect = handleResourceSelection
 
 const saveEntry = async () => {
   saving.value = true

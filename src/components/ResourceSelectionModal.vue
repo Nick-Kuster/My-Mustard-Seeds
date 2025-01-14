@@ -195,17 +195,6 @@ const formTitle = computed(() => {
   return `Add New ${currentResourceConfig.value.title}`
 })
 
-// const filteredResources = computed(() => {
-//   if (!searchTerm.value) return currentResources.value
-
-//   const search = searchTerm.value.toLowerCase()
-//   return currentResources.value.filter(resource => {
-//     const title = getDisplayTitle(resource).toLowerCase()
-//     const subtitle = getDisplaySubtitle(resource)?.toLowerCase()
-//     return title.includes(search) || (subtitle && subtitle.includes(search))
-//   })
-// })
-
 // Methods
 const loadResources = async () => {
   loading.value = true

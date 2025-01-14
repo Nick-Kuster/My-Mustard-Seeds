@@ -12,8 +12,5 @@ export const RESOURCE_TYPES = {
   SHOW: 'Show',
   SEASON: 'Season',
   EPISODE: 'Episode',
-  ARTICLE: 'Article',
-  PUBLICATION: 'Publication',
   GROUP: 'Group',
-  ANSWERED_PRAYER: 'AnsweredPrayer',
 }
