@@ -186,21 +186,50 @@
             <QuoteSelector v-model="selectedQuotes" />
           </div>
 
-          <!-- Dynamic Sections -->
-          <div v-for="(section, index) in regularSections" :key="index" class="q-mb-md">
-            <div class="row items-center q-mb-sm">
-              <div class="col">
-                <q-input v-model="section.title" label="Section Title" dense />
-              </div>
-              <div class="col-auto q-ml-sm">
-                <q-btn round flat color="negative" icon="delete" size="sm" @click="removeSection(index)"
-                  v-if="contentSections.length > 1" />
-              </div>
-            </div>
 
-            <q-input v-model="section.content" type="textarea" :label="section.title || 'Your thoughts...'" autogrow
-              style="--input-field-height: 20px;" class="custom-textarea" />
-          </div>
+          <!-- Dynamic Sections -->
+          <draggable :list="contentSections.filter(section => !section.headerProperty)" @update="handleDragUpdate"
+            item-key="id" handle=".drag-handle" class="q-gutter-y-md" :animation="200" ghost-class="ghost-section"
+            drag-class="drag-section">
+            <template #item="{ element: section, index }">
+              <div class="section-container q-mb-md">
+                <div class="row items-center q-mb-sm section-header">
+                  <div class="col">
+                    <q-input v-model="section.title" label="Section Title" dense />
+                  </div>
+                  <div class="col-auto">
+                    <div class="row items-center no-wrap">
+                      <!-- Delete button -->
+                      <q-btn v-if="contentSections.length > 1" round flat color="negative" icon="delete" size="sm"
+                        @click="removeSection(index)" :disable="dragging" />
+                      <!-- Drag handle -->
+                      <div class="drag-handle-wrapper q-ml-sm">
+                        <q-btn flat round dense class="drag-handle" unelevated>
+                          <div class="handle-dots">
+                            <div class="dots-row">
+                              <div class="dot"></div>
+                              <div class="dot"></div>
+                            </div>
+                            <div class="dots-row">
+                              <div class="dot"></div>
+                              <div class="dot"></div>
+                            </div>
+                            <div class="dots-row">
+                              <div class="dot"></div>
+                              <div class="dot"></div>
+                            </div>
+                          </div>
+                        </q-btn>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <q-input v-model="section.content" type="textarea" :label="section.title || 'Your thoughts...'" autogrow
+                  style="--input-field-height: 20px;" class="custom-textarea" :disable="dragging" />
+              </div>
+            </template>
+          </draggable>
 
           <div class="q-mt-md">
             <q-btn rounded unelevated color="info" class="full-width" style="height: 40px" @click="addSection">
@@ -244,6 +273,7 @@ import ResourceSelectionModal from 'components/ResourceSelectionModal.vue'
 import TagSelector from 'components/TagSelector.vue'
 import { useJournalStore } from 'stores/journalData'
 import QuoteSelector from 'components/QuoteSelector.vue'
+import draggable from 'vuedraggable'
 
 const router = useRouter()
 const $q = useQuasar()
@@ -295,6 +325,7 @@ const getTodayDate = () => {
 }
 
 const createSection = (title = '', content = '', fieldType = 'longText', headerProperty = false) => ({
+  id: 'section-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
   title,
   content: fieldType === 'date' ? getTodayDate() : content,
   fieldType,
@@ -332,10 +363,24 @@ const headerSections = computed(() => {
   return contentSections.value.filter(section => section.headerProperty)
 })
 
-// Computed property to filter non-header sections
-const regularSections = computed(() => {
-  return contentSections.value.filter(section => !section.headerProperty)
-})
+const handleDragUpdate = (event) => {
+  // Get all sections
+  const allSections = [...contentSections.value]
+
+  // Split into header and regular sections
+  const headerSections = allSections.filter(section => section.headerProperty)
+  const regularSections = allSections.filter(section => !section.headerProperty)
+
+  // Perform the move operation on regular sections
+  const movedItem = regularSections.splice(event.oldIndex, 1)[0]
+  regularSections.splice(event.newIndex, 0, movedItem)
+
+  // Recombine sections
+  contentSections.value = [
+    ...headerSections,
+    ...regularSections
+  ]
+}
 
 const handleTypeChange = (newType) => {
   const today = getTodayDate()
@@ -618,24 +663,133 @@ onMounted(() => {
 })
 </script>
 
+
 <style scoped>
-.section-header {
-  cursor: pointer;
-  padding: 4px 8px;
-  margin: -4px -8px;
-  border-radius: 4px;
-  transition: background-color 0.2s ease;
+.section-container {
+  padding: 12px;
+  border-radius: 8px;
+  background: white;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
 }
 
-.section-header:hover {
-  background: rgba(0, 0, 0, 0.05);
+/* Style for the section being dragged */
+.dragging-section {
+  background: #ffffff !important;
+  border: 1px solid var(--q-primary) !important;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2) !important;
+  transform: scale(1.02) !important;
+  opacity: 0.9 !important;
 }
 
-.section-header .q-btn {
-  pointer-events: none;
+/* Style for the ghost placeholder */
+.ghost-section {
+  background: #f0f0f0 !important;
+  border: 2px dashed var(--q-primary) !important;
+  opacity: 0.5 !important;
 }
 
-.custom-textarea :deep(.q-field__native) {
-  min-height: 50px !important;
+/* Style for the chosen section (initial selection) */
+.chosen-section {
+  background: #f7f7f7 !important;
+  border: 1px solid var(--q-primary) !important;
+}
+
+.drag-handle-wrapper {
+  padding: 4px;
+  margin: -4px;
+}
+
+.drag-handle {
+  width: 44px !important;
+  height: 44px !important;
+  cursor: move;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+}
+
+.handle-dots {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px;
+}
+
+.dots-row {
+  display: flex;
+  gap: 3px;
+}
+
+.dot {
+  width: 4px;
+  height: 4px;
+  background-color: currentColor;
+  border-radius: 50%;
+  opacity: 0.5;
+}
+
+/* Mobile-specific enhancements */
+@media (hover: none) and (pointer: coarse) {
+  .drag-handle {
+    width: 48px !important;
+    height: 48px !important;
+  }
+
+  .handle-dots {
+    gap: 4px;
+  }
+
+  .dots-row {
+    gap: 4px;
+  }
+
+  .dot {
+    width: 5px;
+    height: 5px;
+  }
+
+  /* Enhanced touch feedback */
+  .drag-handle:active {
+    background: rgba(0, 0, 0, 0.1);
+  }
+
+  .drag-handle:active .dot {
+    opacity: 1;
+  }
+
+  /* Enhanced dragging feedback for mobile */
+  .dragging-section {
+    transform: scale(1.03) !important;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3) !important;
+    background: #f8f8f8 !important;
+  }
+
+  .ghost-section {
+    background: #e0e0e0 !important;
+    border: 2px dashed var(--q-primary) !important;
+    opacity: 0.7 !important;
+  }
+
+  .chosen-section {
+    background: #eef5ff !important;
+  }
+}
+
+/* Additional animation for smooth transitions */
+.sortable-drag {
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+/* Disable text selection during drag */
+.sortable-drag * {
+  user-select: none !important;
+}
+
+/* Prevent scrolling issues on iOS */
+.sortable-drag input,
+.sortable-drag textarea {
+  pointer-events: none !important;
 }
 </style>
