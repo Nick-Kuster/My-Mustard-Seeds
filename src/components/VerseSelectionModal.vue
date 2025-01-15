@@ -7,19 +7,25 @@
         <q-btn icon="close" flat round dense v-close-popup />
       </q-card-section>
 
-      <q-card-section>
+      <q-card-section class="verse-selection-content">
         <div class="text-subtitle2 q-mb-sm">Starting Verse</div>
         <div class="q-gutter-y-md">
-          <q-select v-model="selectedBook" :options="bibleData.books" option-label="book" label="Book" dense />
+          <!-- Added menu-self and menu-anchor props -->
+          <q-select v-model="selectedBook" :options="bibleData.books" option-label="book" label="Book" dense
+            menu-self="top start" menu-anchor="bottom start" popup-content-class="verse-select-menu" />
 
           <div class="row q-col-gutter-sm">
             <div class="col">
+              <!-- Added menu-self and menu-anchor props -->
               <q-select v-model="selectedChapter" :options="chapterOptions" label="Chapter" :disable="!selectedBook"
-                dense emit-value map-options />
+                dense emit-value map-options menu-self="top start" menu-anchor="bottom start"
+                popup-content-class="verse-select-menu" />
             </div>
             <div class="col">
+              <!-- Added menu-self and menu-anchor props -->
               <q-select v-model="selectedVerse" :options="verseOptions" label="Verse" :disable="!selectedChapter" dense
-                emit-value map-options />
+                emit-value map-options menu-self="top start" menu-anchor="bottom start"
+                popup-content-class="verse-select-menu" />
             </div>
           </div>
 
@@ -34,12 +40,16 @@
         <div class="q-gutter-y-md" :class="{ 'disabled-section': !selectedVerse }">
           <div class="row q-col-gutter-sm">
             <div class="col">
+              <!-- Added menu-self and menu-anchor props -->
               <q-select v-model="endChapter" :options="endChapterOptions" label="Chapter" :disable="!selectedVerse"
-                dense emit-value map-options />
+                dense emit-value map-options menu-self="top start" menu-anchor="bottom start"
+                popup-content-class="verse-select-menu" />
             </div>
             <div class="col">
+              <!-- Added menu-self and menu-anchor props -->
               <q-select v-model="endVerse" :options="endVerseOptions" label="Verse" :disable="!endChapter" dense
-                emit-value map-options />
+                emit-value map-options menu-self="top start" menu-anchor="bottom start"
+                popup-content-class="verse-select-menu" />
             </div>
           </div>
 
@@ -223,7 +233,18 @@ onMounted(async () => {
 <style scoped>
 .verse-selection-modal {
   width: 90vw;
-  max-width: 350px;
+  max-width: 500px;
+  /* Increased max-width for better layout */
+  max-height: 90vh;
+  overflow: hidden;
+  /* Prevent overall modal overflow */
+}
+
+.verse-selection-content {
+  overflow-y: auto;
+  /* Allow scrolling of content if needed */
+  max-height: calc(90vh - 120px);
+  /* Account for header and footer */
 }
 
 .verse-preview {
@@ -231,10 +252,18 @@ onMounted(async () => {
   padding: 8px;
   border-radius: 4px;
   font-size: 0.9em;
+  margin-top: 8px;
 }
 
 .disabled-section {
   opacity: 0.7;
   pointer-events: none;
+}
+
+/* Target the select menus globally */
+:global(.verse-select-menu) {
+  max-height: 300px !important;
+  z-index: 10000 !important;
+  /* Ensure menus stay on top */
 }
 </style>

@@ -1,8 +1,12 @@
 <template>
   <div class="q-mb-lg">
-    <div class="row items-center no-wrap q-mb-sm section-header" role="button" @click="showVerseModal = true">
+    <div v-if="!displayOnly" class="row items-center no-wrap q-mb-sm section-header" role="button"
+      @click="showVerseModal = true">
       <div class="text-subtitle1 text-weight-medium">Linked Verses</div>
       <q-btn flat round dense color="secondary" icon="link" class="q-ml-xs" />
+    </div>
+    <div v-else class="row items-center no-wrap q-mb-sm display-header">
+      <div class="text-subtitle1 text-weight-medium">Linked Verses</div>
     </div>
 
     <div v-if="linkedVerses.length > 0" class="row q-gutter-sm">
@@ -58,6 +62,12 @@ const removeVerse = (index) => {
   margin: -4px -8px;
   border-radius: 4px;
   transition: background-color 0.2s ease;
+}
+
+.display-header {
+  padding: 4px 8px;
+  margin: -4px -8px;
+  border-radius: 4px;
 }
 
 .section-header:hover {
