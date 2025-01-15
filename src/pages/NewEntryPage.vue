@@ -193,27 +193,13 @@
                 <q-input v-model="section.title" label="Section Title" dense />
               </div>
               <div class="col-auto q-ml-sm">
-                <q-btn-toggle v-model="section.fieldType" :options="[
-                  { icon: 'short_text', value: 'shortText' },
-                  { icon: 'notes', value: 'longText' }
-                ]" spread rounded dense unelevated toggle-color="primary" color="grey-3" text-color="grey-8"
-                  style="height: 32px" class="q-px-xs" />
-              </div>
-              <div class="col-auto q-ml-sm">
                 <q-btn round flat color="negative" icon="delete" size="sm" @click="removeSection(index)"
                   v-if="contentSections.length > 1" />
               </div>
             </div>
 
-            <!-- Dynamic Field Based on Type -->
-            <template v-if="section.fieldType === 'shortText'">
-              <q-input v-model="section.content" :label="section.title || 'Short text...'" />
-            </template>
-
-            <template v-else-if="section.fieldType === 'longText'">
-              <q-input v-model="section.content" type="textarea" :label="section.title || 'Your thoughts...'"
-                rows="6" />
-            </template>
+            <q-input v-model="section.content" type="textarea" :label="section.title || 'Your thoughts...'" autogrow
+              style="--input-field-height: 20px;" class="custom-textarea" />
           </div>
 
           <div class="q-mt-md">
@@ -647,5 +633,9 @@ onMounted(() => {
 
 .section-header .q-btn {
   pointer-events: none;
+}
+
+.custom-textarea :deep(.q-field__native) {
+  min-height: 50px !important;
 }
 </style>
