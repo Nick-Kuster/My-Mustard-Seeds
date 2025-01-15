@@ -180,6 +180,12 @@
           <div class="q-mb-lg">
             <TagSelector v-model="selectedTags" />
           </div>
+
+          <!-- Quotes -->
+          <div class="q-mb-lg">
+            <QuoteSelector v-model="selectedQuotes" />
+          </div>
+
           <!-- Dynamic Sections -->
           <div v-for="(section, index) in regularSections" :key="index" class="q-mb-md">
             <div class="row items-center q-mb-sm">
@@ -251,6 +257,7 @@ import VerseChip from 'components/VerseChip.vue'
 import ResourceSelectionModal from 'components/ResourceSelectionModal.vue'
 import TagSelector from 'components/TagSelector.vue'
 import { useJournalStore } from 'stores/journalData'
+import QuoteSelector from 'components/QuoteSelector.vue'
 
 const router = useRouter()
 const $q = useQuasar()
@@ -288,6 +295,7 @@ const contentSections = ref([])
 const saving = ref(false)
 const linkedVerses = ref([])
 const selectedTags = ref([])
+const selectedQuotes = ref([])
 
 const entryTypes = ['Bible', 'Sermon', 'Answered Prayer / Miracle', 'Devotional', 'Group', 'Book', 'Article', 'Song', 'Podcast', 'Show', 'Other']
 const entryType = ref('Bible')
@@ -576,6 +584,27 @@ const saveEntry = async () => {
         .insert(tagInserts)
 
       if (tagError) throw tagError
+    }
+
+    // Handle quotes
+    if (selectedQuotes.value.length > 0) {
+      const quotePromises = selectedQuotes.value.map(async quoteData => {
+        const encryptedQuote = await encryptData(quoteData.decryptedQuote, encryptionKey)
+        return supabase
+          .from('journal_quotes')
+          .insert({
+            journal_id: entry.id,
+            quote: encryptedQuote,
+            source: quoteData.source,
+            page_number: quoteData.page_number
+          })
+      })
+
+      try {
+        await Promise.all(quotePromises)
+      } catch (error) {
+        throw new Error('Failed to save quotes: ' + error.message)
+      }
     }
 
     $q.notify({

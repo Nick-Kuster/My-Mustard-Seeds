@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { supabase } from 'src/boot/supabase'
-import { getEncryptionKey, decryptData } from 'src/utils/encryption'
+import { getEncryptionKey, encryptData, decryptData } from 'src/utils/encryption'
 
 export const useJournalStore = defineStore('journalData', () => {
   const entries = ref([])
@@ -16,6 +16,7 @@ export const useJournalStore = defineStore('journalData', () => {
     resourceTypes: [], // types of resources
     resources: [], // specific resources
     tags: [], // selected tags
+    quotes: [], // Will contain quote sources
   })
 
   // Computed property to get all available facets from the current entries
@@ -26,6 +27,7 @@ export const useJournalStore = defineStore('journalData', () => {
       resourceTypes: new Set(),
       resources: new Set(),
       tags: new Set(),
+      quotes: new Set(),
     }
 
     decryptedEntries.value.forEach((entry) => {
@@ -47,6 +49,12 @@ export const useJournalStore = defineStore('journalData', () => {
       entry.tags?.forEach((tag) => {
         facets.tags.add(tag.name)
       })
+
+      entry.quotes?.forEach((quote) => {
+        if (quote.source) {
+          facets.quotes.add(quote.source)
+        }
+      })
     })
 
     // Convert Sets to sorted arrays
@@ -56,6 +64,7 @@ export const useJournalStore = defineStore('journalData', () => {
       resourceTypes: Array.from(facets.resourceTypes).sort(),
       resources: Array.from(facets.resources).sort(),
       tags: Array.from(facets.tags).sort(),
+      quotes: Array.from(facets.quotes).sort(),
     }
   })
 
@@ -93,7 +102,17 @@ export const useJournalStore = defineStore('journalData', () => {
               resource.type?.toLowerCase().includes(search),
           )
         )
-          return true
+          if (
+            entry.quotes?.some((quote) => {
+              const decryptedQuote = quote.decryptedQuote
+              return (
+                decryptedQuote?.toLowerCase().includes(search) ||
+                quote.source?.toLowerCase().includes(search) ||
+                quote.page_number?.toLowerCase().includes(search)
+              )
+            })
+          )
+            return true
 
         // Search in tags
         if (entry.tags?.some((tag) => tag.name.toLowerCase().includes(search))) return true
@@ -134,7 +153,11 @@ export const useJournalStore = defineStore('journalData', () => {
         entry.tags?.some((tag) => selectedFacets.value.tags.includes(tag.name)),
       )
     }
-
+    if (selectedFacets.value.quotes.length > 0) {
+      filtered = filtered.filter((entry) =>
+        entry.quotes?.some((quote) => selectedFacets.value.quotes.includes(quote.source)),
+      )
+    }
     return filtered
   })
 
@@ -238,10 +261,24 @@ export const useJournalStore = defineStore('journalData', () => {
       const encryptionKey = await getEncryptionKey(session.user.id)
 
       decryptedEntries.value = await Promise.all(
-        entries.value.map(async (entry) => ({
-          ...entry,
-          decryptedContent: await decryptData(entry.content, encryptionKey),
-        })),
+        entries.value.map(async (entry) => {
+          // Decrypt quotes if they exist
+          let decryptedQuotes = null
+          if (entry.quotes && entry.quotes.length > 0) {
+            decryptedQuotes = await Promise.all(
+              entry.quotes.map(async (quote) => ({
+                ...quote,
+                decryptedQuote: await decryptData(quote.quote, encryptionKey),
+              })),
+            )
+          }
+
+          return {
+            ...entry,
+            decryptedContent: await decryptData(entry.content, encryptionKey),
+            quotes: decryptedQuotes || entry.quotes,
+          }
+        }),
       )
     } catch (error) {
       console.error('Error decrypting entries:', error)
@@ -263,6 +300,96 @@ export const useJournalStore = defineStore('journalData', () => {
     searchTerm.value = term
   }
 
+  // Add a quote to a journal entry
+  const addQuote = async (journalId, quoteData) => {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session) throw new Error('No active session')
+
+      const encryptionKey = await getEncryptionKey(session.user.id)
+      const encryptedQuote = await encryptData(quoteData.quote, encryptionKey)
+
+      const { data, error } = await supabase
+        .from('journal_quotes')
+        .insert({
+          journal_id: journalId,
+          quote: encryptedQuote,
+          source: quoteData.source,
+          page_number: quoteData.page_number,
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // Update local state
+      const entryIndex = entries.value.findIndex((e) => e.id === journalId)
+      if (entryIndex !== -1) {
+        const entry = entries.value[entryIndex]
+        entry.quotes = entry.quotes || []
+        entry.quotes.push(data)
+        await decryptEntries() // Refresh decrypted entries
+      }
+
+      return data
+    } catch (error) {
+      console.error('Error adding quote:', error)
+      throw error
+    }
+  }
+
+  // Update a quote
+  const updateQuote = async (quoteId, quoteData) => {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session) throw new Error('No active session')
+
+      const encryptionKey = await getEncryptionKey(session.user.id)
+      const encryptedQuote = await encryptData(quoteData.quote, encryptionKey)
+
+      const { data, error } = await supabase
+        .from('journal_quotes')
+        .update({
+          quote: encryptedQuote,
+          source: quoteData.source,
+          page_number: quoteData.page_number,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', quoteId)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // Update local state
+      await fetchEntries() // Refresh all entries to ensure consistency
+
+      return data
+    } catch (error) {
+      console.error('Error updating quote:', error)
+      throw error
+    }
+  }
+
+  // Delete a quote
+  const deleteQuote = async (quoteId) => {
+    try {
+      const { error } = await supabase.from('journal_quotes').delete().eq('id', quoteId)
+
+      if (error) throw error
+
+      // Update local state
+      await fetchEntries() // Refresh all entries to ensure consistency
+    } catch (error) {
+      console.error('Error deleting quote:', error)
+      throw error
+    }
+  }
+
   return {
     entries,
     loading,
@@ -277,5 +404,8 @@ export const useJournalStore = defineStore('journalData', () => {
     updateFacet,
     clearFacets,
     getEntry,
+    addQuote,
+    updateQuote,
+    deleteQuote,
   }
 })

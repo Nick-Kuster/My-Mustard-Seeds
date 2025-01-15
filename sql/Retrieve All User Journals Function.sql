@@ -1,13 +1,10 @@
 CREATE OR REPLACE FUNCTION get_all_journal_entry_details(p_user_id UUID)
 RETURNS TABLE (
-    -- Entry details
     entry_data JSON,
-    -- Verses
     verses_data JSON,
-    -- Tags
     tags_data JSON,
-    -- Resources
-    resources_data JSON
+    resources_data JSON,
+    quotes_data JSON
 ) LANGUAGE plpgsql AS $$
 BEGIN
     RETURN QUERY
@@ -16,7 +13,6 @@ BEGIN
         FROM journal_entries je
         WHERE je.user_id = p_user_id
     ),
-    -- Entry data for all user's entries
     entries_json AS (
         SELECT 
             je.id as entry_id,
@@ -30,7 +26,6 @@ BEGIN
         FROM journal_entries je
         WHERE je.user_id = p_user_id
     ),
-    -- Verses data for all entries
     verses_json AS (
         SELECT 
             jv.journal_id as entry_id,
@@ -53,7 +48,6 @@ BEGIN
         JOIN bible_verses end_bv ON end_bv.id = jv.end_verse_id
         GROUP BY jv.journal_id
     ),
-    -- Tags data for all entries
     tags_json AS (
         SELECT 
             jt.journal_id as entry_id,
@@ -67,7 +61,6 @@ BEGIN
         JOIN journal_tags jt ON t.id = jt.tag_id
         GROUP BY jt.journal_id
     ),
-    -- Resources data for all entries
     resources_json AS (
         SELECT 
             jr.journal_id as entry_id,
@@ -82,17 +75,35 @@ BEGIN
         FROM resources r
         JOIN journal_resources jr ON r.id = jr.resource_id
         GROUP BY jr.journal_id
+    ),
+    quotes_json AS (
+        SELECT 
+            journal_id as entry_id,
+            json_agg(
+                json_build_object(
+                    'id', id,
+                    'quote', quote,
+                    'source', source,
+                    'page_number', page_number,
+                    'created_at', created_at,
+                    'updated_at', updated_at
+                )
+            ) as quotes_data
+        FROM journal_quotes
+        GROUP BY journal_id
     )
     
     SELECT 
         ej.entry_data,
         COALESCE(vj.verses_data, '[]'::json),
         COALESCE(tj.tags_data, '[]'::json),
-        COALESCE(rj.resources_data, '[]'::json)
+        COALESCE(rj.resources_data, '[]'::json),
+        COALESCE(qj.quotes_data, '[]'::json)
     FROM entries_json ej
     LEFT JOIN verses_json vj ON vj.entry_id = ej.entry_id
     LEFT JOIN tags_json tj ON tj.entry_id = ej.entry_id
     LEFT JOIN resources_json rj ON rj.entry_id = ej.entry_id
+    LEFT JOIN quotes_json qj ON qj.entry_id = ej.entry_id
     ORDER BY (ej.entry_data->>'created_at')::timestamp DESC;
 END;
 $$;
