@@ -129,6 +129,19 @@ const removeQuote = (index) => {
   border-radius: 4px;
   background: #f8f9fa;
   border-left: 3px solid #ffc107;
-  /* Adding back the golden left border */
+}
+
+.quote-content {
+  min-width: 0;
+  /* Important for text wrapping */
+}
+
+.quote-text {
+  font-style: italic;
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.5;
+  margin-right: 8px;
 }
 </style>

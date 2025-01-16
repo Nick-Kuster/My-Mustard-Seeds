@@ -223,6 +223,12 @@ const confirmSelection = async () => {
       display: displayText
     })
   }
+
+  selectedBook.value = ''
+  selectedChapter.value = ''
+  selectedVerse.value = ''
+  endChapter.value = ''
+  endVerse.value = ''
   isOpen.value = false
 }
 onMounted(async () => {

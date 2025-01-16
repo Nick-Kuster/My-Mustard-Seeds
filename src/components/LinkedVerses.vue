@@ -2,7 +2,7 @@
   <div class="q-mb-lg">
     <div v-if="!displayOnly" class="row items-center no-wrap q-mb-sm section-header" role="button"
       @click="showVerseModal = true">
-      <div class="text-subtitle1 text-weight-medium">Linked Verses</div>
+      <div class="text-subtitle1 text-weight-medium">Add Linked Verse</div>
       <q-btn flat round dense color="secondary" icon="link" class="q-ml-xs" />
     </div>
     <div v-else class="row items-center no-wrap q-mb-sm display-header">

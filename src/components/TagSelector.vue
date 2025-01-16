@@ -1,7 +1,7 @@
 <template>
   <div class="q-mb-lg">
     <div class="row items-center no-wrap q-mb-sm section-header" role="button" @click="showModal = true">
-      <div class="text-subtitle1 text-weight-medium">Tags</div>
+      <div class="text-subtitle1 text-weight-medium">Add Tags</div>
       <q-btn flat round dense color="info" icon="label" class="q-ml-xs" />
     </div>
 

@@ -35,3 +35,21 @@ body {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
 }
+
+// Control width of q-select menus
+.q-menu {
+  &.q-select__menu {
+    // Default max-width for desktop
+    max-width: 300px !important;
+
+    // Responsive adjustments
+    @media (max-width: 599px) {
+      max-width: none !important; // Allow full width on mobile
+    }
+  }
+}
+
+// Ensure menu doesn't get too narrow on smaller screens
+.q-field__native {
+  min-width: 0;
+}

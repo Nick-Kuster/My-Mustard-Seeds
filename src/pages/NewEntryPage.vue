@@ -169,12 +169,10 @@
             </template>
           </div>
 
-
           <!-- Linked Verses for all types -->
           <div class="q-mb-lg">
             <LinkedVerses v-model="linkedVerses" />
           </div>
-
 
           <!-- Tags -->
           <div class="q-mb-lg">
@@ -185,7 +183,6 @@
           <div class="q-mb-lg">
             <QuoteSelector v-model="selectedQuotes" />
           </div>
-
 
           <!-- Dynamic Sections -->
           <draggable :list="contentSections.filter(section => !section.headerProperty)" @update="handleDragUpdate"
@@ -267,14 +264,13 @@ import { supabase } from 'src/boot/supabase'
 import { getEncryptionKey, encryptData } from 'src/utils/encryption'
 import { RESOURCE_TYPES } from 'stores/resources'
 import VerseSelectionModal from 'components/VerseSelectionModal.vue'
-import LinkedVerses from 'components/LinkedVerses.vue'
 import VerseChip from 'components/VerseChip.vue'
 import ResourceSelectionModal from 'components/ResourceSelectionModal.vue'
-import TagSelector from 'components/TagSelector.vue'
 import { useJournalStore } from 'stores/journalData'
-import QuoteSelector from 'components/QuoteSelector.vue'
 import draggable from 'vuedraggable'
-
+import LinkedVerses from 'components/LinkedVerses.vue'
+import TagSelector from 'src/components/TagSelector.vue'
+import QuoteSelector from 'src/components/QuoteSelector.vue'
 const router = useRouter()
 const $q = useQuasar()
 const journalStore = useJournalStore()
@@ -791,5 +787,16 @@ onMounted(() => {
 .sortable-drag input,
 .sortable-drag textarea {
   pointer-events: none !important;
+}
+
+.custom-textarea :deep(.q-field__native),
+.custom-textarea :deep(.q-field__control) {
+  min-height: 60px;
+  /* Adjust this value to your needs */
+}
+
+.custom-textarea :deep(.q-field__native) {
+  padding-top: 8px;
+  line-height: 1.5;
 }
 </style>
