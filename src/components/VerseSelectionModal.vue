@@ -229,6 +229,8 @@ const confirmSelection = async () => {
   selectedVerse.value = ''
   endChapter.value = ''
   endVerse.value = ''
+  startVerseContent.value = ''
+  endVerseContent.value = ''
   isOpen.value = false
 }
 onMounted(async () => {
