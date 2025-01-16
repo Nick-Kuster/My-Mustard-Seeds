@@ -5,16 +5,18 @@
       <div class="text-subtitle1 q-mb-sm">Journal Type</div>
       <q-btn class="type-select-btn full-width" unelevated align="left" @click="isOpen = !isOpen">
         <template v-if="modelValue">
-          <div class="row items-center full-width">
-            <q-icon :name="getTypeIcon(modelValue)" size="32px" />
-            <div class="q-ml-md q-mr-md flex-grow-1 selected-text">{{ modelValue }}</div>
-            <q-icon name="arrow_drop_down" size="24px" />
+          <div class="row items-center full-width justify-between">
+            <div class="row items-center">
+              <q-icon :name="getTypeIcon(modelValue)" size="32px" />
+              <div class="q-ml-md selected-text">{{ modelValue }}</div>
+            </div>
+            <q-icon name="arrow_drop_down" size="24px" class="arrow-icon" />
           </div>
         </template>
         <template v-else>
-          <div class="row items-center full-width">
-            <div class="text-h6 flex-grow-1">Select Journal Type</div>
-            <q-icon name="arrow_drop_down" size="24px" />
+          <div class="row items-center full-width justify-between">
+            <div class="text-h6">Select Journal Type</div>
+            <q-icon name="arrow_drop_down" size="24px" class="arrow-icon" />
           </div>
         </template>
       </q-btn>
@@ -72,7 +74,6 @@ const types = [
   { id: 'Article', icon: 'article', label: 'Article' },
   { id: 'Podcast', icon: 'podcasts', label: 'Podcast' },
   { id: 'Show', icon: 'tv', label: 'Show' },
-
   { id: 'Other', icon: 'more_horiz', label: 'Other' }
 ]
 
@@ -93,6 +94,7 @@ const selectType = (typeId) => {
   padding: 8px !important;
   border: 1px solid rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
+  background: white;
 }
 
 .type-selector {
@@ -118,9 +120,6 @@ const selectType = (typeId) => {
   hyphens: auto;
 }
 
-/* Remove the type-label class as it's no longer needed */
-
-/* Center dialog on desktop */
 :deep(.q-dialog__inner--standard) {
   align-items: center;
 }
@@ -144,11 +143,15 @@ const selectType = (typeId) => {
   display: flex;
   align-items: center;
   min-height: 32px;
-  /* matches icon height */
+}
+
+.arrow-icon {
+  flex-shrink: 0;
 }
 
 .type-selector-dialog {
   border-radius: 8px;
+  background: #faf9f6;
 }
 
 @media screen and (max-width: 599px) {
