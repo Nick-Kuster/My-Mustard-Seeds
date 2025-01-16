@@ -5,10 +5,12 @@
         <div class="text-h6 q-mb-md">Plant a New Seed</div>
 
         <div class="q-gutter-md">
+          <!-- Entry Type Selector -->
           <q-select v-model="entryType" :options="entryTypes" label="Type" class="q-mb-md"
             @update:model-value="handleTypeChange" />
 
-          <!-- Main Verse Selector for Bible type -->
+          <!-- Resource Selection Section -->
+          <!-- Bible Verse Selector -->
           <div v-if="entryType === 'Bible'" class="q-mb-lg">
             <div class="row items-center no-wrap q-mb-sm section-header" role="button" @click="showVerseModal = true">
               <div class="text-subtitle1 text-weight-medium">Main Verse</div>
@@ -144,7 +146,6 @@
             <ResourceSelectionModal v-model="showPodcastModal" :resource-type="RESOURCE_TYPES.PODCAST"
               @select="onPodcastSelect" />
           </div>
-
           <!-- Header Sections -->
           <div v-for="(section, index) in headerSections" :key="'header-' + index" class="q-mb-md">
             <template v-if="section.fieldType === 'date'">
@@ -169,85 +170,104 @@
             </template>
           </div>
 
-          <!-- Linked Verses for all types -->
-          <div class="q-mb-lg">
-            <LinkedVerses v-model="linkedVerses" />
-          </div>
+          <!-- Tabs Section -->
+          <q-tabs v-model="activeTab" dense class="text-grey q-mb-md" active-color="primary" indicator-color="primary"
+            align="justify" narrow-indicator>
+            <q-tab name="main" label="Main Content" />
+            <q-tab name="additional" label="Additional Content" />
+          </q-tabs>
 
-          <!-- Tags -->
-          <div class="q-mb-lg">
-            <TagSelector v-model="selectedTags" />
-          </div>
-
-          <!-- Quotes -->
-          <div class="q-mb-lg">
-            <QuoteSelector v-model="selectedQuotes" />
-          </div>
-
-          <!-- Dynamic Sections -->
-          <draggable :list="contentSections.filter(section => !section.headerProperty)" @update="handleDragUpdate"
-            item-key="id" handle=".drag-handle" class="q-gutter-y-md" :animation="200" ghost-class="ghost-section"
-            drag-class="drag-section">
-            <template #item="{ element: section, index }">
-              <div class="section-container q-mb-md">
-                <div class="row items-center q-mb-sm section-header">
-                  <div class="col">
-                    <q-input v-model="section.title" label="Section Title" dense />
-                  </div>
-                  <div class="col-auto">
-                    <div class="row items-center no-wrap">
-                      <!-- Delete button -->
-                      <q-btn v-if="contentSections.length > 1" round flat color="negative" icon="delete" size="sm"
-                        @click="removeSection(index)" :disable="dragging" />
-                      <!-- Drag handle -->
-                      <div class="drag-handle-wrapper q-ml-sm">
-                        <q-btn flat round dense class="drag-handle" unelevated>
-                          <div class="handle-dots">
-                            <div class="dots-row">
-                              <div class="dot"></div>
-                              <div class="dot"></div>
-                            </div>
-                            <div class="dots-row">
-                              <div class="dot"></div>
-                              <div class="dot"></div>
-                            </div>
-                            <div class="dots-row">
-                              <div class="dot"></div>
-                              <div class="dot"></div>
-                            </div>
+          <q-tab-panels v-model="activeTab" animated>
+            <!-- Main Content Tab -->
+            <q-tab-panel name="main" class="q-pa-none">
+              <!-- Dynamic Sections -->
+              <draggable :list="contentSections.filter(section => !section.headerProperty)" @update="handleDragUpdate"
+                item-key="id" handle=".drag-handle" class="q-gutter-y-md" :animation="200" ghost-class="ghost-section"
+                drag-class="drag-section">
+                <template #item="{ element: section, index }">
+                  <div class="section-container q-mb-md">
+                    <div class="row items-center q-mb-sm section-header">
+                      <div class="col">
+                        <q-input v-model="section.title" label="Section Title" dense />
+                      </div>
+                      <div class="col-auto">
+                        <div class="row items-center no-wrap">
+                          <!-- Delete button -->
+                          <q-btn v-if="contentSections.length > 1" round flat color="negative" icon="delete" size="sm"
+                            @click="removeSection(index)" :disable="dragging" />
+                          <!-- Drag handle -->
+                          <div class="drag-handle-wrapper q-ml-sm">
+                            <q-btn flat round dense class="drag-handle" unelevated>
+                              <div class="handle-dots">
+                                <div class="dots-row">
+                                  <div class="dot"></div>
+                                  <div class="dot"></div>
+                                </div>
+                                <div class="dots-row">
+                                  <div class="dot"></div>
+                                  <div class="dot"></div>
+                                </div>
+                                <div class="dots-row">
+                                  <div class="dot"></div>
+                                  <div class="dot"></div>
+                                </div>
+                              </div>
+                            </q-btn>
                           </div>
-                        </q-btn>
+                        </div>
                       </div>
                     </div>
+                    <q-input v-model="section.content" type="textarea" :label="section.title || 'Your thoughts...'"
+                      autogrow class="custom-textarea" :disable="dragging" />
                   </div>
-                </div>
+                </template>
+              </draggable>
 
-                <q-input v-model="section.content" type="textarea" :label="section.title || 'Your thoughts...'" autogrow
-                  style="--input-field-height: 20px;" class="custom-textarea" :disable="dragging" />
-              </div>
-            </template>
-          </draggable>
-
-          <div class="q-mt-md">
-            <q-btn rounded unelevated color="info" class="full-width" style="height: 40px" @click="addSection">
-              <q-icon name="add" class="q-mr-sm" />
-              Add Section
-            </q-btn>
-          </div>
-
-          <div class="q-mt-lg">
-            <div class="row q-col-gutter-x-sm">
-              <div class="col-6">
-                <q-btn rounded unelevated color="negative" class="full-width" @click="router.push('/')"
-                  style="height: 40px"><q-icon name="cancel" class="q-mr-sm" /> Cancel</q-btn>
-              </div>
-              <div class="col-6">
-                <q-btn rounded unelevated color="primary" @click="saveEntry" class="full-width" :loading="saving"
-                  style="height: 40px">
-                  <span v-if="!saving"><q-icon name="fa fa-cross" class="q-mr-sm" /> Plant Seed</span>
-                  <span v-else>Planting...</span>
+              <div class="q-mt-md">
+                <q-btn rounded unelevated color="info" class="full-width" style="height: 40px" @click="addSection">
+                  <q-icon name="add" class="q-mr-sm" />
+                  Add Section
                 </q-btn>
               </div>
+            </q-tab-panel>
+
+            <!-- Additional Content Tab -->
+            <q-tab-panel name="additional" class="q-pt-md q-pl-md">
+              <div cvlass="fit">
+                <!-- Linked Verses -->
+                <div class="q-mb-lg">
+                  <LinkedVerses v-model="linkedVerses" />
+                </div>
+
+                <!-- Tags -->
+                <div class="q-mb-lg">
+                  <TagSelector v-model="selectedTags" />
+                </div>
+
+                <!-- Quotes -->
+                <div class="q-mb-lg">
+                  <QuoteSelector v-model="selectedQuotes" />
+                </div>
+              </div>
+            </q-tab-panel>
+          </q-tab-panels>
+
+          <!-- Action Buttons -->
+          <div class="row q-col-gutter-x-sm q-mt-lg">
+            <div class="col-6">
+              <q-btn rounded unelevated color="negative" class="full-width" @click="router.push('/')"
+                style="height: 40px">
+                <q-icon name="cancel" class="q-mr-sm" /> Cancel
+              </q-btn>
+            </div>
+            <div class="col-6">
+              <q-btn rounded unelevated color="primary" @click="saveEntry" class="full-width" :loading="saving"
+                style="height: 40px">
+                <span v-if="!saving">
+                  <q-icon name="fa fa-cross" class="q-mr-sm" /> Plant Seed
+                </span>
+                <span v-else>Planting...</span>
+              </q-btn>
             </div>
           </div>
         </div>
@@ -274,6 +294,7 @@ import QuoteSelector from 'src/components/QuoteSelector.vue'
 const router = useRouter()
 const $q = useQuasar()
 const journalStore = useJournalStore()
+const activeTab = ref('main')
 
 // Modals
 const showVerseModal = ref(false)
