@@ -6,8 +6,7 @@
 
         <div class="q-gutter-md">
           <!-- Entry Type Selector -->
-          <q-select v-model="entryType" :options="entryTypes" label="Type" class="q-mb-md"
-            @update:model-value="handleTypeChange" />
+          <TypeSelector v-model="entryType" @update:modelValue="handleTypeChange" />
 
           <!-- Resource Selection Section -->
           <!-- Bible Verse Selector -->
@@ -291,6 +290,8 @@ import draggable from 'vuedraggable'
 import LinkedVerses from 'components/LinkedVerses.vue'
 import TagSelector from 'src/components/TagSelector.vue'
 import QuoteSelector from 'src/components/QuoteSelector.vue'
+import TypeSelector from 'components/TypeSelector.vue'
+
 const router = useRouter()
 const $q = useQuasar()
 const journalStore = useJournalStore()
@@ -330,7 +331,7 @@ const linkedVerses = ref([])
 const selectedTags = ref([])
 const selectedQuotes = ref([])
 
-const entryTypes = ['Bible', 'Sermon', 'Answered Prayer / Miracle', 'Devotional', 'Group', 'Book', 'Article', 'Song', 'Podcast', 'Show', 'Other']
+// const entryTypes = ['Bible', 'Sermon', 'Answered Prayer / Miracle', 'Devotional', 'Group', 'Book', 'Article', 'Song', 'Podcast', 'Show', 'Other']
 const entryType = ref('Bible')
 
 const getTodayDate = () => {
