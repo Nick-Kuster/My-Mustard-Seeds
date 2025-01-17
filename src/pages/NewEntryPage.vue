@@ -196,7 +196,8 @@
             <q-tab name="additional" label="Additional Content" />
           </q-tabs>
 
-          <q-tab-panels v-model="activeTab" animated>
+          <q-tab-panels v-model="activeTab" animated class="bg-transparent" @touchstart="handleTouchStart"
+            @touchmove="handleTouchMove" @touchend="handleTouchEnd">
             <!-- Main Content Tab -->
             <q-tab-panel name="main" class="q-pa-none">
               <!-- Dynamic Sections -->
@@ -697,6 +698,49 @@ const saveEntry = async () => {
   }
 }
 
+const touchStart = ref({ x: 0, y: 0 })
+const touchEnd = ref({ x: 0, y: 0 })
+const minSwipeDistance = 50 // minimum distance in pixels to trigger swipe
+
+const handleTouchStart = (event) => {
+  touchStart.value = {
+    x: event.touches[0].clientX,
+    y: event.touches[0].clientY
+  }
+  touchEnd.value = { x: 0, y: 0 }
+}
+
+const handleTouchMove = (event) => {
+  touchEnd.value = {
+    x: event.touches[0].clientX,
+    y: event.touches[0].clientY
+  }
+}
+
+const handleTouchEnd = () => {
+  if (!touchStart.value.x || !touchEnd.value.x) return
+
+  const distanceX = touchEnd.value.x - touchStart.value.x
+  const distanceY = Math.abs(touchEnd.value.y - touchStart.value.y)
+
+  // Only handle horizontal swipes (ignore if vertical movement is too large)
+  if (Math.abs(distanceX) > minSwipeDistance && distanceY < 100) {
+    const tabs = ['main', 'additional']
+    const currentIndex = tabs.indexOf(activeTab.value)
+
+    if (distanceX > 0 && currentIndex > 0) {
+      // Swipe right
+      activeTab.value = tabs[currentIndex - 1]
+    } else if (distanceX < 0 && currentIndex < tabs.length - 1) {
+      // Swipe left
+      activeTab.value = tabs[currentIndex + 1]
+    }
+  }
+
+  // Reset values
+  touchStart.value = { x: 0, y: 0 }
+  touchEnd.value = { x: 0, y: 0 }
+}
 onMounted(() => {
   contentSections.value = [...bibleSections, { ...prayerSection }]
 })
