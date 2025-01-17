@@ -1,5 +1,5 @@
 <template>
-  <q-dialog v-model="isOpen" persistent>
+  <q-dialog v-model="isOpen">
     <q-card style="min-width: 350px; max-width: 600px">
       <q-card-section class="row items-center">
         <q-btn v-if="selectionPath.length > 0 && !showAddForm && !editingResource" flat round dense icon="arrow_back"

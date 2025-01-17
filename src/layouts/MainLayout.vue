@@ -2,7 +2,7 @@
   <q-layout view="lHh Lpr lFf">
     <q-header elevated>
       <q-toolbar>
-        <q-btn flat dense round icon="menu" aria-label="Menu" @click="toggleLeftDrawer" class="lt-md" />
+        <q-btn flat dense round icon="menu" aria-label="Menu" @click="toggleLeftDrawer" />
         <q-toolbar-title>
           <router-link to="/" class="text-white text-decoration-none header-link">
             My Mustard Seeds
@@ -33,7 +33,7 @@ const $q = useQuasar()
 const leftDrawerOpen = ref(false)
 
 onMounted(() => {
-  leftDrawerOpen.value = !$q.platform.is.mobile
+  leftDrawerOpen.value = false
 })
 
 watch(() => $q.screen.width, () => {

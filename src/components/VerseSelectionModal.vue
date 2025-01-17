@@ -1,5 +1,5 @@
 <template>
-  <q-dialog v-model="isOpen" persistent>
+  <q-dialog v-model="isOpen">
     <q-card class="verse-selection-modal">
       <q-card-section class="row items-center">
         <div class="text-h6">Select Verse Range</div>
