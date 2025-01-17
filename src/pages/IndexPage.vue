@@ -16,16 +16,40 @@
             </q-btn>
           </div>
         </div>
-        <RecentEntries />
+
+        <!-- Tabs Container -->
+        <q-card flat bordered>
+          <q-tabs v-model="tab" dense class="text-grey" active-color="primary" indicator-color="primary" align="justify"
+            narrow-indicator>
+            <q-tab name="recent" label="Recent Seeds" />
+            <q-tab name="browse" label="Harvest Seeds" />
+          </q-tabs>
+
+          <q-separator />
+
+          <q-tab-panels v-model="tab" animated swipeable transition-prev="slide-right" transition-next="slide-left">
+            <q-tab-panel name="recent">
+              <RecentEntries />
+            </q-tab-panel>
+
+            <q-tab-panel name="browse">
+              <BrowseContent />
+            </q-tab-panel>
+          </q-tab-panels>
+        </q-card>
       </div>
     </div>
   </q-page>
 </template>
+
 <script setup>
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import RecentEntries from 'src/components/RecentEntries.vue'
+import BrowseContent from 'src/components/BrowseContent.vue'
 
 const router = useRouter()
+const tab = ref('recent')
 </script>
 
 <style scoped>

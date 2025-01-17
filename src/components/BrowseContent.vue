@@ -2,22 +2,6 @@
   <!-- Main Menu View -->
   <q-transition enter-active-class="animated slideInRight" leave-active-class="animated slideOutLeft">
     <q-list padding v-if="currentView === 'main'">
-      <q-item clickable v-ripple to="/" exact>
-        <q-item-section avatar>
-          <q-icon name="home" />
-        </q-item-section>
-        <q-item-section>Home</q-item-section>
-      </q-item>
-
-      <q-item clickable v-ripple to="/entry/new">
-        <q-item-section avatar>
-          <q-icon name="agriculture" />
-        </q-item-section>
-        <q-item-section>Plant a Seed</q-item-section>
-      </q-item>
-
-      <q-separator spaced />
-
       <q-item-label header>Harvest Seeds By</q-item-label>
 
       <q-item clickable v-ripple to="/type/Bible">
