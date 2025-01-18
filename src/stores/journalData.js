@@ -17,6 +17,7 @@ export const useJournalStore = defineStore('journalData', () => {
     resources: [], // specific resources
     tags: [], // selected tags
     quotes: [], // Will contain quote sources
+    links: [], // Add this line
   })
 
   // Computed property to get all available facets from the current entries
@@ -28,6 +29,7 @@ export const useJournalStore = defineStore('journalData', () => {
       resources: new Set(),
       tags: new Set(),
       quotes: new Set(),
+      links: new Set(),
     }
 
     decryptedEntries.value.forEach((entry) => {
@@ -50,6 +52,11 @@ export const useJournalStore = defineStore('journalData', () => {
         facets.tags.add(tag.name)
       })
 
+      // Add links
+      entry.links?.forEach((link) => {
+        facets.links.add(link.name)
+      })
+
       entry.quotes?.forEach((quote) => {
         if (quote.source) {
           facets.quotes.add(quote.source)
@@ -65,6 +72,7 @@ export const useJournalStore = defineStore('journalData', () => {
       resources: Array.from(facets.resources).sort(),
       tags: Array.from(facets.tags).sort(),
       quotes: Array.from(facets.quotes).sort(),
+      links: Array.from(facets.links).sort(),
     }
   })
 
@@ -114,6 +122,13 @@ export const useJournalStore = defineStore('journalData', () => {
           )
             return true
 
+        if (
+          entry.links?.some(
+            (link) =>
+              link.name.toLowerCase().includes(search) || link.url.toLowerCase().includes(search),
+          )
+        )
+          return true
         // Search in tags
         if (entry.tags?.some((tag) => tag.name.toLowerCase().includes(search))) return true
 
@@ -158,6 +173,11 @@ export const useJournalStore = defineStore('journalData', () => {
         entry.quotes?.some((quote) => selectedFacets.value.quotes.includes(quote.source)),
       )
     }
+    if (selectedFacets.value.links.length > 0) {
+      filtered = filtered.filter((entry) =>
+        entry.links?.some((link) => selectedFacets.value.links.includes(link.name)),
+      )
+    }
     return filtered
   })
 
@@ -177,7 +197,7 @@ export const useJournalStore = defineStore('journalData', () => {
     }
   }
 
-  // Existing functions...
+  // Update the fetchEntries function to include links
   const fetchEntries = async () => {
     loading.value = true
     try {
@@ -197,6 +217,8 @@ export const useJournalStore = defineStore('journalData', () => {
         verses: item.verses_data,
         tags: item.tags_data,
         resources: item.resources_data,
+        quotes: item.quotes_data,
+        links: item.links_data, // Add this line
       }))
 
       await decryptEntries()
@@ -208,12 +230,11 @@ export const useJournalStore = defineStore('journalData', () => {
     }
   }
 
+  // Update the getEntry function to include links
   const getEntry = async (id) => {
-    // First check if we already have the entry in our store
     const existingEntry = decryptedEntries.value.find((entry) => entry.id === id)
     if (existingEntry) return existingEntry
 
-    // If not, fetch it from the database
     loading.value = true
     try {
       const {
@@ -234,6 +255,8 @@ export const useJournalStore = defineStore('journalData', () => {
         verses: data[0].verses_data,
         tags: data[0].tags_data,
         resources: data[0].resources_data,
+        quotes: data[0].quotes_data,
+        links: data[0].links_data, // Add this line
       }
 
       const encryptionKey = await getEncryptionKey(session.user.id)
@@ -390,6 +413,78 @@ export const useJournalStore = defineStore('journalData', () => {
     }
   }
 
+  // Add a link to a journal entry
+  const addLink = async (journalId, linkData) => {
+    try {
+      const { data, error } = await supabase
+        .from('related_links')
+        .insert({
+          journal_id: journalId,
+          name: linkData.name,
+          url: linkData.url,
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // Update local state
+      const entryIndex = entries.value.findIndex((e) => e.id === journalId)
+      if (entryIndex !== -1) {
+        const entry = entries.value[entryIndex]
+        entry.links = entry.links || []
+        entry.links.push(data)
+        await decryptEntries() // Refresh decrypted entries
+      }
+
+      return data
+    } catch (error) {
+      console.error('Error adding link:', error)
+      throw error
+    }
+  }
+
+  // Update a link
+  const updateLink = async (linkId, linkData) => {
+    try {
+      const { data, error } = await supabase
+        .from('related_links')
+        .update({
+          name: linkData.name,
+          url: linkData.url,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', linkId)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // Update local state
+      await fetchEntries() // Refresh all entries to ensure consistency
+
+      return data
+    } catch (error) {
+      console.error('Error updating link:', error)
+      throw error
+    }
+  }
+
+  // Delete a link
+  const deleteLink = async (linkId) => {
+    try {
+      const { error } = await supabase.from('related_links').delete().eq('id', linkId)
+
+      if (error) throw error
+
+      // Update local state
+      await fetchEntries() // Refresh all entries to ensure consistency
+    } catch (error) {
+      console.error('Error deleting link:', error)
+      throw error
+    }
+  }
+
   return {
     entries,
     loading,
@@ -407,5 +502,8 @@ export const useJournalStore = defineStore('journalData', () => {
     addQuote,
     updateQuote,
     deleteQuote,
+    addLink,
+    updateLink,
+    deleteLink,
   }
 })

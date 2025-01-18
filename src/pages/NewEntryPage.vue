@@ -166,24 +166,27 @@
               @select="onPodcastSelect" />
           </div>
           <!-- Header Sections -->
+          <!-- In your template, update the header sections rendering -->
           <div v-for="(section, index) in headerSections" :key="'header-' + index" class="q-mb-md">
             <template v-if="section.fieldType === 'date'">
-              <q-input v-model="section.content" :label="section.title" mask="##-##-####"
-                :model-value="section.content || getTodayDate()">
-                <template v-slot:prepend>
-                  <q-icon name="event" class="cursor-pointer">
-                    <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-                      <q-date v-model="section.content" mask="MM-DD-YYYY" minimal>
-                        <div class="row items-center justify-end q-pa-sm">
-                          <q-btn v-close-popup label="Close" color="primary" flat size="sm" />
-                        </div>
-                      </q-date>
-                    </q-popup-proxy>
-                  </q-icon>
-                </template>
-              </q-input>
+              <!-- Your existing date input -->
+            </template>
+            <template v-else-if="section.fieldType === 'link'">
+              <div class="row q-col-gutter-sm">
+                <div class="col-12">
+                  <q-input v-model="section.content" :label="section.title" type="url" :rules="[
+                    val => !val || /^https?:\/\//.test(val) || 'Must start with http:// or https://'
+                  ]" class="q-mb-sm">
+                    <template v-slot:append>
+                      <q-btn v-if="section.content" flat round dense icon="open_in_new"
+                        @click="window.open(section.content, '_blank')" />
+                    </template>
+                  </q-input>
+                </div>
+              </div>
             </template>
             <template v-else>
+              <!-- Your existing default input -->
               <q-input v-model="section.content" :label="section.title"
                 :type="section.fieldType === 'longText' ? 'textarea' : 'text'" />
             </template>
@@ -268,6 +271,11 @@
                 <div class="q-mb-lg">
                   <QuoteSelector v-model="selectedQuotes" />
                 </div>
+
+                <!-- Links -->
+                <div class="q-mb-lg">
+                  <LinkSelector v-model="selectedLinks" />
+                </div>
               </div>
             </q-tab-panel>
           </q-tab-panels>
@@ -312,6 +320,8 @@ import TagSelector from 'src/components/TagSelector.vue'
 import QuoteSelector from 'src/components/QuoteSelector.vue'
 import TypeSelector from 'components/TypeSelector.vue'
 import VerseDisplayModal from 'components/VerseDisplayModal.vue'
+import LinkSelector from 'src/components/LinkSelector.vue'
+
 
 const router = useRouter()
 const $q = useQuasar()
@@ -344,6 +354,7 @@ const selectedGroup = ref(null)
 const selectedShow = ref(null)
 const selectedSeason = ref(null)
 const selectedEpisode = ref(null)
+const selectedLinks = ref([])
 
 const mainVerse = ref({})
 const title = ref('')
@@ -384,6 +395,7 @@ const sermonSections = [
 
 const songSections = [
   createSection('Song Title', '', 'shortText', true),
+  createSection('Song Link', '', 'link', true),
   createSection('Lyrics', '', 'longText')
 ]
 
@@ -394,6 +406,18 @@ const devotionSections = [
 
 const miracleSections = [
   createSection('Date', '', 'date', true)
+]
+
+const videoSections = [
+  createSection('Video Title', '', 'shortText', true),
+  createSection('Video URL', '', 'link', true),
+  createSection('Notes', '', 'longText')
+]
+
+const articleSections = [
+  createSection('Article Title', '', 'shortText', true),
+  createSection('Article URL', '', 'link', true),
+  createSection('Notes', '', 'longText')
 ]
 
 const prayerSection = createSection('Prayer', '', 'longText')
@@ -451,6 +475,18 @@ const handleTypeChange = (newType) => {
         content: s.fieldType === 'date' ? today : s.content
       }))
       break;
+    case 'Video':
+      newSections = videoSections.map(s => ({
+        ...s,
+        content: s.fieldType === 'date' ? today : s.content
+      }))
+      break
+    case 'Article':
+      newSections = articleSections.map(s => ({
+        ...s,
+        content: s.fieldType === 'date' ? today : s.content
+      }))
+      break
     default:
       newSections = [createSection()]
   }
@@ -641,7 +677,6 @@ const saveEntry = async () => {
       if (journalResourceError) throw journalResourceError
     }
 
-
     // Handle tags
     if (selectedTags.value.length > 0) {
       const tagInserts = selectedTags.value.map(tag => ({
@@ -678,6 +713,21 @@ const saveEntry = async () => {
       }
     }
 
+    // Handle Links
+    const linkSections = contentSections.value.filter(s => s.fieldType === 'link' && s.content)
+    if (linkSections.length > 0) {
+      const linkInserts = linkSections.map(section => ({
+        journal_id: entry.id,
+        name: section.title,
+        url: section.content
+      }))
+
+      const { error: linkError } = await supabase
+        .from('related_links')
+        .insert(linkInserts)
+
+      if (linkError) throw new Error('Failed to save links: ' + linkError.message)
+    }
     $q.notify({
       type: 'positive',
       message: 'Your seed has been planted!'

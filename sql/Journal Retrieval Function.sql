@@ -4,7 +4,8 @@ RETURNS TABLE (
     verses_data JSON,
     tags_data JSON,
     resources_data JSON,
-    quotes_data JSON
+    quotes_data JSON,
+    links_data JSON
 ) LANGUAGE plpgsql AS $$
 BEGIN
     RETURN QUERY
@@ -68,6 +69,17 @@ BEGIN
         )) as quotes_data
         FROM journal_quotes q
         WHERE q.journal_id = p_entry_id
+    ),
+    links_json AS (
+        SELECT json_agg(json_build_object(
+            'id', rl.id,
+            'name', rl.name,
+            'url', rl.url,
+            'created_at', rl.created_at,
+            'updated_at', rl.updated_at
+        )) as links_data
+        FROM related_links rl
+        WHERE rl.journal_id = p_entry_id
     )
     
     SELECT 
@@ -75,11 +87,13 @@ BEGIN
         COALESCE(verses_json.verses_data, '[]'::json),
         COALESCE(tags_json.tags_data, '[]'::json),
         COALESCE(resources_json.resources_data, '[]'::json),
-        COALESCE(quotes_json.quotes_data, '[]'::json)
+        COALESCE(quotes_json.quotes_data, '[]'::json),
+        COALESCE(links_json.links_data, '[]'::json)
     FROM entry_json
     LEFT JOIN verses_json ON true
     LEFT JOIN tags_json ON true
     LEFT JOIN resources_json ON true
-    LEFT JOIN quotes_json ON true;
+    LEFT JOIN quotes_json ON true
+    LEFT JOIN links_json ON true;
 END;
 $$;
