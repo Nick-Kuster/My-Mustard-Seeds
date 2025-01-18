@@ -256,7 +256,7 @@ export const useJournalStore = defineStore('journalData', () => {
         tags: data[0].tags_data,
         resources: data[0].resources_data,
         quotes: data[0].quotes_data,
-        links: data[0].links_data, // Add this line
+        links: data[0].links_data,
       }
 
       const encryptionKey = await getEncryptionKey(session.user.id)

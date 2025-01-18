@@ -256,7 +256,7 @@
 
             <!-- Additional Content Tab -->
             <q-tab-panel name="additional" class="q-pt-md q-pl-md">
-              <div cvlass="fit">
+              <div class="fit">
                 <!-- Linked Verses -->
                 <div class="q-mb-lg">
                   <LinkedVerses v-model="linkedVerses" />

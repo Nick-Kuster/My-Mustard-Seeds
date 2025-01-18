@@ -61,13 +61,6 @@ const endVerseId = ref(null)
 const fetchVerseContent = async () => {
   if (!selectedBook.value?.book || !selectedChapter.value || !startVerse.value) return
 
-  console.log('Fetching verse with:', {
-    book: selectedBook.value.book,
-    chapter: selectedChapter.value,
-    startVerse: startVerse.value,
-    endVerse: endVerse.value
-  })
-
   const query = supabase
     .from('bible_verses')
     .select('id, content')
@@ -86,7 +79,6 @@ const fetchVerseContent = async () => {
   const { data, error } = await query
 
   if (error) {
-    console.error('Error fetching verse content:', error)
     return
   }
 

@@ -7,149 +7,158 @@
         </div>
 
         <template v-else>
-          <!-- Header Section -->
-          <div class="q-mb-lg">
-            <div class="text-h5">{{ entry?.title }}</div>
-            <div class="text-caption text-grey q-mt-sm">
-              {{ formatDate(entry?.created_at) }} • {{ entry?.type }}
-            </div>
-          </div>
-
-          <!-- Main Verse Section (for Bible entries) -->
-          <template v-if="entry?.type === 'Bible' && mainVerse">
-            <div class="q-mb-md">
-              <div class="text-subtitle1 text-weight-medium q-mb-sm">Main Verse</div>
-              <VerseChip :verse="{
-                display: mainVerse.display,
-                startVerse: mainVerse.startVerse,
-                endVerse: mainVerse.endVerse
-              }" color="primary" :removable="false" />
-            </div>
-          </template>
-
-          <!-- Resource Section -->
-          <template v-if="resources.length > 0">
-            <div class="q-mb-md">
-              <div class="text-subtitle1 text-weight-medium q-mb-sm">Resource</div>
-              <div v-for="resource in resources" :key="resource.id" class="q-mb-sm">
-                <q-chip :color="resource.primary_resource ? 'primary' : 'secondary'" text-color="white">
-                  {{ getResourceDisplay(resource) }}
-                </q-chip>
+          <!-- Header -->
+          <div class="row items-center q-mb-md">
+            <div class="col">
+              <div class="text-h5">{{ entry?.title }}</div>
+              <div class="text-caption text-grey">
+                {{ formatDate(entry?.created_at) }} • {{ entry?.type }}
               </div>
             </div>
-          </template>
-
-          <!-- Linked Verses for all types -->
-          <div class="q-mb-lg">
-            <LinkedVerses v-model="linkedVerses" :displayOnly="true" />
-          </div>
-
-          <!-- Tags Section -->
-          <template v-if="tags.length > 0">
-            <div class="q-mb-md">
-              <div class="text-subtitle1 text-weight-medium q-mb-sm">Tags</div>
+            <div class="col-auto">
               <div class="row q-gutter-sm">
-                <q-chip v-for="tag in tags" :key="tag.id" color="info" text-color="white">
-                  {{ tag.name }}
-                </q-chip>
+                <q-btn rounded unelevated color="negative" icon="delete" style="height: 40px" @click="confirmDelete" />
+                <q-btn rounded unelevated color="grey" label="Back" @click="router.push('/')" style="height: 40px" />
               </div>
             </div>
-          </template>
-
-          <!-- Content Sections -->
-          <template v-if="decryptedContent">
-            <!-- Header Sections -->
-            <template v-for="section in decryptedContent.sections.filter(s => s.headerProperty)" :key="section.title">
-              <div class="q-mb-md">
-                <div class="text-subtitle1 text-weight-medium q-mb-sm">{{ section.title }}</div>
-                <div class="text-body1">{{ section.content }}</div>
-              </div>
-            </template>
-
-            <!-- Regular Sections -->
-            <template v-for="section in decryptedContent.sections.filter(s => !s.headerProperty)" :key="section.title">
-              <div class="q-mb-lg">
-                <div class="text-subtitle1 text-weight-medium q-mb-sm">{{ section.title }}</div>
-                <div class="text-body1" style="white-space: pre-wrap">{{ section.content }}</div>
-              </div>
-            </template>
-          </template>
-
-          <div v-else class="text-center text-grey q-pa-lg">
-            Unable to decrypt entry content
           </div>
+
+          <!-- Bible Verse Display -->
+          <div v-if="entry?.type === 'Bible' && mainVerses.length" class="q-mb-lg">
+            <div v-for="verse in mainVerses" :key="verse.startVerseId" class="q-mb-sm">
+              <a href="#" class="verse-link text-h5 text-primary text-weight-medium"
+                style="text-decoration: none; line-height: 1.5" @click.prevent="() => showVerseModal(verse)">
+                {{ verse.display }}
+              </a>
+            </div>
+          </div>
+
+          <!-- Content Tabs -->
+          <q-tabs v-model="activeTab" dense class="text-grey q-mb-md" active-color="primary" indicator-color="primary"
+            align="justify" narrow-indicator>
+            <q-tab name="main" label="Main Content" />
+            <q-tab name="additional" label="Additional Content" />
+          </q-tabs>
+
+          <q-tab-panels v-model="activeTab" animated class="bg-transparent">
+            <!-- Main Content Tab -->
+            <q-tab-panel name="main" class="q-pa-none">
+              <template v-if="entry?.decryptedContent?.sections">
+                <div v-for="(section, index) in entry.decryptedContent.sections" :key="index" class="q-mb-lg">
+                  <div class="text-subtitle1 text-weight-medium q-mb-sm">
+                    {{ section.title || 'Untitled Section' }}
+                  </div>
+                  <div class="text-body1" style="white-space: pre-wrap">{{ section.content }}</div>
+                </div>
+              </template>
+            </q-tab-panel>
+
+            <!-- Additional Content Tab -->
+            <q-tab-panel name="additional" class="q-pa-none">
+              <!-- Linked Verses -->
+              <div v-if="linkedVerses.length" class="q-mb-lg">
+                <div class="q-mb-lg">
+                  <LinkedVerses v-model="linkedVerses" />
+                </div>
+              </div>
+
+              <!-- Tags -->
+              <div v-if="entry?.tags?.length" class="q-mb-lg">
+                <div class="q-mb-lg">
+                  <TagSelector v-model="entry.tags" />
+                </div>
+              </div>
+
+              <!-- Quotes -->
+              <div v-if="entry?.quotes?.length" class="q-mb-lg">
+
+                <div class="q-mb-lg">
+                  <QuoteSelector v-model="entry.quotes" />
+                </div>
+
+              </div>
+
+              <!-- Links -->
+              <div v-if="entry?.links?.length" class="q-mb-lg">
+                <div class="q-mb-lg">
+                  <LinkSelector v-model="entry.links" />
+                </div>
+              </div>
+            </q-tab-panel>
+          </q-tab-panels>
         </template>
-
-        <div class="q-mt-xl">
-          <q-btn rounded unelevated color="info" class="full-width" style="height: 40px"
-            @click="router.push(`/entry/${entry?.id}/edit`)">
-            <q-icon name="edit" class="q-mr-sm" />
-            Edit
-          </q-btn>
-        </div>
-
-        <div class="q-mt-lg">
-          <div class="row q-col-gutter-x-sm">
-            <div class="col-6">
-              <q-btn rounded unelevated color="grey" class="full-width" @click="goBack" style="height: 40px"><q-icon
-                  name="arrow_back" class="q-mr-sm" /> Back</q-btn>
-            </div>
-            <div class="col-6">
-              <q-btn rounded unelevated color="negative" @click="confirmDelete" class="full-width" style="height: 40px">
-                <q-icon name="delete" class="q-mr-sm" />Delete
-              </q-btn>
-            </div>
-          </div>
-        </div>
-
-        <!-- Delete Confirmation Dialog -->
-        <q-dialog v-model="showDeleteDialog" persistent>
-          <q-card style="min-width: 300px">
-            <q-card-section>
-              <div class="text-h6">Delete Entry</div>
-            </q-card-section>
-
-            <q-card-section>
-              Are you sure you want to delete this entry? This action cannot be undone.
-            </q-card-section>
-
-            <q-card-actions align="right">
-              <q-btn flat label="Back" color="primary" v-close-popup />
-              <q-btn flat label="Delete" color="negative" :loading="deleting" @click="deleteEntry" />
-            </q-card-actions>
-          </q-card>
-        </q-dialog>
       </div>
     </div>
+
+    <!-- Delete Confirmation Dialog -->
+    <q-dialog v-model="showDeleteDialog" persistent>
+      <q-card style="min-width: 300px">
+        <q-card-section>
+          <div class="text-h6">Delete Entry</div>
+        </q-card-section>
+
+        <q-card-section>
+          Are you sure you want to delete this entry? This action cannot be undone.
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" color="primary" v-close-popup />
+          <q-btn flat label="Delete" color="negative" :loading="deleting" @click="deleteEntry" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- Verse Display Modal -->
+    <VerseDisplayModal v-if="selectedVerse" v-model="showVerseDisplayModal" :reference="selectedVerse.display"
+      :start-verse="selectedVerse.startVerse" :end-verse="selectedVerse.endVerse" />
   </q-page>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { supabase } from 'src/boot/supabase'
-import VerseChip from 'components/VerseChip.vue'
+import { useJournalStore } from 'src/stores/journalData'
 import LinkedVerses from 'components/LinkedVerses.vue'
-import { useJournalStore } from 'stores/journalData'
+import TagSelector from 'components/TagSelector.vue'
+import QuoteSelector from 'components/QuoteSelector.vue'
+import LinkSelector from 'components/LinkSelector.vue'
+import VerseDisplayModal from 'components/VerseDisplayModal.vue'
+import { createDisplayVerse } from 'src/utils/verseUtils'
 
 const router = useRouter()
 const route = useRoute()
 const $q = useQuasar()
 const journalStore = useJournalStore()
 
+// State
+const activeTab = ref('main')
+const loading = ref(true)
 const entry = ref(null)
-const decryptedContent = ref(null)
 const showDeleteDialog = ref(false)
 const deleting = ref(false)
-const verses = ref([])
-const tags = ref([])
-const mainVerse = ref({})
-const linkedVerses = ref([])
-const resources = ref([])
-const loading = computed(() => journalStore.loading)
+const showVerseDisplayModal = ref(false)
+const selectedVerse = ref(null)
 
+// Computed properties
+const mainVerses = computed(() => {
+  if (!entry.value?.verses) return []
+  return entry.value.verses
+    .filter(v => v.main_verse)
+    .map(createDisplayVerse)
+})
+
+const linkedVerses = computed(() => {
+  if (!entry.value?.verses) return []
+  return entry.value.verses
+    .filter(v => !v.main_verse)
+    .map(createDisplayVerse)
+})
+
+// Methods
 const formatDate = (dateString) => {
+  if (!dateString) return ''
   return new Date(dateString).toLocaleDateString(undefined, {
     weekday: 'long',
     year: 'numeric',
@@ -158,97 +167,26 @@ const formatDate = (dateString) => {
   })
 }
 
-const goBack = () => {
-  router.push('/')
-}
-
-const formatVerseReference = (verseData) => {
-  if (!verseData) return ''
-  const { book, start_chapter, start_verse, end_chapter, end_verse } = verseData
-  if (start_chapter === end_chapter && start_verse === end_verse) {
-    return `${book} ${start_chapter}:${start_verse}`
-  } else if (start_chapter === end_chapter) {
-    return `${book} ${start_chapter}:${start_verse}-${end_verse}`
-  } else {
-    return `${book} ${start_chapter}:${start_verse}-${end_chapter}:${end_verse}`
-  }
-}
-
-const getResourceDisplay = (resource) => {
-  if (!resource) return ''
-  switch (entry.value?.type) {
-    case 'Book':
-      return `${resource.metadata.title} by ${resource.metadata.author}`
-    case 'Sermon':
-      return `${resource.metadata.name} from ${resource.metadata.church}`
-    case 'Podcast':
-      return `${resource.metadata.title} with ${resource.metadata.host}`
-    case 'Song':
-      return resource.metadata.name
-    case 'Devotional':
-      return resource.metadata.name
-    default:
-      return ''
-  }
+const showVerseModal = (verse) => {
+  selectedVerse.value = verse
+  showVerseDisplayModal.value = true
 }
 
 const fetchEntry = async () => {
   try {
+    loading.value = true
     const entryData = await journalStore.getEntry(route.params.id)
-    console.log(entryData)
-    if (!entryData) {
-      throw new Error('Entry not found')
-    }
-
+    if (!entryData) throw new Error('Entry not found')
     entry.value = entryData
-    verses.value = entryData.verses || []
-    tags.value = entryData.tags || []
-    resources.value = entryData.resources || []
-    decryptedContent.value = entryData.decryptedContent
-
-    // Handle verses
-    if (verses.value && verses.value.length) {
-      const mainVerseData = verses.value.find(v => v.main_verse)
-      const linkedVersesData = verses.value.filter(v => !v.main_verse)
-
-      if (mainVerseData) {
-        mainVerse.value = {
-          startVerseId: mainVerseData.start_verse_id,
-          endVerseId: mainVerseData.end_verse_id,
-          startVerse: mainVerseData.start_verse_number,
-          endVerse: mainVerseData.end_verse_number,
-          display: formatVerseReference(mainVerseData)
-        }
-      }
-
-      linkedVerses.value = linkedVersesData.map(verse => ({
-        startVerseId: verse.start_verse_id,
-        endVerseId: verse.end_verse_id,
-        startVerse: verse.start_verse_number,
-        endVerse: verse.end_verse_number,
-        display: formatVerseReference({
-          book: verse.book,
-          start_chapter: verse.start_chapter,
-          start_verse: verse.start_verse,
-          end_chapter: verse.end_chapter,
-          end_verse: verse.end_verse
-        })
-      }))
-    }
-
-    if (!entryData.decryptedContent) {
-      $q.notify({
-        type: 'negative',
-        message: 'Unable to decrypt entry content'
-      })
-    }
+    console.log(entry)
   } catch (error) {
-    console.error('Error fetching entry:', error)
     $q.notify({
       type: 'negative',
       message: error.message || 'Error loading entry'
     })
     router.push('/')
+  } finally {
+    loading.value = false
   }
 }
 
@@ -257,24 +195,22 @@ const confirmDelete = () => {
 }
 
 const deleteEntry = async () => {
-  deleting.value = true
   try {
+    deleting.value = true
+    await journalStore.removeEntry(entry.value.id)
     const { error } = await supabase
       .from('journal_entries')
       .delete()
-      .eq('id', route.params.id)
+      .eq('id', entry.value.id)
 
     if (error) throw error
-
-    // Remove from store
-    await journalStore.removeEntry(route.params.id)
 
     showDeleteDialog.value = false
     $q.notify({
       type: 'positive',
       message: 'Entry deleted successfully'
     })
-    goBack()
+    router.push('/')
   } catch (error) {
     console.error('Error deleting entry:', error)
     $q.notify({
@@ -286,7 +222,19 @@ const deleteEntry = async () => {
   }
 }
 
+// Lifecycle hooks
 onMounted(() => {
   fetchEntry()
 })
 </script>
+
+<style scoped>
+.verse-link {
+  display: block;
+  padding: 8px 0;
+}
+
+.verse-link:hover {
+  opacity: 0.8;
+}
+</style>
