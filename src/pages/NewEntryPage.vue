@@ -38,7 +38,6 @@
           <!-- Book Specific Select -->
           <div v-else-if="entryType === 'Book'" class="q-mb-lg">
 
-
             <div v-if="selectedBook">
               <div class="q-mb-md">
                 <div class="text-body1">Chapter: {{ selectedChapter.metadata.number }} {{ selectedChapter.metadata.title
@@ -121,7 +120,8 @@
           <div v-else-if="entryType === 'Devotional'" class="q-mb-lg">
             <div v-if="selectedMinistry">
               <div class="q-mb-md">
-                <div class="text-body1">{{ selectedMinistry.metadata.name }}</div>
+                <div class="text-body1">{{ selectedDevotionalSeries.metadata.name }}</div>
+                <div class="text-caption text-grey-8">by {{ selectedMinistry.metadata.name }}</div>
               </div>
               <q-btn flat dense color="primary" class="q-px-none" label="Change" @click="showMinistryModal = true" />
             </div>
@@ -348,6 +348,7 @@ const selectedSermon = ref(null)
 const selectedPodcast = ref(null)
 const selectedArtist = ref(null)
 const selectedMinistry = ref(null)
+const selectedDevotionalSeries = ref(null)
 const selectedBook = ref(null)
 const selectedAuthor = ref(null)
 const selectedChapter = ref(null)
@@ -524,7 +525,7 @@ const handleResourceSelection = (selections) => {
         selectedPastor.value = selections[0]
         selectedSeries.value = selections[1]
         selectedSermon.value = selections[2]
-        title.value = selectedSermon.value.metadata.title
+        title.value = `${selectedPastor.value.metadata.name} - ${selectedSeries.value.metadata.title}: ${selectedSermon.value.metadata.name}`
       } else if (selections.length === 2) {
         selectedPastor.value = selections[0]
         selectedSeries.value = selections[1]
@@ -534,7 +535,7 @@ const handleResourceSelection = (selections) => {
         selectedPastor.value = selections[0]
         selectedSeries.value = null
         selectedSermon.value = null
-        title.value = `Notes from ${selectedPastor.value.metadata.name}`
+        title.value = `${selectedPastor.value.metadata.name}`
       }
       break
 
@@ -543,8 +544,9 @@ const handleResourceSelection = (selections) => {
         selectedAuthor.value = selections[0]
         selectedBook.value = selections[1]
         selectedChapter.value = selections[2]
-        title.value = `${selectedBook.value.metadata.title} - ${selectedChapter.value.metadata.title}`
-      } else {
+        title.value = `${selectedBook.value.metadata.title} - Chapter ${selectedChapter.value.metadata.number}: ${selectedChapter.value.metadata.title}`
+      }
+      else {
         selectedBook.value = selections[0]
         selectedChapter.value = null
         title.value = selectedBook.value.metadata.title
@@ -553,17 +555,18 @@ const handleResourceSelection = (selections) => {
 
     case 'Podcast':
       selectedPodcast.value = finalSelection
-      title.value = `Notes on ${selectedPodcast.value.metadata.title}`
+      title.value = `${selectedPodcast.value.metadata.title}`
       break
 
     case 'Song':
       selectedArtist.value = finalSelection
-      title.value = `Notes on ${selectedArtist.value.metadata.name}`
+      title.value = `${selectedArtist.value.metadata.name}`
       break
 
     case 'Devotional':
-      selectedMinistry.value = finalSelection
-      title.value = `Notes on ${selectedMinistry.value.metadata.name}`
+      selectedMinistry.value = selections[0]
+      selectedDevotionalSeries.value = finalSelection
+      title.value = `${selectedMinistry.value.metadata.name}`
       break
 
     case 'Group':
@@ -644,34 +647,48 @@ const saveEntry = async () => {
       if (linkedVersesError) throw linkedVersesError
     }
 
-    let resourceId = null
+    let resources = []
     switch (entryType.value) {
       case 'Book':
-        resourceId = selectedBook.value.id;
+        resources.push({ resourceId: selectedAuthor.value.id, primary: true });
+        resources.push({ resourceId: selectedBook.value.id, primary: false });
+        resources.push({ resourceId: selectedChapter.value.id, primary: false });
         break;
       case 'Sermon':
-        resourceId = selectedPastor.value.id;
+        resources.push({ resourceId: selectedPastor.value.id, primary: true });
+        resources.push({ resourceId: selectedSeries.value.id, primary: false });
+        resources.push({ resourceId: selectedSermon.value.id, primary: false });
         break;
       case 'Podcast':
-        resourceId = selectedPodcast.value.id;
+        resources.push({ resourceId: selectedPodcast.value.id, primary: true });
         break;
       case 'Song':
-        resourceId = selectedArtist.value.id;
+        resources.push({ resourceId: selectedArtist.value.id, primary: true });
         break;
       case 'Devotional':
-        resourceId = selectedMinistry.value.id;
+        resources.push({ resourceId: selectedMinistry.value.id, primary: true });
+        resources.push({ resourceId: selectedDevotionalSeries.value.id, primary: false });
+        break;
+      case 'Show':
+        resources.push({ resourceId: selectedShow.value.id, primary: true });
+        resources.push({ resourceId: selectedSeason.value.id, primary: false });
+        resources.push({ resourceId: selectedEpisode.value.id, primary: false });
+        break;
+      case 'Group':
+        resources.push({ resourceId: selectedGroup.value.id, primary: true });
         break;
       default:
         break;
     }
 
-    if (resourceId) {
+    for (let i = 0; i < resources.length; i++) {
+      const resource = resources[i]
       const { error: journalResourceError } = await supabase
         .from('journal_resources')
         .insert({
           journal_id: entry.id,
-          resource_id: resourceId,
-          primary_resource: true,
+          resource_id: resource.resourceId,
+          primary_resource: resource.primary,
           user_id: session.user_id
         })
 

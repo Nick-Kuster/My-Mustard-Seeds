@@ -10,7 +10,94 @@
           <!-- Header -->
           <div class="row items-center q-mb-md">
             <div class="col">
-              <div class="text-h5">{{ entry?.title }}</div>
+              <div class="text-h5" v-if="entry.resources.length == 0">{{ entry?.title }}</div>
+              <div v-else>
+                <!-- Book -->
+                <div v-if="entry?.type === 'Book'" class="q-mb-lg">
+                  <div v-if="selectedBook">
+                    <div class="q-mb-md">
+                      <div class="text-body1">Chapter: {{ selectedChapter.metadata.number }} {{
+                        selectedChapter.metadata.title
+                        }}</div>
+                      <div class="text-caption text-grey-8">From {{ selectedBook.metadata.title }}</div>
+                      <div class="text-caption text-grey-8">by {{ selectedAuthor.metadata.name }}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Group -->
+                <div v-if="entry?.type === 'Group'" class="q-mb-lg">
+                  <div v-if="selectedGroup">
+                    <div class="q-mb-md">
+                      <div class="text-body1">{{ selectedGroup.metadata.name }}</div>
+                      <div class="text-caption text-grey-8">
+                        <span v-if="selectedGroup.metadata.leader">Led by {{ selectedGroup.metadata.leader }}</span>
+                        <span v-if="selectedGroup.metadata.church"> at {{ selectedGroup.metadata.church }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+
+                <!-- Show -->
+                <div v-if="entry?.type === 'Show'" class="q-mb-lg">
+                  <div v-if="selectedShow">
+                    <div class="q-mb-md">
+                      <div class="text-body1">{{ selectedShow.metadata.name }}</div>
+                      <div class="text-caption text-grey-8">
+                        <span v-if="selectedSeason.metadata.seasonNumber">S{{ selectedSeason.metadata.seasonNumber
+                          }}</span>
+                        <span v-if="selectedEpisode.metadata.episodeNumber"> E{{ selectedEpisode.metadata.episodeNumber
+                          }}
+                          {{ selectedEpisode.metadata.name }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Sermon -->
+                <div v-if="entry?.type === 'Sermon'">
+                  <div v-if="selectedPastor">
+                    <div class="q-mb-md">
+                      <div class="text-body1"><strong>Sermon:</strong> {{ selectedSermon.metadata.title }}</div>
+                      <div class="text-body1"><strong>Series:</strong> {{ selectedSeries.metadata.title }}</div>
+                      <div class="text-caption text-grey-8">By {{ selectedPastor.metadata.name }} From {{
+                        selectedPastor.metadata.church }}</div>
+                      <div class="text-caption text-grey-8">On {{ selectedSermon.metadata.date }}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Devotional -->
+                <div v-if="entry?.type === 'Devotional'" class="q-mb-lg">
+                  <div v-if="selectedMinistry">
+                    <div class="q-mb-md">
+                      <div class="text-body1">{{ selectedDevotionalSeries.metadata.name }}</div>
+                      <div class="text-caption text-grey-8">by {{ selectedMinistry.metadata.name }}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Song -->
+                <div v-if="entry?.type === 'Song'" class="q-mb-lg">
+                  <div v-if="selectedArtist">
+                    <div class="q-mb-md">
+                      <div class="text-body1">{{ selectedArtist.metadata.name }}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Podcast Specific Select -->
+                <div v-if="entry?.type === 'Podcast'" class="q-mb-lg">
+                  <div v-if="selectedPodcast">
+                    <div class="q-mb-md">
+                      <div class="text-body1">{{ selectedPodcast.metadata.title }}</div>
+                      <div class="text-caption text-grey-8">by {{ selectedPodcast.metadata.host }}</div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
               <div class="text-caption text-grey">
                 {{ formatDate(entry?.created_at) }} • {{ entry?.type }}
               </div>
@@ -176,11 +263,14 @@ import QuoteSelector from 'components/QuoteSelector.vue'
 import LinkSelector from 'components/LinkSelector.vue'
 import VerseDisplayModal from 'components/VerseDisplayModal.vue'
 import { createDisplayVerse } from 'src/utils/verseUtils'
+import { useResourcesStore } from 'src/stores/resources'
+
 
 const router = useRouter()
 const route = useRoute()
 const $q = useQuasar()
 const journalStore = useJournalStore()
+const resourcesStore = useResourcesStore()
 
 // State
 const loading = ref(true)
@@ -189,6 +279,22 @@ const showDeleteDialog = ref(false)
 const deleting = ref(false)
 const showVerseDisplayModal = ref(false)
 const selectedVerse = ref(null)
+
+// Resources
+const selectedPastor = ref(null)
+const selectedSeries = ref(null)
+const selectedSermon = ref(null)
+const selectedPodcast = ref(null)
+const selectedArtist = ref(null)
+const selectedMinistry = ref(null)
+const selectedDevotionalSeries = ref(null)
+const selectedBook = ref(null)
+const selectedAuthor = ref(null)
+const selectedChapter = ref(null)
+const selectedGroup = ref(null)
+const selectedShow = ref(null)
+const selectedSeason = ref(null)
+const selectedEpisode = ref(null)
 
 // Computed properties
 const mainVerses = computed(() => {
@@ -227,16 +333,64 @@ const fetchEntry = async () => {
     const entryData = await journalStore.getEntry(route.params.id)
     if (!entryData) throw new Error('Entry not found')
 
-    // If the entry has a resource, fetch its details
-    if (entryData.resource_id) {
-      const { data: resourceData, error: resourceError } = await supabase
-        .from('resources')
-        .select('*')
-        .eq('id', entryData.resource_id)
-        .single()
+    // If the entry has a resource, get it from the resources store
+    if (entryData.resources.length > 0) {
+      // Make sure resources are loaded
+      await resourcesStore.loadResources()
+      // Get the resource from the store
+      const resource = resourcesStore.getResourceById(entryData.resource_id)
+      if (resource) {
+        entryData.resource = resource
+      }
+    }
 
-      if (!resourceError && resourceData) {
-        entryData.resource = resourceData
+    for (let i = 0; i < entryData.resources.length; i++) {
+      const resource = entryData.resources[i];
+      switch (resource.type) {
+        case 'Pastor':
+          selectedPastor.value = resource;
+          break;
+        case 'Show':
+          selectedShow.value = resource;
+          break;
+        case 'Season':
+          selectedSeason.value = resource;
+          break;
+        case 'Podcast':
+          selectedPodcast.value = resource;
+          break;
+        case 'Chapter':
+          selectedChapter.value = resource;
+          break;
+        case 'Episode':
+          selectedEpisode.value = resource;
+          break;
+        case 'Sermon':
+          selectedSermon.value = resource;
+          break;
+        case 'SongArtist':
+          selectedArtist.value = resource;
+          break;
+        case 'Group':
+          selectedGroup.value = resource;
+          break;
+        case 'Author':
+          selectedAuthor.value = resource;
+          break;
+        case 'SermonSeries':
+          selectedSeries.value = resource;
+          break;
+        case 'Book':
+          selectedBook.value = resource;
+          break;
+        case 'Ministry':
+          selectedMinistry.value = resource;
+          break;
+        case 'DevotionalSeries':
+          selectedDevotionalSeries.value = resource;
+          break;
+        default:
+          break;
       }
     }
 

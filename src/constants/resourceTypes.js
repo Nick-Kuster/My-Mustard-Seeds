@@ -13,4 +13,5 @@ export const RESOURCE_TYPES = {
   SEASON: 'Season',
   EPISODE: 'Episode',
   GROUP: 'Group',
+  DEVOTIONAL_SERIES: 'DevotionalSeries',
 }

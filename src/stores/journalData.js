@@ -218,7 +218,7 @@ export const useJournalStore = defineStore('journalData', () => {
         tags: item.tags_data,
         resources: item.resources_data,
         quotes: item.quotes_data,
-        links: item.links_data, // Add this line
+        links: item.links_data,
       }))
 
       await decryptEntries()

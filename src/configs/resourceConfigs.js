@@ -163,8 +163,21 @@ const configs = {
         type: 'text',
       },
     },
+    allowedChildren: [RESOURCE_TYPES.DEVOTIONAL_SERIES],
     getDisplayTitle: (resource) => resource.metadata.name,
     getDisplaySubtitle: (resource) => resource.metadata.website,
+  },
+
+  [RESOURCE_TYPES.DEVOTIONAL_SERIES]: {
+    title: 'Devotional Series',
+    fields: {
+      name: {
+        label: 'Name',
+        required: true,
+        type: 'text',
+      },
+    },
+    getDisplayTitle: (resource) => resource.metadata.name,
   },
 
   [RESOURCE_TYPES.PODCAST]: {

@@ -44,6 +44,10 @@ const routes = [
     path: '/:catchAll(.*)*',
     component: () => import('pages/ErrorNotFound.vue'),
   },
+  {
+    path: '/auth/callback',
+    component: () => import('pages/AuthCallback.vue'),
+  },
 ]
 
 export default routes
