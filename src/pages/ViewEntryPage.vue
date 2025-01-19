@@ -23,6 +23,7 @@
             </div>
           </div>
 
+          <!-- Resource Display Section -->
           <!-- Bible Verse Display -->
           <div v-if="entry?.type === 'Bible' && mainVerses.length" class="q-mb-lg">
             <div v-for="verse in mainVerses" :key="verse.startVerseId" class="q-mb-sm">
@@ -30,6 +31,74 @@
                 style="text-decoration: none; line-height: 1.5" @click.prevent="() => showVerseModal(verse)">
                 {{ verse.display }}
               </a>
+            </div>
+          </div>
+
+          <!-- Book Display -->
+          <div v-if="entry?.type === 'Book' && entry.resource" class="q-mb-lg">
+            <div class="q-mb-md">
+              <div class="text-body1"><strong>{{ entry.resource.metadata.title }}</strong></div>
+              <div v-if="entry.resource.metadata.chapter" class="text-body1">
+                Chapter: {{ entry.resource.metadata.chapter.number }} {{ entry.resource.metadata.chapter.title }}
+              </div>
+              <div class="text-caption text-grey-8">by {{ entry.resource.metadata.author.name }}</div>
+            </div>
+          </div>
+
+          <!-- Sermon Display -->
+          <div v-if="entry?.type === 'Sermon' && entry.resource" class="q-mb-lg">
+            <div class="q-mb-md">
+              <div class="text-body1"><strong>{{ entry.resource.metadata.title }}</strong></div>
+              <div v-if="entry.resource.metadata.series" class="text-body1">
+                Series: {{ entry.resource.metadata.series.title }}
+              </div>
+              <div class="text-caption text-grey-8">
+                By {{ entry.resource.metadata.pastor.name }} from {{ entry.resource.metadata.church }}
+              </div>
+              <div v-if="entry.resource.metadata.date" class="text-caption text-grey-8">
+                On {{ formatDate(entry.resource.metadata.date) }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Podcast Display -->
+          <div v-if="entry?.type === 'Podcast' && entry.resource" class="q-mb-lg">
+            <div class="q-mb-md">
+              <div class="text-body1">{{ entry.resource.metadata.title }}</div>
+              <div class="text-caption text-grey-8">by {{ entry.resource.metadata.host }}</div>
+            </div>
+          </div>
+
+          <!-- Song Display -->
+          <div v-if="entry?.type === 'Song' && entry.resource" class="q-mb-lg">
+            <div class="q-mb-md">
+              <div class="text-body1">{{ entry.resource.metadata.name }}</div>
+              <div v-if="entry.resource.metadata.album" class="text-caption text-grey-8">
+                Album: {{ entry.resource.metadata.album }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Group Display -->
+          <div v-if="entry?.type === 'Group' && entry.resource" class="q-mb-lg">
+            <div class="q-mb-md">
+              <div class="text-body1">{{ entry.resource.metadata.name }}</div>
+              <div class="text-caption text-grey-8">
+                <span v-if="entry.resource.metadata.leader">Led by {{ entry.resource.metadata.leader }}</span>
+                <span v-if="entry.resource.metadata.church"> at {{ entry.resource.metadata.church }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Show Display -->
+          <div v-if="entry?.type === 'Show' && entry.resource" class="q-mb-lg">
+            <div class="q-mb-md">
+              <div class="text-body1">{{ entry.resource.metadata.name }}</div>
+              <div class="text-caption text-grey-8">
+                <span v-if="entry.resource.metadata.season">S{{ entry.resource.metadata.season }}</span>
+                <span v-if="entry.resource.metadata.episode"> E{{ entry.resource.metadata.episode }}
+                  {{ entry.resource.metadata.episodeTitle }}</span>
+              </div>
             </div>
           </div>
 
@@ -156,8 +225,21 @@ const fetchEntry = async () => {
   try {
     loading.value = true
     const entryData = await journalStore.getEntry(route.params.id)
-    console.log(entryData)
     if (!entryData) throw new Error('Entry not found')
+
+    // If the entry has a resource, fetch its details
+    if (entryData.resource_id) {
+      const { data: resourceData, error: resourceError } = await supabase
+        .from('resources')
+        .select('*')
+        .eq('id', entryData.resource_id)
+        .single()
+
+      if (!resourceError && resourceData) {
+        entryData.resource = resourceData
+      }
+    }
+
     entry.value = entryData
   } catch (error) {
     $q.notify({

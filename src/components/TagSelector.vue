@@ -10,7 +10,7 @@
     </div>
 
     <div v-if="selectedTags.length > 0" class="row q-gutter-sm">
-      <q-chip v-for="tag in selectedTags" :key="tag.id" removable @remove="removeTag(tag)" color="info"
+      <q-chip v-for="tag in selectedTags" :key="tag.id" :removable="!displayOnly" @remove="removeTag(tag)" color="info"
         text-color="white">
         {{ tag.name }}
       </q-chip>
