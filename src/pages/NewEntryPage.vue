@@ -387,12 +387,10 @@ const createSection = (title = '', content = '', fieldType = 'longText', headerP
 
 const bibleSections = [
   createSection('Observations', '', 'longText'),
-  createSection('Application', '', 'longText')
 ]
 
 const sermonSections = [
   createSection('Observations', '', 'longText'),
-  createSection('Application', '', 'longText')
 ]
 
 const songSections = [
@@ -750,7 +748,7 @@ const saveEntry = async () => {
     ]
 
     if (allLinks.length > 0) {
-      const { data: linkData, error: linkError } = await supabase
+      const { error: linkError } = await supabase
         .from('related_links')
         .insert(allLinks)
         .select()
@@ -759,8 +757,6 @@ const saveEntry = async () => {
         console.error('Link insertion error:', linkError)
         throw new Error('Failed to save links: ' + linkError.message)
       }
-
-      console.log('Saved links:', linkData)
     }
 
     $q.notify({

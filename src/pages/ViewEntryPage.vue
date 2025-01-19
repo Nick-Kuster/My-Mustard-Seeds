@@ -12,13 +12,26 @@
             <div class="col">
               <div class="text-h5" v-if="entry.resources.length == 0">{{ entry?.title }}</div>
               <div v-else>
+                <!-- Bible -->
+                <div v-if="entryType === 'Bible'" class="q-mb-lg">
+                  <div v-if="mainVerse.display" class="q-mb-md">
+                    <div class="row items-center q-mb-sm">
+                      <div class="col">
+                        <a href="#" class="verse-link text-h5 text-primary text-weight-medium"
+                          style="text-decoration: none; line-height: 1.5" @click.prevent="showVerseDisplayModal = true">
+                          {{ mainVerse.display }}
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 <!-- Book -->
                 <div v-if="entry?.type === 'Book'" class="q-mb-lg">
                   <div v-if="selectedBook">
                     <div class="q-mb-md">
                       <div class="text-body1">Chapter: {{ selectedChapter.metadata.number }} {{
                         selectedChapter.metadata.title
-                        }}</div>
+                      }}</div>
                       <div class="text-caption text-grey-8">From {{ selectedBook.metadata.title }}</div>
                       <div class="text-caption text-grey-8">by {{ selectedAuthor.metadata.name }}</div>
                     </div>
@@ -87,7 +100,7 @@
                   </div>
                 </div>
 
-                <!-- Podcast Specific Select -->
+                <!-- Podcast -->
                 <div v-if="entry?.type === 'Podcast'" class="q-mb-lg">
                   <div v-if="selectedPodcast">
                     <div class="q-mb-md">
@@ -110,119 +123,55 @@
             </div>
           </div>
 
-          <!-- Resource Display Section -->
-          <!-- Bible Verse Display -->
-          <div v-if="entry?.type === 'Bible' && mainVerses.length" class="q-mb-lg">
-            <div v-for="verse in mainVerses" :key="verse.startVerseId" class="q-mb-sm">
-              <a href="#" class="verse-link text-h5 text-primary text-weight-medium"
-                style="text-decoration: none; line-height: 1.5" @click.prevent="() => showVerseModal(verse)">
-                {{ verse.display }}
-              </a>
-            </div>
-          </div>
 
-          <!-- Book Display -->
-          <div v-if="entry?.type === 'Book' && entry.resource" class="q-mb-lg">
-            <div class="q-mb-md">
-              <div class="text-body1"><strong>{{ entry.resource.metadata.title }}</strong></div>
-              <div v-if="entry.resource.metadata.chapter" class="text-body1">
-                Chapter: {{ entry.resource.metadata.chapter.number }} {{ entry.resource.metadata.chapter.title }}
-              </div>
-              <div class="text-caption text-grey-8">by {{ entry.resource.metadata.author.name }}</div>
-            </div>
-          </div>
+          <!-- Tabs Section -->
+          <q-tabs v-model="activeTab" dense class="text-grey q-mb-md" active-color="primary" indicator-color="primary"
+            align="justify" narrow-indicator>
+            <q-tab name="main" label="Main Content" />
+            <q-tab name="additional" label="Additional Content" />
+          </q-tabs>
 
-          <!-- Sermon Display -->
-          <div v-if="entry?.type === 'Sermon' && entry.resource" class="q-mb-lg">
-            <div class="q-mb-md">
-              <div class="text-body1"><strong>{{ entry.resource.metadata.title }}</strong></div>
-              <div v-if="entry.resource.metadata.series" class="text-body1">
-                Series: {{ entry.resource.metadata.series.title }}
-              </div>
-              <div class="text-caption text-grey-8">
-                By {{ entry.resource.metadata.pastor.name }} from {{ entry.resource.metadata.church }}
-              </div>
-              <div v-if="entry.resource.metadata.date" class="text-caption text-grey-8">
-                On {{ formatDate(entry.resource.metadata.date) }}
-              </div>
-            </div>
-          </div>
 
-          <!-- Podcast Display -->
-          <div v-if="entry?.type === 'Podcast' && entry.resource" class="q-mb-lg">
-            <div class="q-mb-md">
-              <div class="text-body1">{{ entry.resource.metadata.title }}</div>
-              <div class="text-caption text-grey-8">by {{ entry.resource.metadata.host }}</div>
-            </div>
-          </div>
-
-          <!-- Song Display -->
-          <div v-if="entry?.type === 'Song' && entry.resource" class="q-mb-lg">
-            <div class="q-mb-md">
-              <div class="text-body1">{{ entry.resource.metadata.name }}</div>
-              <div v-if="entry.resource.metadata.album" class="text-caption text-grey-8">
-                Album: {{ entry.resource.metadata.album }}
+          <q-tab-panels v-model="activeTab" animated class="bg-transparent" @touchstart="handleTouchStart"
+            @touchmove="handleTouchMove" @touchend="handleTouchEnd">
+            <!-- Main Content Tab -->
+            <q-tab-panel name="main" class="q-pa-md">
+              <div class="q-mb-xl">
+                <template v-if="entry?.decryptedContent?.sections">
+                  <div v-for="(section, index) in entry.decryptedContent.sections" :key="index" class="q-mb-lg">
+                    <div class="text-subtitle1 text-weight-medium q-mb-sm">
+                      {{ section.title || 'Untitled Section' }}
+                    </div>
+                    <div class="text-body1" style="white-space: pre-wrap">{{ section.content }}</div>
+                  </div>
+                </template>
               </div>
-            </div>
-          </div>
-
-          <!-- Group Display -->
-          <div v-if="entry?.type === 'Group' && entry.resource" class="q-mb-lg">
-            <div class="q-mb-md">
-              <div class="text-body1">{{ entry.resource.metadata.name }}</div>
-              <div class="text-caption text-grey-8">
-                <span v-if="entry.resource.metadata.leader">Led by {{ entry.resource.metadata.leader }}</span>
-                <span v-if="entry.resource.metadata.church"> at {{ entry.resource.metadata.church }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Show Display -->
-          <div v-if="entry?.type === 'Show' && entry.resource" class="q-mb-lg">
-            <div class="q-mb-md">
-              <div class="text-body1">{{ entry.resource.metadata.name }}</div>
-              <div class="text-caption text-grey-8">
-                <span v-if="entry.resource.metadata.season">S{{ entry.resource.metadata.season }}</span>
-                <span v-if="entry.resource.metadata.episode"> E{{ entry.resource.metadata.episode }}
-                  {{ entry.resource.metadata.episodeTitle }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Main Content -->
-          <div class="q-mb-xl">
-            <template v-if="entry?.decryptedContent?.sections">
-              <div v-for="(section, index) in entry.decryptedContent.sections" :key="index" class="q-mb-lg">
-                <div class="text-subtitle1 text-weight-medium q-mb-sm">
-                  {{ section.title || 'Untitled Section' }}
+            </q-tab-panel>
+            <!-- Additional Content Tab -->
+            <q-tab-panel name="additional" class="q-pa-md">
+              <div>
+                <!-- Linked Verses -->
+                <div v-if="linkedVerses.length" class="q-mb-lg">
+                  <LinkedVerses v-model="linkedVerses" :display-only="true" />
                 </div>
-                <div class="text-body1" style="white-space: pre-wrap">{{ section.content }}</div>
+
+                <!-- Tags -->
+                <div v-if="entry?.tags?.length" class="q-mb-lg">
+                  <TagSelector v-model="entry.tags" :display-only="true" />
+                </div>
+
+                <!-- Quotes -->
+                <div v-if="entry?.quotes?.length" class="q-mb-lg">
+                  <QuoteSelector v-model="entry.quotes" :display-only="true" />
+                </div>
+
+                <!-- Links -->
+                <div v-if="entry?.links?.length" class="q-mb-lg">
+                  <LinkSelector v-model="entry.links" :display-only="true" />
+                </div>
               </div>
-            </template>
-          </div>
-
-          <!-- Additional Content Section -->
-          <div class="q-mt-xl">
-            <!-- Linked Verses -->
-            <div v-if="linkedVerses.length" class="q-mb-lg">
-              <LinkedVerses v-model="linkedVerses" :display-only="true" />
-            </div>
-
-            <!-- Tags -->
-            <div v-if="entry?.tags?.length" class="q-mb-lg">
-              <TagSelector v-model="entry.tags" :display-only="true" />
-            </div>
-
-            <!-- Quotes -->
-            <div v-if="entry?.quotes?.length" class="q-mb-lg">
-              <QuoteSelector v-model="entry.quotes" :display-only="true" />
-            </div>
-
-            <!-- Links -->
-            <div v-if="entry?.links?.length" class="q-mb-lg">
-              <LinkSelector v-model="entry.links" :display-only="true" />
-            </div>
-          </div>
+            </q-tab-panel>
+          </q-tab-panels>
         </template>
       </div>
     </div>
@@ -279,6 +228,7 @@ const showDeleteDialog = ref(false)
 const deleting = ref(false)
 const showVerseDisplayModal = ref(false)
 const selectedVerse = ref(null)
+const activeTab = ref('main')
 
 // Resources
 const selectedPastor = ref(null)
@@ -296,14 +246,6 @@ const selectedShow = ref(null)
 const selectedSeason = ref(null)
 const selectedEpisode = ref(null)
 
-// Computed properties
-const mainVerses = computed(() => {
-  if (!entry.value?.verses) return []
-  return entry.value.verses
-    .filter(v => v.main_verse)
-    .map(createDisplayVerse)
-})
-
 const linkedVerses = computed(() => {
   if (!entry.value?.verses) return []
   return entry.value.verses
@@ -320,11 +262,6 @@ const formatDate = (dateString) => {
     month: 'long',
     day: 'numeric'
   })
-}
-
-const showVerseModal = (verse) => {
-  selectedVerse.value = verse
-  showVerseDisplayModal.value = true
 }
 
 const fetchEntry = async () => {
@@ -436,6 +373,50 @@ const deleteEntry = async () => {
   } finally {
     deleting.value = false
   }
+}
+
+const touchStart = ref({ x: 0, y: 0 })
+const touchEnd = ref({ x: 0, y: 0 })
+const minSwipeDistance = 50 // minimum distance in pixels to trigger swipe
+
+const handleTouchStart = (event) => {
+  touchStart.value = {
+    x: event.touches[0].clientX,
+    y: event.touches[0].clientY
+  }
+  touchEnd.value = { x: 0, y: 0 }
+}
+
+const handleTouchMove = (event) => {
+  touchEnd.value = {
+    x: event.touches[0].clientX,
+    y: event.touches[0].clientY
+  }
+}
+
+const handleTouchEnd = () => {
+  if (!touchStart.value.x || !touchEnd.value.x) return
+
+  const distanceX = touchEnd.value.x - touchStart.value.x
+  const distanceY = Math.abs(touchEnd.value.y - touchStart.value.y)
+
+  // Only handle horizontal swipes (ignore if vertical movement is too large)
+  if (Math.abs(distanceX) > minSwipeDistance && distanceY < 100) {
+    const tabs = ['main', 'additional']
+    const currentIndex = tabs.indexOf(activeTab.value)
+
+    if (distanceX > 0 && currentIndex > 0) {
+      // Swipe right
+      activeTab.value = tabs[currentIndex - 1]
+    } else if (distanceX < 0 && currentIndex < tabs.length - 1) {
+      // Swipe left
+      activeTab.value = tabs[currentIndex + 1]
+    }
+  }
+
+  // Reset values
+  touchStart.value = { x: 0, y: 0 }
+  touchEnd.value = { x: 0, y: 0 }
 }
 
 // Lifecycle hooks

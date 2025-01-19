@@ -13,7 +13,7 @@
       <div v-for="(quote, index) in quotes" :key="index" class="quote-item">
         <div class="row items-start">
           <div class="col">
-            <div class="text-italic">
+            <div class="text-italic quote-text">
               "{{ quote.decryptedQuote || quote.quote }}"
             </div>
             <div v-if="quote.source || quote.page_number" class="text-caption text-grey-8">

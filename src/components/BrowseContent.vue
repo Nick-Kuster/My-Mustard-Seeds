@@ -1,226 +1,182 @@
 <template>
-  <!-- Main Menu View -->
-  <q-transition enter-active-class="animated slideInRight" leave-active-class="animated slideOutLeft">
-    <q-list padding v-if="currentView === 'main'">
-      <q-item-label header>Harvest Seeds By</q-item-label>
+  <div class="browse-content">
+    <router-view>
+      <q-page-transition>
+        <keep-alive>
+          <div :key="currentView">
+            <!-- Main Menu View -->
+            <q-list padding v-if="currentView === 'main'">
+              <q-item-label header>Harvest Seeds By</q-item-label>
 
-      <q-item clickable v-ripple to="/type/Bible">
-        <q-item-section avatar>
-          <q-icon name="auto_stories" />
-        </q-item-section>
-        <q-item-section>Verses</q-item-section>
-      </q-item>
+              <q-item clickable v-ripple to="/type/Bible">
+                <q-item-section avatar>
+                  <q-icon name="auto_stories" />
+                </q-item-section>
+                <q-item-section>Verses</q-item-section>
+              </q-item>
 
-      <q-item clickable v-ripple @click="currentView = 'sermons'">
-        <q-item-section avatar>
-          <q-icon name="record_voice_over" />
-        </q-item-section>
-        <q-item-section>Sermons</q-item-section>
-        <q-item-section side>
-          <q-icon name="chevron_right" />
-        </q-item-section>
-      </q-item>
+              <q-item clickable v-ripple @click="navigateTo('sermons')">
+                <q-item-section avatar>
+                  <q-icon name="record_voice_over" />
+                </q-item-section>
+                <q-item-section>Sermons</q-item-section>
+                <q-item-section side>
+                  <q-icon name="chevron_right" />
+                </q-item-section>
+              </q-item>
 
-      <q-item clickable v-ripple @click="currentView = 'books'">
-        <q-item-section avatar>
-          <q-icon name="menu_book" />
-        </q-item-section>
-        <q-item-section>Books</q-item-section>
-        <q-item-section side>
-          <q-icon name="chevron_right" />
-        </q-item-section>
-      </q-item>
+              <q-item clickable v-ripple @click="navigateTo('books')">
+                <q-item-section avatar>
+                  <q-icon name="menu_book" />
+                </q-item-section>
+                <q-item-section>Books</q-item-section>
+                <q-item-section side>
+                  <q-icon name="chevron_right" />
+                </q-item-section>
+              </q-item>
 
-      <q-item clickable v-ripple @click="currentView = 'ministries'">
-        <q-item-section avatar>
-          <q-icon name="groups" />
-        </q-item-section>
-        <q-item-section>Ministries</q-item-section>
-        <q-item-section side>
-          <q-icon name="chevron_right" />
-        </q-item-section>
-      </q-item>
+              <q-item clickable v-ripple @click="navigateTo('ministries')">
+                <q-item-section avatar>
+                  <q-icon name="groups" />
+                </q-item-section>
+                <q-item-section>Ministries</q-item-section>
+                <q-item-section side>
+                  <q-icon name="chevron_right" />
+                </q-item-section>
+              </q-item>
 
-      <q-item clickable v-ripple @click="currentView = 'songs'">
-        <q-item-section avatar>
-          <q-icon name="music_note" />
-        </q-item-section>
-        <q-item-section>Song Reflections</q-item-section>
-        <q-item-section side>
-          <q-icon name="chevron_right" />
-        </q-item-section>
-      </q-item>
+              <q-item clickable v-ripple @click="navigateTo('songs')">
+                <q-item-section avatar>
+                  <q-icon name="music_note" />
+                </q-item-section>
+                <q-item-section>Song Reflections</q-item-section>
+                <q-item-section side>
+                  <q-icon name="chevron_right" />
+                </q-item-section>
+              </q-item>
 
-      <q-item clickable v-ripple @click="currentView = 'podcasts'">
-        <q-item-section avatar>
-          <q-icon name="headphones" />
-        </q-item-section>
-        <q-item-section>Podcasts</q-item-section>
-        <q-item-section side>
-          <q-icon name="chevron_right" />
-        </q-item-section>
-      </q-item>
-    </q-list>
-  </q-transition>
+              <q-item clickable v-ripple @click="navigateTo('podcasts')">
+                <q-item-section avatar>
+                  <q-icon name="headphones" />
+                </q-item-section>
+                <q-item-section>Podcasts</q-item-section>
+                <q-item-section side>
+                  <q-icon name="chevron_right" />
+                </q-item-section>
+              </q-item>
+            </q-list>
 
-  <!-- Sub-menu Views -->
-  <q-transition enter-active-class="animated slideInRight" leave-active-class="animated slideOutLeft">
-    <q-list padding v-if="currentView !== 'main'">
-      <!-- Back Button -->
-      <q-item clickable v-ripple @click="currentView = 'main'" class="q-mb-md">
-        <q-item-section avatar>
-          <q-icon name="arrow_back" />
-        </q-item-section>
-        <q-item-section>Back to Menu</q-item-section>
-      </q-item>
+            <!-- Sub-menu Views -->
+            <q-list padding v-else>
+              <!-- Back Button -->
+              <q-item clickable v-ripple @click="navigateBack" class="q-mb-md">
+                <q-item-section avatar>
+                  <q-icon name="arrow_back" />
+                </q-item-section>
+                <q-item-section>Back to Menu</q-item-section>
+              </q-item>
 
-      <q-separator spaced />
+              <q-separator spaced />
 
-      <!-- Sermons Sub-menu -->
-      <template v-if="currentView === 'sermons'">
-        <q-item-label header>Sermons</q-item-label>
-        <q-item clickable v-ripple to="/resource/Pastor" class="bg-grey-2">
-          <q-item-section avatar>
-            <q-icon name="grid_view" />
-          </q-item-section>
-          <q-item-section>View All Sermons</q-item-section>
-        </q-item>
-        <q-separator spaced />
-        <q-item v-for="pastor in pastorResources" :key="pastor.id" clickable v-ripple
-          :to="'/resource/Pastor/' + pastor.id">
-          <q-item-section avatar>
-            <q-icon name="person" />
-          </q-item-section>
-          <q-item-section>{{ pastor.metadata.name }}</q-item-section>
-        </q-item>
-      </template>
+              <!-- Sermons Sub-menu -->
+              <template v-if="currentView === 'sermons'">
+                <q-item-label header>Sermons</q-item-label>
+                <q-item clickable v-ripple to="/resource/Pastor" class="bg-grey-2">
+                  <q-item-section avatar>
+                    <q-icon name="grid_view" />
+                  </q-item-section>
+                  <q-item-section>View All Sermons</q-item-section>
+                </q-item>
+                <q-separator spaced />
+                <q-item v-for="pastor in pastorResources" :key="pastor.id" clickable v-ripple
+                  :to="'/resource/Pastor/' + pastor.id">
+                  <q-item-section avatar>
+                    <q-icon name="person" />
+                  </q-item-section>
+                  <q-item-section>{{ pastor.metadata.name }}</q-item-section>
+                </q-item>
+              </template>
 
-      <!-- Books Sub-menu -->
-      <template v-if="currentView === 'books'">
-        <q-item-label header>Books</q-item-label>
-        <q-item clickable v-ripple to="/resource/Book" class="bg-grey-2">
-          <q-item-section avatar>
-            <q-icon name="grid_view" />
-          </q-item-section>
-          <q-item-section>View All Books</q-item-section>
-        </q-item>
-        <q-separator spaced />
-        <q-item v-for="book in bookResources" :key="book.id" clickable v-ripple :to="'/resource/Book/' + book.id">
-          <q-item-section avatar>
-            <q-icon name="book" />
-          </q-item-section>
-          <q-item-section>{{ book.metadata.title }}</q-item-section>
-        </q-item>
-      </template>
+              <!-- Books Sub-menu -->
+              <template v-if="currentView === 'books'">
+                <q-item-label header>Books</q-item-label>
+                <q-item clickable v-ripple to="/resource/Book" class="bg-grey-2">
+                  <q-item-section avatar>
+                    <q-icon name="grid_view" />
+                  </q-item-section>
+                  <q-item-section>View All Books</q-item-section>
+                </q-item>
+                <q-separator spaced />
+                <q-item v-for="book in bookResources" :key="book.id" clickable v-ripple
+                  :to="'/resource/Book/' + book.id">
+                  <q-item-section avatar>
+                    <q-icon name="book" />
+                  </q-item-section>
+                  <q-item-section>{{ book.metadata.title }}</q-item-section>
+                </q-item>
+              </template>
 
-      <!-- Ministries Sub-menu -->
-      <template v-if="currentView === 'ministries'">
-        <q-item-label header>Ministries</q-item-label>
-        <q-item clickable v-ripple to="/resource/Ministry" class="bg-grey-2">
-          <q-item-section avatar>
-            <q-icon name="grid_view" />
-          </q-item-section>
-          <q-item-section>View All Ministries</q-item-section>
-        </q-item>
-        <q-separator spaced />
-        <q-item v-for="ministry in ministryResources" :key="ministry.id" clickable v-ripple
-          :to="'/resource/Ministry/' + ministry.id">
-          <q-item-section avatar>
-            <q-icon name="volunteer_activism" />
-          </q-item-section>
-          <q-item-section>{{ ministry.metadata.name }}</q-item-section>
-        </q-item>
-      </template>
-
-      <!-- Songs Sub-menu -->
-      <template v-if="currentView === 'songs'">
-        <q-item-label header>Song Reflections</q-item-label>
-        <q-item clickable v-ripple to="/resource/SongArtist" class="bg-grey-2">
-          <q-item-section avatar>
-            <q-icon name="grid_view" />
-          </q-item-section>
-          <q-item-section>View All Songs</q-item-section>
-        </q-item>
-        <q-separator spaced />
-        <q-item v-for="artist in songArtistResources" :key="artist.id" clickable v-ripple
-          :to="'/resource/SongArtist/' + artist.id">
-          <q-item-section avatar>
-            <q-icon name="mic" />
-          </q-item-section>
-          <q-item-section>{{ artist.metadata.name }}</q-item-section>
-        </q-item>
-      </template>
-
-      <!-- Podcasts Sub-menu -->
-      <template v-if="currentView === 'podcasts'">
-        <q-item-label header>Podcasts</q-item-label>
-        <q-item clickable v-ripple to="/resource/Podcast" class="bg-grey-2">
-          <q-item-section avatar>
-            <q-icon name="grid_view" />
-          </q-item-section>
-          <q-item-section>View All Podcasts</q-item-section>
-        </q-item>
-        <q-separator spaced />
-        <q-item v-for="podcast in podcastResources" :key="podcast.id" clickable v-ripple
-          :to="'/resource/Podcast/' + podcast.id">
-          <q-item-section avatar>
-            <q-icon name="podcasts" />
-          </q-item-section>
-          <q-item-section>{{ podcast.metadata.title }}</q-item-section>
-        </q-item>
-      </template>
-    </q-list>
-  </q-transition>
+            </q-list>
+          </div>
+        </keep-alive>
+      </q-page-transition>
+    </router-view>
+  </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
 import { useResourcesStore } from 'src/stores/resources'
+import { useQuasar } from 'quasar'
 
+const $q = useQuasar()
 const resourcesStore = useResourcesStore()
 const currentView = ref('main')
 
 // Resources computed properties
 const pastorResources = computed(() => resourcesStore.getResourcesByType('Pastor'))
 const bookResources = computed(() => resourcesStore.getResourcesByType('Book'))
-const ministryResources = computed(() => resourcesStore.getResourcesByType('Ministry'))
-const songArtistResources = computed(() => resourcesStore.getResourcesByType('SongArtist'))
-const podcastResources = computed(() => resourcesStore.getResourcesByType('Podcast'))
+
+const navigateTo = (view) => {
+  currentView.value = view
+  $q.pageTransition.set({
+    name: 'slide-right',
+    appear: true,
+    duration: 300
+  })
+}
+
+const navigateBack = () => {
+  currentView.value = 'main'
+  $q.pageTransition.set({
+    name: 'slide-left',
+    appear: true,
+    duration: 300
+  })
+}
 </script>
 
 <style>
-.animated {
-  animation-duration: 0.3s;
-  animation-fill-mode: both;
+.q-page-transition--slide-right-enter-active,
+.q-page-transition--slide-right-leave-active,
+.q-page-transition--slide-left-enter-active,
+.q-page-transition--slide-left-leave-active {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-@keyframes slideInRight {
-  from {
-    transform: translate3d(100%, 0, 0);
-    visibility: visible;
-  }
-
-  to {
-    transform: translate3d(0, 0, 0);
-  }
+.q-page-transition--slide-right-enter-from {
+  transform: translateX(100%);
 }
 
-@keyframes slideOutLeft {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-
-  to {
-    visibility: hidden;
-    transform: translate3d(-100%, 0, 0);
-  }
+.q-page-transition--slide-right-leave-to {
+  transform: translateX(-100%);
 }
 
-.slideInRight {
-  animation-name: slideInRight;
+.q-page-transition--slide-left-enter-from {
+  transform: translateX(-100%);
 }
 
-.slideOutLeft {
-  animation-name: slideOutLeft;
+.q-page-transition--slide-left-leave-to {
+  transform: translateX(100%);
 }
 </style>
