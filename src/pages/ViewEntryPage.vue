@@ -1,5 +1,5 @@
 <template>
-  <q-page class="q-pa-md">
+  <q-page class="q-pt-xl q-px-md q-pb-md">
     <div class="row q-col-gutter-md justify-center">
       <div class="col-12 col-sm-8 col-md-6">
         <div v-if="loading" class="text-center q-pa-lg">
@@ -8,23 +8,39 @@
 
         <template v-else>
           <!-- Header -->
-          <div class="row items-center q-mb-md">
+          <div class="row items-start q-mb-lg">
             <div class="col">
-              <div class="text-h5" v-if="entry.resources.length == 0">{{ entry?.title }}</div>
-              <div v-else>
-                <!-- Bible -->
-                <div v-if="entryType === 'Bible'" class="q-mb-lg">
-                  <div v-if="mainVerse.display" class="q-mb-md">
-                    <div class="row items-center q-mb-sm">
-                      <div class="col">
-                        <a href="#" class="verse-link text-h5 text-primary text-weight-medium"
-                          style="text-decoration: none; line-height: 1.5" @click.prevent="showVerseDisplayModal = true">
-                          {{ mainVerse.display }}
-                        </a>
+              <div class="row items-center q-mb-lg">
+                <div class="col">
+                  <!-- Bible -->
+                  <div v-if="entry?.type === 'Bible'" class="q-mb-lg">
+                    <div v-if="mainVerse" class="q-mb-md">
+                      <div class="row items-center q-mb-sm">
+                        <div class="col">
+                          <a href="#" class="verse-link text-h5 text-primary text-weight-medium"
+                            style="text-decoration: none; line-height: 1.5"
+                            @click.prevent="showVerseDisplayModal = true">
+                            {{ mainVerse.display }}
+                          </a>
+                        </div>
                       </div>
+                      <VerseDisplayModal v-model="showVerseDisplayModal" :reference="mainVerse.display"
+                        :startVerse="mainVerse.startVerse" :endVerse="mainVerse.endVerse" />
                     </div>
                   </div>
+                  <div v-else class="text-h5">{{ entry?.title }}</div>
                 </div>
+                <div class="col-auto">
+                  <div class="row q-gutter-sm">
+                    <q-btn rounded unelevated color="negative" icon="delete" style="height: 40px"
+                      @click="confirmDelete" />
+                    <q-btn rounded unelevated color="grey" label="Back" @click="router.push('/')"
+                      style="height: 40px" />
+                  </div>
+                </div>
+              </div>
+              <div v-if="entry?.resources?.length > 0" class="q-mb-lg">
+
                 <!-- Book -->
                 <div v-if="entry?.type === 'Book'" class="q-mb-lg">
                   <div v-if="selectedBook">
@@ -111,19 +127,8 @@
                 </div>
 
               </div>
-              <div class="text-caption text-grey">
-                {{ formatDate(entry?.created_at) }} • {{ entry?.type }}
-              </div>
-            </div>
-            <div class="col-auto">
-              <div class="row q-gutter-sm">
-                <q-btn rounded unelevated color="negative" icon="delete" style="height: 40px" @click="confirmDelete" />
-                <q-btn rounded unelevated color="grey" label="Back" @click="router.push('/')" style="height: 40px" />
-              </div>
             </div>
           </div>
-
-
           <!-- Tabs Section -->
           <q-tabs v-model="activeTab" dense class="text-grey q-mb-md" active-color="primary" indicator-color="primary"
             align="justify" narrow-indicator>
@@ -151,22 +156,22 @@
             <q-tab-panel name="additional" class="q-pa-md">
               <div>
                 <!-- Linked Verses -->
-                <div v-if="linkedVerses.length" class="q-mb-lg">
+                <div class="q-mb-lg">
                   <LinkedVerses v-model="linkedVerses" :display-only="true" />
                 </div>
 
                 <!-- Tags -->
-                <div v-if="entry?.tags?.length" class="q-mb-lg">
+                <div class="q-mb-lg">
                   <TagSelector v-model="entry.tags" :display-only="true" />
                 </div>
 
                 <!-- Quotes -->
-                <div v-if="entry?.quotes?.length" class="q-mb-lg">
+                <div class="q-mb-lg">
                   <QuoteSelector v-model="entry.quotes" :display-only="true" />
                 </div>
 
                 <!-- Links -->
-                <div v-if="entry?.links?.length" class="q-mb-lg">
+                <div class="q-mb-lg">
                   <LinkSelector v-model="entry.links" :display-only="true" />
                 </div>
               </div>
@@ -229,6 +234,7 @@ const deleting = ref(false)
 const showVerseDisplayModal = ref(false)
 const selectedVerse = ref(null)
 const activeTab = ref('main')
+const mainVerse = ref({})
 
 // Resources
 const selectedPastor = ref(null)
@@ -253,17 +259,6 @@ const linkedVerses = computed(() => {
     .map(createDisplayVerse)
 })
 
-// Methods
-const formatDate = (dateString) => {
-  if (!dateString) return ''
-  return new Date(dateString).toLocaleDateString(undefined, {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
-}
-
 const fetchEntry = async () => {
   try {
     loading.value = true
@@ -279,6 +274,12 @@ const fetchEntry = async () => {
       if (resource) {
         entryData.resource = resource
       }
+    }
+
+    if (entryData.type === 'Bible') {
+      mainVerse.value = entryData.verses
+        .filter(v => v.main_verse)
+        .map(createDisplayVerse)[0];
     }
 
     for (let i = 0; i < entryData.resources.length; i++) {

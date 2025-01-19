@@ -1,4 +1,3 @@
-# RecentEntries.vue
 <template>
   <div class="q-mt-lg">
     <h5 class="text-h6 q-mb-md">My Seeds</h5>
@@ -16,8 +15,8 @@
             :class="{ 'placeholder-item': index > paginatedEntries.length }">
             <q-item-section>
               <template v-if="index <= paginatedEntries.length">
-                <q-item-label>{{ paginatedEntries[index - 1].title }}</q-item-label>
-                <q-item-label caption>
+                <q-item-label class="text-wrap">{{ paginatedEntries[index - 1].title }}</q-item-label>
+                <q-item-label caption class="text-wrap">
                   {{ formatDate(paginatedEntries[index - 1].created_at) }} •
                   {{ paginatedEntries[index - 1].type }}
                 </q-item-label>
@@ -26,12 +25,11 @@
                 <div class="placeholder-content"></div>
               </template>
             </q-item-section>
-            <q-item-section v-if="index <= paginatedEntries.length" side>
+            <q-item-section side>
               <q-icon name="chevron_right" />
             </q-item-section>
           </q-item>
         </q-list>
-
         <!-- Pagination -->
         <div v-if="journalStore.entries.length > 5" class="row justify-center q-mt-md">
           <q-pagination v-model="currentPage" :max="totalPages" :max-pages="6" direction-links boundary-numbers
@@ -54,10 +52,7 @@ const journalStore = useJournalStore()
 const currentPage = ref(1)
 const itemsPerPage = 5
 
-// Use the entries directly from the store
 const entries = computed(() => journalStore.entries || [])
-
-// Computed properties for pagination
 const totalPages = computed(() => Math.ceil(entries.value.length / itemsPerPage))
 const paginatedEntries = computed(() => {
   const startIndex = (currentPage.value - 1) * itemsPerPage
@@ -103,14 +98,13 @@ onMounted(async () => {
 }
 
 .entry-item {
-  height: 60px;
+  min-height: 60px;
+  /* Changed from fixed height to min-height */
   border-bottom: 1px solid rgba(0, 0, 0, 0.12);
-  /* Consistent separator for all items */
 }
 
 .entry-item:last-child {
   border-bottom: 1px solid rgba(0, 0, 0, 0.12);
-  /* Ensure last item has border */
 }
 
 .placeholder-item {
@@ -124,10 +118,21 @@ onMounted(async () => {
   border-radius: 4px;
 }
 
-/* Center loading and empty states */
 .flex.flex-center {
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+/* Add text wrapping styles */
+.text-wrap {
+  white-space: normal !important;
+  word-break: break-word;
+}
+
+/* Ensure the item section grows to accommodate content */
+.q-item-section {
+  min-width: 0;
+  /* Allows flex items to shrink below content size */
 }
 </style>

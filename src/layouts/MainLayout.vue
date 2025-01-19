@@ -1,4 +1,10 @@
 <template>
+  <!-- Background image wrapper -->
+  <div class="bg-wrapper">
+    <q-img src="bg.png" class="fixed-full" style="min-height: 100vh" repeat />
+  </div>
+
+  <!-- Main layout container -->
   <q-layout view="lHh Lpr lFf">
     <q-header elevated>
       <q-toolbar>
@@ -59,6 +65,15 @@ const handleSignOut = async () => {
 </script>
 
 <style scoped>
+.bg-wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+}
+
 .text-decoration-none {
   text-decoration: none;
 }
@@ -83,6 +98,8 @@ const handleSignOut = async () => {
   max-width: 1280px;
   margin: 0 auto;
   padding: 0 16px;
+  position: relative;
+  z-index: 1;
 }
 
 @media (max-width: 599px) {

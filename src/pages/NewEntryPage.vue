@@ -1,7 +1,8 @@
 <template>
-  <q-page class="q-pa-md">
+  <q-page class="q-pa-md q-mt-lg q-ml-sm">
     <div class="row q-col-gutter-md justify-center">
-      <div class="col-12 col-sm-8 col-md-6">
+      <div class="col-12 col-sm-8 col-md-6 q-pa-xl" style="
+  background-color: #FAF6E9;">
         <div class="text-h6 q-mb-md">Plant a New Seed</div>
 
         <div class="q-gutter-md">
@@ -169,7 +170,24 @@
           <!-- In your template, update the header sections rendering -->
           <div v-for="(section, index) in headerSections" :key="'header-' + index" class="q-mb-md">
             <template v-if="section.fieldType === 'date'">
-              <!-- Your existing date input -->
+              <div class="row q-col-gutter-sm">
+                <div class="col-12">
+                  <q-input v-model="section.content" :label="section.title" mask="##-##-####" fill-mask
+                    placeholder="MM-DD-YYYY" :id="section.id">
+                    <template v-slot:append>
+                      <q-icon name="event" class="cursor-pointer">
+                        <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                          <q-date v-model="section.content" mask="MM-DD-YYYY" default-year-month="2025/01">
+                            <div class="row items-center justify-end q-pa-sm">
+                              <q-btn v-close-popup label="Close" color="primary" flat />
+                            </div>
+                          </q-date>
+                        </q-popup-proxy>
+                      </q-icon>
+                    </template>
+                  </q-input>
+                </div>
+              </div>
             </template>
             <template v-else-if="section.fieldType === 'link'">
               <div class="row q-col-gutter-sm">
@@ -186,7 +204,6 @@
               </div>
             </template>
             <template v-else>
-              <!-- Your existing default input -->
               <q-input v-model="section.content" :label="section.title"
                 :type="section.fieldType === 'longText' ? 'textarea' : 'text'" />
             </template>
@@ -292,7 +309,7 @@
               <q-btn rounded unelevated color="primary" @click="saveEntry" class="full-width" :loading="saving"
                 style="height: 40px">
                 <span v-if="!saving">
-                  <q-icon name="fa fa-cross" class="q-mr-sm" /> Plant Seed
+                  <q-icon name="fa fa-cross" class="q-mr-sm" /> Plant
                 </span>
                 <span v-else>Planting...</span>
               </q-btn>
@@ -366,7 +383,6 @@ const linkedVerses = ref([])
 const selectedTags = ref([])
 const selectedQuotes = ref([])
 
-// const entryTypes = ['Bible', 'Sermon', 'Answered Prayer / Miracle', 'Devotional', 'Group', 'Book', 'Article', 'Song', 'Podcast', 'Show', 'Other']
 const entryType = ref('Bible')
 
 const getTodayDate = () => {
@@ -377,8 +393,8 @@ const getTodayDate = () => {
   return `${month}-${day}-${year}`
 }
 
-const createSection = (title = '', content = '', fieldType = 'longText', headerProperty = false) => ({
-  id: 'section-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+const createSection = (title = '', content = '', fieldType = 'longText', headerProperty = false, id = '') => ({
+  id: id ?? 'section-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
   title,
   content: fieldType === 'date' ? getTodayDate() : content,
   fieldType,
@@ -394,7 +410,7 @@ const sermonSections = [
 ]
 
 const songSections = [
-  createSection('Song Title', '', 'shortText', true),
+  createSection('Song Title', '', 'shortText', true, 'song-title'),
   createSection('Song Link', '', 'link', true),
   createSection('Lyrics', '', 'longText')
 ]
@@ -405,19 +421,38 @@ const devotionSections = [
 ]
 
 const miracleSections = [
+  createSection('Title', '', 'shortText', true, 'miracle-title'),
   createSection('Date', '', 'date', true)
 ]
 
 const videoSections = [
-  createSection('Video Title', '', 'shortText', true),
+  createSection('Video Title', '', 'shortText', true, 'video-title'),
   createSection('Video URL', '', 'link', true),
   createSection('Notes', '', 'longText')
 ]
 
 const articleSections = [
-  createSection('Article Title', '', 'shortText', true),
+  createSection('Article Title', '', 'shortText', true, 'article-title'),
   createSection('Article URL', '', 'link', true),
   createSection('Notes', '', 'longText')
+]
+
+const devotionalSections = [
+  createSection('Devotional Title', '', 'shortText', true, 'devotional-title'),
+]
+
+const groupSections = [
+  createSection('Title', '', 'shortText', true, 'group-title'),
+  createSection('Date', '', 'date', true)
+]
+
+const podcastSections = [
+  createSection('Episode Title', '', 'shortText', true, 'podcast-title')
+]
+
+const otherSections = [
+  createSection('Title', '', 'shortText', true, 'other-title'),
+  createSection('Date', '', 'date', true)
 ]
 
 const prayerSection = createSection('Prayer', '', 'longText')
@@ -426,25 +461,6 @@ const prayerSection = createSection('Prayer', '', 'longText')
 const headerSections = computed(() => {
   return contentSections.value.filter(section => section.headerProperty)
 })
-
-const handleDragUpdate = (event) => {
-  // Get all sections
-  const allSections = [...contentSections.value]
-
-  // Split into header and regular sections
-  const headerSections = allSections.filter(section => section.headerProperty)
-  const regularSections = allSections.filter(section => !section.headerProperty)
-
-  // Perform the move operation on regular sections
-  const movedItem = regularSections.splice(event.oldIndex, 1)[0]
-  regularSections.splice(event.newIndex, 0, movedItem)
-
-  // Recombine sections
-  contentSections.value = [
-    ...headerSections,
-    ...regularSections
-  ]
-}
 
 const handleTypeChange = (newType) => {
   const today = getTodayDate()
@@ -487,10 +503,53 @@ const handleTypeChange = (newType) => {
         content: s.fieldType === 'date' ? today : s.content
       }))
       break
+    case 'Devotional':
+      newSections = devotionalSections.map(s => ({
+        ...s,
+        content: s.fieldType === 'date' ? today : s.content
+      }))
+      break
+    case 'Group':
+      newSections = groupSections.map(s => ({
+        ...s,
+        content: s.fieldType === 'date' ? today : s.content
+      }))
+      break
+    case 'Podcast':
+      newSections = podcastSections.map(s => ({
+        ...s,
+        content: s.fieldType === 'date' ? today : s.content
+      }))
+      break
+    case 'Other':
+      newSections = otherSections.map(s => ({
+        ...s,
+        content: s.fieldType === 'date' ? today : s.content
+      }))
+      break
     default:
       newSections = [createSection()]
   }
   contentSections.value = [...newSections, { ...prayerSection }]
+}
+
+const handleDragUpdate = (event) => {
+  // Get all sections
+  const allSections = [...contentSections.value]
+
+  // Split into header and regular sections
+  const headerSections = allSections.filter(section => section.headerProperty)
+  const regularSections = allSections.filter(section => !section.headerProperty)
+
+  // Perform the move operation on regular sections
+  const movedItem = regularSections.splice(event.oldIndex, 1)[0]
+  regularSections.splice(event.newIndex, 0, movedItem)
+
+  // Recombine sections
+  contentSections.value = [
+    ...headerSections,
+    ...regularSections
+  ]
 }
 
 const onVerseSelect = (verseData) => {
@@ -523,7 +582,7 @@ const handleResourceSelection = (selections) => {
         selectedPastor.value = selections[0]
         selectedSeries.value = selections[1]
         selectedSermon.value = selections[2]
-        title.value = `${selectedPastor.value.metadata.name} - ${selectedSeries.value.metadata.title}: ${selectedSermon.value.metadata.name}`
+        title.value = `${selectedPastor.value.metadata.name} - ${selectedSeries.value.metadata.title}: ${selectedSermon.value.metadata.title}`
       } else if (selections.length === 2) {
         selectedPastor.value = selections[0]
         selectedSeries.value = selections[1]
@@ -553,33 +612,28 @@ const handleResourceSelection = (selections) => {
 
     case 'Podcast':
       selectedPodcast.value = finalSelection
-      title.value = `${selectedPodcast.value.metadata.title}`
       break
 
     case 'Song':
       selectedArtist.value = finalSelection
-      title.value = `${selectedArtist.value.metadata.name}`
       break
 
     case 'Devotional':
       selectedMinistry.value = selections[0]
       selectedDevotionalSeries.value = finalSelection
-      title.value = `${selectedMinistry.value.metadata.name}`
       break
 
     case 'Group':
       selectedGroup.value = finalSelection
-      title.value = `Notes on ${selectedGroup.value.metadata.name}`
       break
 
     case 'Show':
       selectedShow.value = selections[0]
       selectedSeason.value = selections[1]
       selectedEpisode.value = selections[2]
-      title.value = `${selectedShow.value.metadata.name} Season ${selectedSeason.value.seasonNumber} Episode ${selectedEpisode.value.episodeNumber}`
+      title.value = `${selectedShow.value.metadata.name} Season ${selectedSeason.value.metadata.seasonNumber} Episode ${selectedEpisode.value.metadata.episodeNumber}`
   }
 }
-
 
 const onBookSelect = handleResourceSelection
 const onPastorSelect = handleResourceSelection
@@ -589,6 +643,65 @@ const onMinistrySelect = handleResourceSelection
 const onGroupSelect = handleResourceSelection
 const onShowSelect = handleResourceSelection
 
+const generateTitle = () => {
+  const headerSections = contentSections.value.filter(section => section.headerProperty)
+
+  switch (entryType.value) {
+    case 'Podcast':
+      {
+        const episodeTitle = headerSections.find(s => s.id === 'podcast-title')?.content
+        return `${episodeTitle || ''}`
+      }
+
+    case 'Song':
+      {
+        const songTitle = headerSections.find(s => s.id === 'song-title')?.content
+        return `${songTitle || ''}`
+      }
+
+    case 'Video':
+      {
+        const videoTitle = headerSections.find(s => s.id === 'video-title')?.content
+        return videoTitle || ''
+      }
+
+    case 'Article':
+      {
+        const articleTitle = headerSections.find(s => s.id === 'article-title')?.content
+        return articleTitle || ''
+      }
+
+    case 'Group':
+      {
+        const groupTitle = headerSections.find(s => s.id === 'group-title')?.content
+        const groupDate = headerSections.find(s => s.fieldType === 'date')?.content
+        return `${groupTitle || ''} (${groupDate || ''})`
+      }
+
+    case 'Devotional':
+      {
+        const devotionalTitle = headerSections.find(s => s.id === 'devotional-title')?.content
+        return `${devotionalTitle || ''}`
+      }
+
+    case 'Answered Prayer / Miracle':
+      {
+        const miracleTitle = headerSections.find(s => s.id === 'miracle-title')?.content
+        const miracleDate = headerSections.find(s => s.fieldType === 'date')?.content
+        return `${miracleTitle || ''} (${miracleDate || ''})`
+      }
+    case 'Other':
+      {
+        let otherTitle = headerSections.find(s => s.id === 'other-title')?.content
+        const otherDate = headerSections.find(s => s.fieldType === 'date')?.content
+        return `${otherTitle || ''} (${otherDate || ''})`
+      }
+
+    default:
+      return title.value
+  }
+}
+
 const saveEntry = async () => {
   saving.value = true
   try {
@@ -596,6 +709,9 @@ const saveEntry = async () => {
     if (!session) {
       throw new Error('No active session')
     }
+
+    // This will generate the title if there is a special type, otherwise it remains the same.
+    title.value = generateTitle();
 
     const encryptionKey = await getEncryptionKey(session.user.id)
     const contentObject = {
