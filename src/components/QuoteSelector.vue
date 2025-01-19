@@ -1,9 +1,12 @@
 # QuoteSelector.vue
 <template>
   <div class="q-mb-lg">
-    <div class="row items-center no-wrap q-mb-sm section-header" role="button" @click="addNewQuote">
+    <div v-if="!displayOnly" class="row items-center no-wrap q-mb-sm section-header" role="button" @click="addNewQuote">
       <div class="text-subtitle1 text-weight-medium">Add Quote</div>
       <q-btn flat round dense color="warning" icon="format_quote" class="q-ml-xs" />
+    </div>
+    <div v-else class="row items-center no-wrap q-mb-sm display-header">
+      <div class="text-subtitle1 text-weight-medium">Quotes</div>
     </div>
 
     <div v-if="quotes.length > 0" class="q-gutter-y-sm">
@@ -21,7 +24,7 @@
             </div>
           </div>
           <div class="col-auto">
-            <div class="row q-gutter-x-xs">
+            <div v-if="!displayOnly" class="row q-gutter-x-xs">
               <q-btn flat round dense color="primary" icon="edit" size="sm" @click="editQuote(index)" />
               <q-btn flat round dense color="negative" icon="delete" size="sm" @click="removeQuote(index)" />
             </div>

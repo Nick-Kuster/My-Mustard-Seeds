@@ -33,59 +33,40 @@
             </div>
           </div>
 
-          <!-- Content Tabs -->
-          <q-tabs v-model="activeTab" dense class="text-grey q-mb-md" active-color="primary" indicator-color="primary"
-            align="justify" narrow-indicator>
-            <q-tab name="main" label="Main Content" />
-            <q-tab name="additional" label="Additional Content" />
-          </q-tabs>
-
-          <q-tab-panels v-model="activeTab" animated class="bg-transparent">
-            <!-- Main Content Tab -->
-            <q-tab-panel name="main" class="q-pa-none">
-              <template v-if="entry?.decryptedContent?.sections">
-                <div v-for="(section, index) in entry.decryptedContent.sections" :key="index" class="q-mb-lg">
-                  <div class="text-subtitle1 text-weight-medium q-mb-sm">
-                    {{ section.title || 'Untitled Section' }}
-                  </div>
-                  <div class="text-body1" style="white-space: pre-wrap">{{ section.content }}</div>
+          <!-- Main Content -->
+          <div class="q-mb-xl">
+            <template v-if="entry?.decryptedContent?.sections">
+              <div v-for="(section, index) in entry.decryptedContent.sections" :key="index" class="q-mb-lg">
+                <div class="text-subtitle1 text-weight-medium q-mb-sm">
+                  {{ section.title || 'Untitled Section' }}
                 </div>
-              </template>
-            </q-tab-panel>
-
-            <!-- Additional Content Tab -->
-            <q-tab-panel name="additional" class="q-pa-none">
-              <!-- Linked Verses -->
-              <div v-if="linkedVerses.length" class="q-mb-lg">
-                <div class="q-mb-lg">
-                  <LinkedVerses v-model="linkedVerses" />
-                </div>
+                <div class="text-body1" style="white-space: pre-wrap">{{ section.content }}</div>
               </div>
+            </template>
+          </div>
 
-              <!-- Tags -->
-              <div v-if="entry?.tags?.length" class="q-mb-lg">
-                <div class="q-mb-lg">
-                  <TagSelector v-model="entry.tags" />
-                </div>
-              </div>
+          <!-- Additional Content Section -->
+          <div class="q-mt-xl">
+            <!-- Linked Verses -->
+            <div v-if="linkedVerses.length" class="q-mb-lg">
+              <LinkedVerses v-model="linkedVerses" :display-only="true" />
+            </div>
 
-              <!-- Quotes -->
-              <div v-if="entry?.quotes?.length" class="q-mb-lg">
+            <!-- Tags -->
+            <div v-if="entry?.tags?.length" class="q-mb-lg">
+              <TagSelector v-model="entry.tags" :display-only="true" />
+            </div>
 
-                <div class="q-mb-lg">
-                  <QuoteSelector v-model="entry.quotes" />
-                </div>
+            <!-- Quotes -->
+            <div v-if="entry?.quotes?.length" class="q-mb-lg">
+              <QuoteSelector v-model="entry.quotes" :display-only="true" />
+            </div>
 
-              </div>
-
-              <!-- Links -->
-              <div v-if="entry?.links?.length" class="q-mb-lg">
-                <div class="q-mb-lg">
-                  <LinkSelector v-model="entry.links" />
-                </div>
-              </div>
-            </q-tab-panel>
-          </q-tab-panels>
+            <!-- Links -->
+            <div v-if="entry?.links?.length" class="q-mb-lg">
+              <LinkSelector v-model="entry.links" :display-only="true" />
+            </div>
+          </div>
         </template>
       </div>
     </div>
@@ -133,7 +114,6 @@ const $q = useQuasar()
 const journalStore = useJournalStore()
 
 // State
-const activeTab = ref('main')
 const loading = ref(true)
 const entry = ref(null)
 const showDeleteDialog = ref(false)
@@ -176,9 +156,9 @@ const fetchEntry = async () => {
   try {
     loading.value = true
     const entryData = await journalStore.getEntry(route.params.id)
+    console.log(entryData)
     if (!entryData) throw new Error('Entry not found')
     entry.value = entryData
-    console.log(entry)
   } catch (error) {
     $q.notify({
       type: 'negative',

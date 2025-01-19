@@ -1,8 +1,12 @@
 <template>
   <div class="q-mb-lg">
-    <div class="row items-center no-wrap q-mb-sm section-header" role="button" @click="showModal = true">
+    <div v-if="!displayOnly" class="row items-center no-wrap q-mb-sm section-header" role="button"
+      @click="showModal = true">
       <div class="text-subtitle1 text-weight-medium">Add Tags</div>
       <q-btn flat round dense color="info" icon="label" class="q-ml-xs" />
+    </div>
+    <div v-else class="row items-center no-wrap q-mb-sm display-header">
+      <div class="text-subtitle1 text-weight-medium">Tags</div>
     </div>
 
     <div v-if="selectedTags.length > 0" class="row q-gutter-sm">
@@ -24,6 +28,10 @@ const props = defineProps({
   modelValue: {
     type: Array,
     default: () => []
+  },
+  displayOnly: {
+    type: Boolean,
+    default: false
   }
 })
 

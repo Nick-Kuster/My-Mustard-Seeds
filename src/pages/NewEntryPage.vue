@@ -323,6 +323,7 @@ import VerseDisplayModal from 'components/VerseDisplayModal.vue'
 import LinkSelector from 'src/components/LinkSelector.vue'
 
 
+const dragging = ref(false)
 const router = useRouter()
 const $q = useQuasar()
 const journalStore = useJournalStore()
@@ -714,20 +715,37 @@ const saveEntry = async () => {
     }
 
     // Handle Links
+    // Handle Links - combine both selectedLinks and linkSections
     const linkSections = contentSections.value.filter(s => s.fieldType === 'link' && s.content)
-    if (linkSections.length > 0) {
-      const linkInserts = linkSections.map(section => ({
+    const allLinks = [
+      // Links from sections
+      ...linkSections.map(section => ({
         journal_id: entry.id,
         name: section.title,
         url: section.content
+      })),
+      // Links from selectedLinks
+      ...selectedLinks.value.map(link => ({
+        journal_id: entry.id,
+        name: link.name,
+        url: link.url
       }))
+    ]
 
-      const { error: linkError } = await supabase
+    if (allLinks.length > 0) {
+      const { data: linkData, error: linkError } = await supabase
         .from('related_links')
-        .insert(linkInserts)
+        .insert(allLinks)
+        .select()
 
-      if (linkError) throw new Error('Failed to save links: ' + linkError.message)
+      if (linkError) {
+        console.error('Link insertion error:', linkError)
+        throw new Error('Failed to save links: ' + linkError.message)
+      }
+
+      console.log('Saved links:', linkData)
     }
+
     $q.notify({
       type: 'positive',
       message: 'Your seed has been planted!'

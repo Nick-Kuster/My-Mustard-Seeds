@@ -1,8 +1,11 @@
 <template>
   <div class="q-mb-lg">
-    <div class="row items-center no-wrap q-mb-sm section-header" role="button" @click="addNewLink">
+    <div v-if="!displayOnly" class="row items-center no-wrap q-mb-sm section-header" role="button" @click="addNewLink">
       <div class="text-subtitle1 text-weight-medium">Add Link</div>
       <q-btn flat round dense color="info" icon="link" class="q-ml-xs" />
+    </div>
+    <div v-else class="row items-center no-wrap q-mb-sm display-header">
+      <div class="text-subtitle1 text-weight-medium">Links</div>
     </div>
 
     <div v-if="links.length > 0" class="q-gutter-y-sm">
@@ -17,8 +20,10 @@
           <div class="col-auto">
             <div class="row q-gutter-x-xs">
               <q-btn flat round dense color="info" icon="open_in_new" size="sm" @click="openLink(link.url)" />
-              <q-btn flat round dense color="primary" icon="edit" size="sm" @click="editLink(index)" />
-              <q-btn flat round dense color="negative" icon="delete" size="sm" @click="removeLink(index)" />
+              <q-btn v-if="!displayOnly" flat round dense color="primary" icon="edit" size="sm"
+                @click="editLink(index)" />
+              <q-btn v-if="!displayOnly" flat round dense color="negative" icon="delete" size="sm"
+                @click="removeLink(index)" />
             </div>
           </div>
         </div>
