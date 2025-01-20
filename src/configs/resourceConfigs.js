@@ -29,7 +29,6 @@ const configs = {
     },
     allowedChildren: [RESOURCE_TYPES.CHAPTER],
     getDisplayTitle: (resource) => resource.metadata.title,
-    getDisplaySubtitle: (resource) => `by ${resource.metadata.author}`,
   },
 
   [RESOURCE_TYPES.CHAPTER]: {
