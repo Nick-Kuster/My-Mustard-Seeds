@@ -8,7 +8,7 @@
 
         <template v-else>
           <!-- Header -->
-          <div class="row items-start q-mb-lg">
+          <div class="row items-start q-mb-sm">
             <div class="col">
               <div class="row items-center q-mb-lg">
                 <div class="col">
@@ -30,16 +30,6 @@
                   </div>
                   <div v-else class="text-h5">{{ entry?.title }}</div>
                 </div>
-                <div class="col-auto">
-                  <div class="row q-gutter-sm">
-                    <q-btn rounded unelevated color="primary" icon="edit" style="height: 40px"
-                      @click="router.push(`/entry/${entry.id}/edit`)" />
-                    <q-btn rounded unelevated color="negative" icon="delete" style="height: 40px"
-                      @click="confirmDelete" />
-                    <q-btn rounded unelevated color="grey" label="Back" @click="router.push('/')"
-                      style="height: 40px" />
-                  </div>
-                </div>
               </div>
               <div v-if="entry?.resources?.length > 0" class="q-mb-lg">
 
@@ -49,7 +39,7 @@
                     <div class="q-mb-md">
                       <div class="text-body1">Chapter: {{ selectedChapter.metadata.number }} {{
                         selectedChapter.metadata.title
-                        }}</div>
+                      }}</div>
                       <div class="text-caption text-grey-8">From {{ selectedBook.metadata.title }}</div>
                       <div class="text-caption text-grey-8">by {{ selectedAuthor.metadata.name }}</div>
                     </div>
@@ -129,6 +119,18 @@
                 </div>
 
               </div>
+            </div>
+          </div>
+          <div class="row q-col-gutter-sm justify-end q-mb-xl">
+            <div class="col-auto">
+              <q-btn rounded unelevated color="primary" icon="edit" style="height: 40px"
+                @click="router.push(`/entry/${entry.id}/edit`)" />
+            </div>
+            <div class="col-auto">
+              <q-btn rounded unelevated color="negative" icon="delete" style="height: 40px" @click="confirmDelete" />
+            </div>
+            <div class="col-auto">
+              <q-btn rounded unelevated color="grey" label="Back" @click="router.push('/')" style="height: 40px" />
             </div>
           </div>
           <!-- Tabs Section -->

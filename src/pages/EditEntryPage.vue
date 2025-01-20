@@ -308,7 +308,7 @@
               <q-btn rounded unelevated color="primary" @click="updateEntry" class="full-width" :loading="saving"
                 style="height: 40px">
                 <span v-if="!saving">
-                  <q-icon name="save" class="q-mr-sm" /> Save Changes
+                  <q-icon name="save" class="q-mr-sm" /> Save
                 </span>
                 <span v-else>Saving...</span>
               </q-btn>
