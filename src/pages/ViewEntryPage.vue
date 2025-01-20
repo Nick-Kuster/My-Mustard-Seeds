@@ -32,6 +32,8 @@
                 </div>
                 <div class="col-auto">
                   <div class="row q-gutter-sm">
+                    <q-btn rounded unelevated color="primary" icon="edit" style="height: 40px"
+                      @click="router.push(`/entry/${entry.id}/edit`)" />
                     <q-btn rounded unelevated color="negative" icon="delete" style="height: 40px"
                       @click="confirmDelete" />
                     <q-btn rounded unelevated color="grey" label="Back" @click="router.push('/')"
@@ -47,7 +49,7 @@
                     <div class="q-mb-md">
                       <div class="text-body1">Chapter: {{ selectedChapter.metadata.number }} {{
                         selectedChapter.metadata.title
-                      }}</div>
+                        }}</div>
                       <div class="text-caption text-grey-8">From {{ selectedBook.metadata.title }}</div>
                       <div class="text-caption text-grey-8">by {{ selectedAuthor.metadata.name }}</div>
                     </div>

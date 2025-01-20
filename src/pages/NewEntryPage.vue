@@ -402,6 +402,7 @@ const createSection = (title = '', content = '', fieldType = 'longText', headerP
 
 const bibleSections = [
   createSection('Observations', '', 'longText'),
+  createSection('Application', '', 'longText'),
 ]
 
 const sermonSections = [

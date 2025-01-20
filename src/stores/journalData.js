@@ -484,7 +484,25 @@ export const useJournalStore = defineStore('journalData', () => {
       throw error
     }
   }
+  const updateEntry = async (updatedEntry) => {
+    // Find and update the entry in the entries array
+    const index = entries.value.findIndex((e) => e.id === updatedEntry.id)
+    if (index !== -1) {
+      entries.value[index] = { ...entries.value[index], ...updatedEntry }
 
+      // Find and update in decryptedEntries as well
+      const decryptedIndex = decryptedEntries.value.findIndex((e) => e.id === updatedEntry.id)
+      if (decryptedIndex !== -1) {
+        decryptedEntries.value[decryptedIndex] = {
+          ...decryptedEntries.value[decryptedIndex],
+          ...updatedEntry,
+        }
+      }
+
+      // Refresh the decrypted content
+      await decryptEntries()
+    }
+  }
   return {
     entries,
     loading,
@@ -499,6 +517,7 @@ export const useJournalStore = defineStore('journalData', () => {
     updateFacet,
     clearFacets,
     getEntry,
+    updateEntry,
     addQuote,
     updateQuote,
     deleteQuote,
