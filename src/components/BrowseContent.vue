@@ -6,8 +6,6 @@
           <div :key="currentView">
             <!-- Main Menu View -->
             <q-list padding v-if="currentView === 'main'">
-              <q-item-label header>Harvest Seeds By</q-item-label>
-
               <q-item clickable v-ripple to="/type/Bible">
                 <q-item-section avatar>
                   <q-icon name="auto_stories" />

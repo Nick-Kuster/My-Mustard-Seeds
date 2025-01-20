@@ -1,15 +1,14 @@
 <template>
-  <div class="q-mt-lg">
-    <h5 class="text-h6 q-mb-md">My Seeds</h5>
+  <div class="entries-wrapper">
     <div class="entries-container">
-      <div v-if="journalStore.loading" class="text-center entries-content flex flex-center">
-        <q-spinner color="primary" size="3em" />
-      </div>
-      <div v-else-if="journalStore.entries.length === 0" class="text-center text-grey entries-content flex flex-center">
-        No seeds planted yet. Start your journey by planting your first seed.
-      </div>
-      <template v-else>
-        <q-list bordered class="entries-content">
+      <div class="entries-content">
+        <div v-if="journalStore.loading" class="loader-container">
+          <q-spinner color="primary" size="3em" />
+        </div>
+        <div v-else-if="journalStore.entries.length === 0" class="empty-container">
+          No seeds planted yet. Start your journey by planting your first seed.
+        </div>
+        <q-list v-else bordered class="entries-list">
           <q-item v-for="index in 5" :key="index" :clickable="index <= paginatedEntries.length"
             @click="index <= paginatedEntries.length && viewEntry(paginatedEntries[index - 1].id)" class="entry-item"
             :class="{ 'placeholder-item': index > paginatedEntries.length }">
@@ -30,12 +29,12 @@
             </q-item-section>
           </q-item>
         </q-list>
-        <!-- Pagination -->
-        <div v-if="journalStore.entries.length > 5" class="row justify-center q-mt-md">
-          <q-pagination v-model="currentPage" :max="totalPages" :max-pages="6" direction-links boundary-numbers
-            color="primary" />
-        </div>
-      </template>
+      </div>
+
+      <div class="pagination-container">
+        <q-pagination v-if="journalStore.entries.length > 5" v-model="currentPage" :max="totalPages" :max-pages="6"
+          direction-links boundary-numbers color="primary" />
+      </div>
     </div>
   </div>
 </template>
@@ -88,23 +87,51 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.entries-container {
+.entries-wrapper {
+  height: 480px;
   display: flex;
   flex-direction: column;
 }
 
+.entries-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .entries-content {
-  min-height: 300px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  position: relative;
+}
+
+.loader-container,
+.empty-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #666;
+}
+
+.entries-list {
+  height: 100%;
 }
 
 .entry-item {
   min-height: 60px;
-  /* Changed from fixed height to min-height */
   border-bottom: 1px solid rgba(0, 0, 0, 0.12);
 }
 
 .entry-item:last-child {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  border-bottom: none;
 }
 
 .placeholder-item {
@@ -118,21 +145,20 @@ onMounted(async () => {
   border-radius: 4px;
 }
 
-.flex.flex-center {
+.pagination-container {
+  height: 48px;
   display: flex;
   justify-content: center;
   align-items: center;
+  padding: 8px 0;
 }
 
-/* Add text wrapping styles */
 .text-wrap {
   white-space: normal !important;
   word-break: break-word;
 }
 
-/* Ensure the item section grows to accommodate content */
 .q-item-section {
   min-width: 0;
-  /* Allows flex items to shrink below content size */
 }
 </style>

@@ -1,7 +1,7 @@
 <template>
   <q-page class="q-pt-xl q-px-md q-pb-md">
     <div class="row q-col-gutter-md justify-center">
-      <div class="col-12 col-sm-8 col-md-6">
+      <div class="col-12 col-sm-8 col-md-6 q-pa-lg parchment">
         <div v-if="loading" class="text-center q-pa-lg">
           <q-spinner color="primary" size="3em" />
         </div>

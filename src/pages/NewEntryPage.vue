@@ -1,8 +1,7 @@
 <template>
   <q-page class="q-pa-md q-mt-lg q-ml-sm">
     <div class="row q-col-gutter-md justify-center">
-      <div class="col-12 col-sm-8 col-md-6 q-pa-xl" style="
-  background-color: #FAF6E9;">
+      <div class="col-12 col-sm-8 col-md-6 q-pa-lg parchment">
         <div class="text-h6 q-mb-md">Plant a New Seed</div>
 
         <div class="q-gutter-md">
