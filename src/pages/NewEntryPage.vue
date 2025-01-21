@@ -2,7 +2,14 @@
   <q-page class="q-pa-md q-mt-lg q-ml-sm">
     <div class="row q-col-gutter-md justify-center">
       <div class="col-12 col-sm-8 col-md-6 q-pa-lg parchment">
-        <div class="text-h6 q-mb-md">Plant a New Seed</div>
+        <div class="row items-center q-mb-md">
+          <div class="col-auto">
+            <q-btn flat round icon="arrow_back" color="primary" @click="router.go(-1)" />
+          </div>
+          <div class="col">
+            <div class="text-h6">Plant a New Seed</div>
+          </div>
+        </div>
 
         <div class="q-gutter-md">
           <!-- Entry Type Selector -->

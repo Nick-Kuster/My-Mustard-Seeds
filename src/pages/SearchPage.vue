@@ -3,7 +3,14 @@
     <div class="row q-col-gutter-md justify-center ">
       <div class="col-12 col-sm-8 col-md-6 q-pa-lg rounded-borders parchment">
         <!-- Header with search info -->
-        <div class=" text-h6 q-mb-md">Search Results</div>
+        <div class="row items-center q-mb-md">
+          <div class="col-auto">
+            <q-btn flat round icon="arrow_back" color="primary" @click="router.go(-1)" />
+          </div>
+          <div class="col">
+            <div class="text-h6">Search Results</div>
+          </div>
+        </div>
 
         <!-- Active filters -->
         <div v-if="hasActiveFilters" class="q-mb-md">

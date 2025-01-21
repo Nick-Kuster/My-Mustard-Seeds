@@ -130,7 +130,7 @@
               <q-btn rounded unelevated color="negative" icon="delete" style="height: 40px" @click="confirmDelete" />
             </div>
             <div class="col-auto">
-              <q-btn rounded unelevated color="grey" label="Back" @click="router.push('/')" style="height: 40px" />
+              <q-btn rounded unelevated color="grey" label="Back" @click="router.go(-1)" style="height: 40px" />
             </div>
           </div>
           <!-- Tabs Section -->

@@ -5,7 +5,14 @@
     </div>
     <div v-else class="row q-col-gutter-md justify-center">
       <div class="col-12 col-sm-8 col-md-6 q-ma-lg  q-pa-lg parchment">
-        <div class="text-h6 q-mb-md">Edit Seed</div>
+        <div class="row items-center q-mb-md">
+          <div class="col-auto">
+            <q-btn flat round icon="arrow_back" color="primary" @click="router.go(-1)" />
+          </div>
+          <div class="col">
+            <div class="text-h6">Edit Seed</div>
+          </div>
+        </div>
 
         <div class="q-gutter-md">
           <!-- Entry Type Display (readonly since we shouldn't change type) -->
