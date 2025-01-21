@@ -37,13 +37,18 @@ import NavigationDrawer from 'components/NavigationDrawer.vue'
 
 const $q = useQuasar()
 const leftDrawerOpen = ref(false)
-
+const previousIsMobile = ref($q.platform.is.mobile)
 onMounted(() => {
   leftDrawerOpen.value = false
 })
 
-watch(() => $q.screen.width, () => {
-  leftDrawerOpen.value = !$q.platform.is.mobile
+
+// Only trigger when switching between mobile/desktop modes
+watch(() => $q.platform.is.mobile, (isMobile, oldIsMobile) => {
+  if (isMobile !== oldIsMobile) {
+    leftDrawerOpen.value = !isMobile
+    previousIsMobile.value = isMobile
+  }
 })
 
 const toggleLeftDrawer = () => {

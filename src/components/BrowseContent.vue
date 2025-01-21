@@ -22,7 +22,7 @@
         <!-- Main Menu -->
         <template v-if="navigationStack.length === 0">
           <!-- View All Resources Button -->
-          <q-item clickable v-ripple to="/resources" class="view-all-item">
+          <q-item clickable v-ripple @click="navigateToSearch()" class="view-all-item">
             <q-item-section avatar>
               <q-icon name="grid_view" />
             </q-item-section>
@@ -31,7 +31,7 @@
 
           <q-separator spaced />
 
-          <q-item clickable v-ripple to="/verses">
+          <q-item clickable v-ripple @click="navigateToSearch('Bible')">
             <q-item-section avatar>
               <q-icon name="auto_stories" />
             </q-item-section>
@@ -107,7 +107,7 @@
           <div class="text-h6 q-px-md q-pt-md q-mb-sm">{{ currentView.title }}</div>
 
           <!-- View All Resources for current type -->
-          <q-item clickable v-ripple :to="`/resources/${currentView.resourceType}`" class="view-all-item">
+          <q-item clickable v-ripple @click="navigateToCurrentLevelSearch" class="view-all-item">
             <q-item-section avatar>
               <q-icon name="grid_view" />
             </q-item-section>
@@ -231,28 +231,123 @@ const currentResourceFields = computed(() => {
 })
 
 // Methods
+const navigateToSearch = ({ type = null, resource = null, contextPath = [], resourceType = null } = {}) => {
+  const query = {}
+
+  // Add journal type if provided
+  if (type) {
+    query.type = type
+  }
+
+  // Build context-based filters
+  if (contextPath.length > 0) {
+    // Always add the journal type from the root context
+    if (contextPath[0].journalType) {
+      query.type = contextPath[0].journalType
+    }
+
+    // Build resource context from the navigation path
+    const contextResources = contextPath
+      .filter(context => context.parentResource)
+      .map(context => ({
+        id: context.parentResource.id,
+        type: context.parentResource.type,
+        title: getResourceDisplay(context.parentResource)
+      }))
+
+    // Add the final resource if provided
+    if (resource) {
+      contextResources.push({
+        id: resource.id,
+        type: resource.type,
+        title: getResourceDisplay(resource)
+      })
+    }
+
+    if (contextResources.length > 0) {
+      query.resources = JSON.stringify(contextResources)
+    }
+  } else if (resource) {
+    // Handle direct resource navigation
+    query.resources = JSON.stringify([{
+      id: resource.id,
+      type: resource.type,
+      title: getResourceDisplay(resource)
+    }])
+  }
+
+  // Add resource type filter if provided
+  if (resourceType) {
+    query.resourceType = resourceType
+  }
+
+  router.push({
+    path: '/search',
+    query
+  })
+}
+
+// Helper method for "View All" navigation at current level
+const navigateToCurrentLevelSearch = () => {
+  if (!currentView.value) return navigateToSearch()
+
+  navigateToSearch({
+    type: currentView.value.journalType,
+    contextPath: navigationStack.value.slice(0, -1), // Exclude current level
+    resourceType: currentView.value.resourceType
+  })
+}
+
+const getJournalTypeForResource = (resourceType) => {
+  switch (resourceType) {
+    case RESOURCE_TYPES.PASTOR:
+    case RESOURCE_TYPES.SERMON_SERIES:
+    case RESOURCE_TYPES.SERMON:
+      return 'Sermon'
+    case RESOURCE_TYPES.AUTHOR:
+    case RESOURCE_TYPES.BOOK:
+    case RESOURCE_TYPES.CHAPTER:
+      return 'Book'
+    case RESOURCE_TYPES.SONG_ARTIST:
+      return 'Song'
+    case RESOURCE_TYPES.SHOW:
+    case RESOURCE_TYPES.SEASON:
+    case RESOURCE_TYPES.EPISODE:
+      return 'Show'
+    default:
+      return null
+  }
+}
+
 const navigateToResourceType = (resourceType) => {
   const config = getResourceConfig(resourceType)
   navigationStack.value = [{
     title: config.title + 's',
     resourceType,
-    parentResource: null
+    parentResource: null,
+    journalType: getJournalTypeForResource(resourceType)
   }]
 }
 
 const handleResourceClick = async (resource) => {
   const allowedChildTypes = resourcesStore.canHaveChildOfType(resource.type)
+  const currentContext = navigationStack.value[0] // Get the root context for journal type
 
   if (allowedChildTypes.length > 0) {
     const config = getResourceConfig(resource.type)
     navigationStack.value.push({
       title: config.getDisplayTitle(resource),
-      resourceType: allowedChildTypes[0], // Navigate to first allowed child type
-      parentResource: resource
+      resourceType: allowedChildTypes[0],
+      parentResource: resource,
+      journalType: currentContext.journalType
     })
   } else {
-    // Navigate to resource detail view
-    router.push(`/resource/${resource.type}/${resource.id}`)
+    // Navigate to search with the full context
+    navigateToSearch({
+      type: currentContext.journalType,
+      resource,
+      contextPath: navigationStack.value
+    })
   }
 }
 

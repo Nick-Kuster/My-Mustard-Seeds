@@ -24,8 +24,15 @@ const routes = [
         meta: { requiresAuth: true },
       },
       {
-        path: 'search',
-        component: () => import('pages/SearchPage.vue'),
+        path: '/search',
+        component: () => import('layouts/MainLayout.vue'),
+        meta: { requiresAuth: true },
+        children: [
+          {
+            path: '',
+            component: () => import('pages/SearchPage.vue'),
+          },
+        ],
       },
     ],
   },
