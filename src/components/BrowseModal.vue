@@ -1,141 +1,143 @@
 <template>
-  <div class="browse-content">
-    <q-list padding>
-      <!-- Navigation Breadcrumbs -->
-      <div class="row items-center q-mb-md" v-if="navigationStack.length > 0">
-        <q-btn flat dense icon="arrow_back" @click="navigateBack" class="q-mr-sm" />
-        <div class="text-caption text-grey">
-          <template v-for="(item, index) in navigationStack" :key="index">
-            <span class="cursor-pointer hover-underline" @click="navigateToIndex(index)">{{ item.title }}</span>
-            <span v-if="index < navigationStack.length - 1"> / </span>
-          </template>
+  <q-dialog v-model="isOpen" :position="$q.screen.lt.sm ? 'bottom' : 'standard'">
+    <q-card class="browse-modal-dialog" style="width: 600px;">
+      <q-card-section class="scroll" style="height: 70vh">
+        <!-- Navigation Breadcrumbs -->
+        <div class="row items-center q-mb-md" v-if="navigationStack.length > 0">
+          <q-btn flat dense icon="arrow_back" @click="navigateBack" class="q-mr-sm" />
+          <div class="text-caption text-grey">
+            <template v-for="(item, index) in navigationStack" :key="index">
+              <span class="cursor-pointer hover-underline" @click="navigateToIndex(index)">{{ item.title }}</span>
+              <span v-if="index < navigationStack.length - 1"> / </span>
+            </template>
+          </div>
         </div>
-      </div>
 
-      <div class="text-h6 q-mb-md">{{ navigationStack.length ? currentView.title : 'Browse Resources' }}</div>
+        <div class="text-h6 q-mb-md">{{ navigationStack.length ? currentView.title : 'Browse Resources' }}</div>
 
-      <!-- Loading State -->
-      <div v-if="resourcesStore.loading" class="text-center q-pa-md">
-        <q-spinner color="primary" size="2em" />
-        <div class="text-grey q-mt-sm">Loading resources...</div>
-      </div>
+        <!-- Loading State -->
+        <div v-if="resourcesStore.loading" class="text-center q-pa-md">
+          <q-spinner color="primary" size="2em" />
+          <div class="text-grey q-mt-sm">Loading resources...</div>
+        </div>
 
-      <template v-else>
-        <!-- Main Menu -->
-        <template v-if="navigationStack.length === 0">
-          <!-- View All Resources Button -->
-          <q-item clickable v-ripple @click="navigateToSearch()" class="view-all-item">
-            <q-item-section avatar>
-              <q-icon name="grid_view" />
-            </q-item-section>
-            <q-item-section>View All Resources</q-item-section>
-          </q-item>
-
-          <q-separator spaced />
-
-          <q-item clickable v-ripple @click="navigateToSearch({ type: 'Bible' })">
-            <q-item-section avatar>
-              <q-icon name="auto_stories" />
-            </q-item-section>
-            <q-item-section>Bible Study</q-item-section>
-            <q-item-section side>
-              <q-icon name="chevron_right" />
-            </q-item-section>
-          </q-item>
-
-          <q-item clickable v-ripple @click="navigateToResourceType(RESOURCE_TYPES.PASTOR)">
-            <q-item-section avatar>
-              <q-icon name="record_voice_over" />
-            </q-item-section>
-            <q-item-section>Sermons</q-item-section>
-            <q-item-section side>
-              <q-icon name="chevron_right" />
-            </q-item-section>
-          </q-item>
-
-          <q-item v-for="type in otherResourceTypes" :key="type.id" clickable v-ripple
-            @click="navigateToResourceType(type.id)">
-            <q-item-section avatar>
-              <q-icon :name="type.icon" />
-            </q-item-section>
-            <q-item-section>{{ type.label }}</q-item-section>
-            <q-item-section side>
-              <q-icon name="chevron_right" />
-            </q-item-section>
-          </q-item>
-        </template>
-
-        <!-- Sub-level navigation -->
         <template v-else>
-          <!-- View All Resources for current type -->
-          <q-item clickable v-ripple @click="navigateToCurrentLevelSearch" class="view-all-item">
-            <q-item-section avatar>
-              <q-icon name="grid_view" />
-            </q-item-section>
-            <q-item-section>{{ getViewAllTitle }}</q-item-section>
-          </q-item>
-
-          <q-separator spaced />
-
-          <!-- Resource List -->
-          <div v-if="currentResources.length > 0">
-            <q-item v-for="resource in currentResources" :key="resource.id" clickable v-ripple
-              @click="handleResourceClick(resource)">
+          <!-- Main Menu -->
+          <template v-if="navigationStack.length === 0">
+            <!-- View All Resources Button -->
+            <q-item clickable v-ripple @click="navigateToSearch()" class="view-all-item">
               <q-item-section avatar>
-                <q-icon :name="getResourceIcon(resource.type)" />
+                <q-icon name="grid_view" />
               </q-item-section>
-              <q-item-section>
-                <q-item-label>{{ getResourceDisplay(resource) }}</q-item-label>
-                <q-item-label caption v-if="getResourceSubtitle(resource)">
-                  {{ getResourceSubtitle(resource) }}
-                </q-item-label>
+              <q-item-section>View All Resources</q-item-section>
+            </q-item>
+
+            <q-separator spaced />
+
+            <q-item clickable v-ripple @click="navigateToSearch({ type: 'Bible' })">
+              <q-item-section avatar>
+                <q-icon name="auto_stories" />
               </q-item-section>
-              <q-item-section side v-if="resourcesStore.canHaveChildOfType(resource.type).length > 0">
+              <q-item-section>Bible Study</q-item-section>
+              <q-item-section side>
                 <q-icon name="chevron_right" />
               </q-item-section>
             </q-item>
-          </div>
 
-          <!-- Empty State -->
-          <div v-else class="text-center text-grey q-pa-md">
-            No {{ currentView.title.toLowerCase() }} found
-          </div>
+            <q-item clickable v-ripple @click="navigateToResourceType(RESOURCE_TYPES.PASTOR)">
+              <q-item-section avatar>
+                <q-icon name="record_voice_over" />
+              </q-item-section>
+              <q-item-section>Sermons</q-item-section>
+              <q-item-section side>
+                <q-icon name="chevron_right" />
+              </q-item-section>
+            </q-item>
 
-          <!-- Add New Button -->
-          <div class="text-center q-mt-xl">
-            <q-btn unelevated color="primary" :label="`Add ${getResourceConfig(currentView.resourceType).title}`"
-              @click="showAddDialog = true" class="add-button" icon="add" />
-          </div>
-        </template>
-      </template>
-    </q-list>
+            <q-item v-for="type in otherResourceTypes" :key="type.id" clickable v-ripple
+              @click="navigateToResourceType(type.id)">
+              <q-item-section avatar>
+                <q-icon :name="type.icon" />
+              </q-item-section>
+              <q-item-section>{{ type.label }}</q-item-section>
+              <q-item-section side>
+                <q-icon name="chevron_right" />
+              </q-item-section>
+            </q-item>
+          </template>
 
-    <!-- Add Resource Dialog -->
-    <q-dialog v-model="showAddDialog">
-      <q-card style="min-width: 350px">
-        <q-card-section>
-          <div class="text-h6">Add {{ currentView?.title.slice(0, -1) || 'Resource' }}</div>
-        </q-card-section>
+          <!-- Sub-level navigation -->
+          <template v-else>
+            <!-- View All Resources for current type -->
+            <q-item clickable v-ripple @click="navigateToCurrentLevelSearch" class="view-all-item">
+              <q-item-section avatar>
+                <q-icon name="grid_view" />
+              </q-item-section>
+              <q-item-section>View All {{ getResourceConfig(currentView.resourceType).title }}s</q-item-section>
+            </q-item>
 
-        <q-card-section class="q-pt-none">
-          <q-form @submit="handleAddResource">
-            <template v-for="(field, key) in currentResourceFields" :key="key">
-              <q-input v-model="newResource[key]" :label="field.label" :required="field.required" class="q-mb-md" />
-            </template>
+            <q-separator spaced />
 
-            <div class="row q-col-gutter-sm justify-end">
-              <div class="col-auto">
-                <q-btn flat label="Cancel" color="primary" v-close-popup />
-              </div>
-              <div class="col-auto">
-                <q-btn :loading="saving" type="submit" label="Save" color="primary" />
-              </div>
+            <!-- Resource List -->
+            <div v-if="currentResources.length > 0">
+              <q-item v-for="resource in currentResources" :key="resource.id" clickable v-ripple
+                @click="handleResourceClick(resource)">
+                <q-item-section avatar>
+                  <q-icon :name="getResourceIcon(resource.type)" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>{{ getResourceDisplay(resource) }}</q-item-label>
+                  <q-item-label caption v-if="getResourceSubtitle(resource)">
+                    {{ getResourceSubtitle(resource) }}
+                  </q-item-label>
+                </q-item-section>
+                <q-item-section side v-if="resourcesStore.canHaveChildOfType(resource.type).length > 0">
+                  <q-icon name="chevron_right" />
+                </q-item-section>
+              </q-item>
             </div>
-          </q-form>
-        </q-card-section>
-      </q-card>
-    </q-dialog>
-  </div>
+
+            <!-- Empty State -->
+            <div v-else class="text-center text-grey q-pa-md">
+              No {{ currentView.title.toLowerCase() }} found
+            </div>
+
+            <!-- Add New Button -->
+            <div class="text-center q-mt-xl">
+              <q-btn unelevated color="primary" :label="`Add ${getResourceConfig(currentView.resourceType).title}`"
+                @click="showAddDialog = true" class="add-button" icon="add" />
+            </div>
+          </template>
+        </template>
+      </q-card-section>
+    </q-card>
+  </q-dialog>
+
+  <!-- Add Resource Dialog -->
+  <q-dialog v-model="showAddDialog">
+    <q-card style="min-width: 350px">
+      <q-card-section>
+        <div class="text-h6">Add {{ currentView?.title.slice(0, -1) || 'Resource' }}</div>
+      </q-card-section>
+
+      <q-card-section class="q-pt-none">
+        <q-form @submit="handleAddResource">
+          <template v-for="(field, key) in currentResourceFields" :key="key">
+            <q-input v-model="newResource[key]" :label="field.label" :required="field.required" class="q-mb-md" />
+          </template>
+
+          <div class="row q-col-gutter-sm justify-end">
+            <div class="col-auto">
+              <q-btn flat label="Cancel" color="primary" v-close-popup />
+            </div>
+            <div class="col-auto">
+              <q-btn :loading="saving" type="submit" label="Save" color="primary" />
+            </div>
+          </div>
+        </q-form>
+      </q-card-section>
+    </q-card>
+  </q-dialog>
 </template>
 
 <script setup>
@@ -145,6 +147,12 @@ import { useQuasar } from 'quasar'
 import { useResourcesStore } from 'src/stores/resources'
 import { RESOURCE_TYPES } from 'src/constants/resourceTypes'
 import { getResourceConfig } from 'src/configs/resourceConfigs'
+
+const props = defineProps({
+  modelValue: Boolean,
+})
+
+const emit = defineEmits(['update:modelValue'])
 
 const router = useRouter()
 const $q = useQuasar()
@@ -158,23 +166,20 @@ const newResource = ref({})
 const saving = ref(false)
 
 // Computed
+const isOpen = computed({
+  get: () => props.modelValue,
+  set: (value) => emit('update:modelValue', value)
+})
+
 const currentView = computed(() => {
   if (navigationStack.value.length === 0) return null
   return navigationStack.value[navigationStack.value.length - 1]
 })
 
-const getViewAllTitle = computed(() => {
-  if (!currentView.value) return 'View All Resources'
-
-  const resourceConfig = getResourceConfig(currentView.value.resourceType)
-  const resourceTitle = resourceConfig.title + 's'
-
-  // If we have a parent resource, include it in the title
-  if (currentView.value.parentResource) {
-    return `View All ${getResourceDisplay(currentView.value.parentResource)}`
-  }
-
-  return `View All ${resourceTitle}`
+const currentResourceFields = computed(() => {
+  if (!currentView.value?.resourceType) return {}
+  const config = getResourceConfig(currentView.value.resourceType)
+  return config.fields
 })
 
 const otherResourceTypes = [
@@ -257,6 +262,7 @@ const navigateToSearch = ({ type = null, resource = null, contextPath = [], reso
     query.resourceType = resourceType
   }
 
+  isOpen.value = false // Close the modal
   router.push({
     path: '/search',
     query
@@ -266,16 +272,16 @@ const navigateToSearch = ({ type = null, resource = null, contextPath = [], reso
 const navigateToCurrentLevelSearch = () => {
   if (!currentView.value) return navigateToSearch()
 
-  // Get all the context up to (and including) the current level
-  const contextPath = [...navigationStack.value]
-
-  // Get the current resource type we're viewing
-  const currentResourceType = currentView.value.resourceType
+  const currentContext = navigationStack.value[0]
+  let resourceType = currentContext.resourceType
+  if (currentView.value.resourceType === resourceType) {
+    resourceType = null
+  }
 
   navigateToSearch({
     type: currentView.value.journalType,
-    contextPath: contextPath,
-    resourceType: currentResourceType
+    contextPath: navigationStack.value.slice(0, -1),
+    resourceType: resourceType
   })
 }
 
@@ -401,6 +407,14 @@ const getResourceIcon = (type) => {
   }
 }
 
+// Reset navigation when modal is opened
+watch(() => props.modelValue, (newValue) => {
+  if (newValue) {
+    navigationStack.value = []
+    loadCurrentResources()
+  }
+})
+
 // Watch for navigation changes
 watch(currentView, () => {
   loadCurrentResources()
@@ -409,13 +423,18 @@ watch(currentView, () => {
 // Lifecycle
 onMounted(async () => {
   await resourcesStore.loadResources()
-  await loadCurrentResources()
 })
 </script>
 
 <style scoped>
-.browse-content {
-  min-height: 300px;
+.browse-modal-dialog {
+  border-radius: 12px;
+}
+
+@media screen and (max-width: 599px) {
+  .browse-modal-dialog {
+    border-radius: 12px 12px 0 0;
+  }
 }
 
 .hover-underline:hover {
@@ -432,15 +451,7 @@ onMounted(async () => {
   min-height: 40px;
 }
 
-.q-list {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-@media (max-width: 599px) {
-  .q-list {
-    border-radius: 8px;
-  }
+.q-card {
+  max-width: 100%;
 }
 </style>
