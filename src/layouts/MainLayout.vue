@@ -32,16 +32,23 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
+import { useRoute } from 'vue-router'
 import { supabase } from 'src/boot/supabase'
 import NavigationDrawer from 'components/NavigationDrawer.vue'
 
 const $q = useQuasar()
+const route = useRoute()
 const leftDrawerOpen = ref(false)
 const previousIsMobile = ref($q.platform.is.mobile)
 onMounted(() => {
   leftDrawerOpen.value = false
 })
 
+
+// Close the drawer after navigating so the destination page is visible
+watch(() => route.fullPath, () => {
+  leftDrawerOpen.value = false
+})
 
 // Only trigger when switching between mobile/desktop modes
 watch(() => $q.platform.is.mobile, (isMobile, oldIsMobile) => {

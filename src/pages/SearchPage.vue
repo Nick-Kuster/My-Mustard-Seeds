@@ -3,28 +3,36 @@
     <div class="row q-col-gutter-md justify-center ">
       <div class="col-12 col-sm-8 col-md-6 q-pa-lg rounded-borders parchment">
         <!-- Header with search info -->
+        <div class="text-h6 text-center q-mb-sm">Search Results</div>
         <div class="row items-center q-mb-md">
           <div class="col-auto">
             <q-btn flat round icon="arrow_back" color="primary" @click="router.go(-1)" />
           </div>
-          <div class="col">
-            <div class="text-h6">Search Results</div>
+          <q-space />
+          <div class="col-auto">
+            <q-btn flat color="primary" icon="filter_list" label="Filters" @click="showFilterModal = true">
+              <q-badge v-if="activeFilterChips.length > 0" color="secondary" floating>
+                {{ activeFilterChips.length }}
+              </q-badge>
+            </q-btn>
+            <q-btn flat round color="primary" icon="print" :disable="filteredEntries.length === 0"
+              @click="router.push('/print')">
+              <q-tooltip>Print / Export to PDF</q-tooltip>
+            </q-btn>
           </div>
         </div>
 
         <!-- Active filters -->
-        <div v-if="hasActiveFilters" class="q-mb-md">
-          <div class="text-subtitle2 q-mb-sm">Active Filters:</div>
+        <div v-if="activeFilterChips.length > 0" class="q-mb-md">
+          <div class="row items-center q-mb-sm">
+            <div class="text-subtitle2 col">Active Filters:</div>
+            <q-btn flat dense size="sm" color="grey" label="Clear All" @click="clearAllFilters" />
+          </div>
           <div class="row q-col-gutter-sm">
-            <q-chip v-if="selectedType" removable @remove="removeType" color="primary" text-color="white">
-              Type: {{ selectedType }}
+            <q-chip v-for="chip in activeFilterChips" :key="`${chip.facetType}-${chip.value}`" removable
+              @remove="removeFacetValue(chip.facetType, chip.value)" color="primary" text-color="white">
+              {{ chip.label }}
             </q-chip>
-            <template v-if="selectedResources.length > 0">
-              <q-chip v-for="resource in selectedResources" :key="resource.id" removable
-                @remove="() => removeResource(resource)" color="secondary" text-color="white">
-                {{ resource.type }}: {{ resource.title }}
-              </q-chip>
-            </template>
           </div>
         </div>
 
@@ -63,6 +71,8 @@
         </div>
       </div>
     </div>
+
+    <FilterModal v-model="showFilterModal" />
   </q-page>
 </template>
 
@@ -70,66 +80,89 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useJournalStore } from 'src/stores/journalData'
+import FilterModal from 'src/components/FilterModal.vue'
 
 const router = useRouter()
 const route = useRoute()
 const journalStore = useJournalStore()
 
 const loading = ref(true)
-const searchQuery = ref('')
+const showFilterModal = ref(false)
 const currentPage = ref(1)
 const itemsPerPage = 10
 
-// Get type and resources from route params
-const selectedType = computed(() => route.query.type)
-const selectedResources = computed(() => {
-  if (!route.query.resources) return []
-  try {
-    return JSON.parse(route.query.resources)
-  } catch {
-    return []
-  }
+// Search box drives the store's search term
+const searchQuery = computed({
+  get: () => journalStore.searchTerm,
+  set: (value) => journalStore.setSearchTerm(value || ''),
 })
 
-const hasActiveFilters = computed(() =>
-  selectedType.value || selectedResources.value.length > 0
+// Results come from the store's facet + search filtering
+const filteredEntries = computed(() => journalStore.filteredEntries)
+
+const facetLabels = {
+  types: 'Type',
+  verses: 'Verse',
+  resourceTypes: 'Resource Type',
+  resources: 'Resource',
+  tags: 'Tag',
+  quotes: 'Quote',
+  links: 'Link',
+}
+
+// Verse facets are range objects with a .label; everything else is a string
+const facetValueText = (value) => (typeof value === 'string' ? value : value.label)
+
+const activeFilterChips = computed(() =>
+  Object.entries(journalStore.selectedFacets).flatMap(([facetType, values]) =>
+    (values || []).map((value) => ({
+      facetType,
+      value,
+      label: `${facetLabels[facetType] || facetType}: ${facetValueText(value)}`,
+    })),
+  ),
 )
 
-// Filter entries based on type, resources, and search query
-const filteredEntries = computed(() => {
-  let entries = journalStore.entries
+const removeFacetValue = (facetType, value) => {
+  journalStore.updateFacet(
+    facetType,
+    journalStore.selectedFacets[facetType].filter((v) => v !== value),
+  )
+}
 
-  // Apply type filter
-  if (selectedType.value) {
-    entries = entries.filter(entry => entry.type === selectedType.value)
+const clearAllFilters = () => {
+  journalStore.clearFacets()
+}
+
+// Translate query params from the Browse page into store facets
+const applyRouteFilters = () => {
+  const query = route.query
+  if (!query.type && !query.resources && !query.resourceType) return
+
+  journalStore.clearFacets()
+
+  if (query.type) {
+    journalStore.updateFacet('types', [query.type])
   }
 
-  // Apply resources filter
-  if (selectedResources.value.length > 0) {
-    entries = entries.filter(entry => {
-      return selectedResources.value.some(selectedResource =>
-        entry.resources?.some(resource =>
-          resource.id === selectedResource.id &&
-          resource.type === selectedResource.type
-        )
+  if (query.resourceType) {
+    journalStore.updateFacet('resourceTypes', [query.resourceType])
+  }
+
+  if (query.resources) {
+    try {
+      const parsed = JSON.parse(query.resources)
+      journalStore.updateFacet(
+        'resources',
+        parsed
+          .filter((r) => r.title && r.type)
+          .map((r) => ({ type: r.type, title: r.title, label: r.title })),
       )
-    })
+    } catch {
+      // Malformed query param — ignore
+    }
   }
-
-  // Apply search query
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    entries = entries.filter(entry =>
-      entry.title.toLowerCase().includes(query) ||
-      Object.values(entry.decryptedContent || {}).some(section =>
-        section.content?.toLowerCase().includes(query) ||
-        section.title?.toLowerCase().includes(query)
-      )
-    )
-  }
-
-  return entries
-})
+}
 
 // Pagination
 const totalPages = computed(() =>
@@ -155,27 +188,13 @@ const viewEntry = (id) => {
   router.push(`/entry/${id}`)
 }
 
-const removeType = () => {
-  const query = { ...route.query }
-  delete query.type
-  router.push({ query })
-}
+// Re-apply filters when navigated here with new query params
+watch(() => route.query, () => {
+  applyRouteFilters()
+})
 
-const removeResource = (resource) => {
-  const updatedResources = selectedResources.value.filter(r =>
-    r.id !== resource.id || r.type !== resource.type
-  )
-  const query = { ...route.query }
-  if (updatedResources.length > 0) {
-    query.resources = JSON.stringify(updatedResources)
-  } else {
-    delete query.resources
-  }
-  router.push({ query })
-}
-
-// Watch for query changes to reset pagination
-watch([() => route.query, searchQuery], () => {
+// Reset pagination whenever the result set changes
+watch(filteredEntries, () => {
   currentPage.value = 1
 })
 
@@ -184,6 +203,7 @@ onMounted(async () => {
   if (!journalStore.entries.length) {
     await journalStore.fetchEntries()
   }
+  applyRouteFilters()
   loading.value = false
 })
 </script>

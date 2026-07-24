@@ -2,6 +2,25 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { supabase } from 'src/boot/supabase'
 import { getEncryptionKey, encryptData, decryptData } from 'src/utils/encryption'
+import { formatVerseReference, verseMatchesRange } from 'src/utils/verseUtils'
+import { getResourceConfig } from 'src/configs/resourceConfigs'
+
+// Entries carry resources as { id, type, metadata } — display titles live in metadata
+export const getResourceTitle = (resource) => {
+  try {
+    return getResourceConfig(resource.type).getDisplayTitle(resource)
+  } catch {
+    return resource.title || 'Unknown'
+  }
+}
+
+export const getVerseDisplay = (verse) => {
+  try {
+    return formatVerseReference(verse)
+  } catch {
+    return verse.display || null
+  }
+}
 
 export const useJournalStore = defineStore('journalData', () => {
   const entries = ref([])
@@ -25,6 +44,7 @@ export const useJournalStore = defineStore('journalData', () => {
     const facets = {
       types: new Set(),
       verses: new Set(),
+      books: new Set(),
       resourceTypes: new Set(),
       resources: new Set(),
       tags: new Set(),
@@ -36,15 +56,18 @@ export const useJournalStore = defineStore('journalData', () => {
       // Add entry type
       facets.types.add(entry.type)
 
-      // Add verses
+      // Add verses and the books they come from
       entry.verses?.forEach((verse) => {
-        facets.verses.add(verse.display)
+        const display = getVerseDisplay(verse)
+        if (display) facets.verses.add(display)
+        if (verse.book) facets.books.add(verse.book)
       })
 
       // Add resources and resource types
       entry.resources?.forEach((resource) => {
         facets.resourceTypes.add(resource.type)
-        facets.resources.add(resource.title)
+        const title = getResourceTitle(resource)
+        if (title) facets.resources.add(title)
       })
 
       // Add tags
@@ -68,6 +91,7 @@ export const useJournalStore = defineStore('journalData', () => {
     return {
       types: Array.from(facets.types).sort(),
       verses: Array.from(facets.verses).sort(),
+      books: Array.from(facets.books).sort(),
       resourceTypes: Array.from(facets.resourceTypes).sort(),
       resources: Array.from(facets.resources).sort(),
       tags: Array.from(facets.tags).sort(),
@@ -88,7 +112,7 @@ export const useJournalStore = defineStore('journalData', () => {
         if (entry.title?.toLowerCase().includes(search)) return true
 
         // Search in content sections
-        const content = entry.decryptedContent
+        const content = entry.decryptedContent || {}
         for (const section of Object.values(content)) {
           if (
             section?.title?.toLowerCase().includes(search) ||
@@ -99,28 +123,35 @@ export const useJournalStore = defineStore('journalData', () => {
         }
 
         // Search in verses
-        if (entry.verses?.some((verse) => verse.display?.toLowerCase().includes(search)))
+        if (
+          entry.verses?.some((verse) => getVerseDisplay(verse)?.toLowerCase().includes(search))
+        )
           return true
 
         // Search in resources
         if (
           entry.resources?.some(
             (resource) =>
-              resource.title?.toLowerCase().includes(search) ||
+              getResourceTitle(resource)?.toLowerCase().includes(search) ||
               resource.type?.toLowerCase().includes(search),
           )
         )
-          if (
-            entry.quotes?.some((quote) => {
-              const decryptedQuote = quote.decryptedQuote
-              return (
-                decryptedQuote?.toLowerCase().includes(search) ||
-                quote.source?.toLowerCase().includes(search) ||
-                quote.page_number?.toLowerCase().includes(search)
-              )
-            })
-          )
-            return true
+          return true
+
+        // Search in quotes
+        if (
+          entry.quotes?.some((quote) => {
+            const decryptedQuote = quote.decryptedQuote
+            return (
+              decryptedQuote?.toLowerCase().includes(search) ||
+              quote.source?.toLowerCase().includes(search) ||
+              String(quote.page_number ?? '')
+                .toLowerCase()
+                .includes(search)
+            )
+          })
+        )
+          return true
 
         if (
           entry.links?.some(
@@ -141,9 +172,14 @@ export const useJournalStore = defineStore('journalData', () => {
       filtered = filtered.filter((entry) => selectedFacets.value.types.includes(entry.type))
     }
 
+    // Verse facets are range objects: { book, startChapter, startVerse,
+    // endChapter, endVerse, label } — an entry matches if any of its verses
+    // overlaps any selected range
     if (selectedFacets.value.verses.length > 0) {
       filtered = filtered.filter((entry) =>
-        entry.verses?.some((verse) => selectedFacets.value.verses.includes(verse.display)),
+        entry.verses?.some((verse) =>
+          selectedFacets.value.verses.some((range) => verseMatchesRange(verse, range)),
+        ),
       )
     }
 
@@ -155,10 +191,24 @@ export const useJournalStore = defineStore('journalData', () => {
       )
     }
 
+    // Resource facets are { type, title, label } objects. Selections are
+    // ANDed across types and ORed within a type, so Show "X" + Season "2"
+    // means season 2 of that show. Plain-string values (legacy) match any type.
     if (selectedFacets.value.resources.length > 0) {
+      const groups = {}
+      selectedFacets.value.resources.forEach((sel) => {
+        const type = typeof sel === 'string' ? '*' : sel.type
+        const title = typeof sel === 'string' ? sel : sel.title
+        if (!groups[type]) groups[type] = []
+        groups[type].push(title)
+      })
       filtered = filtered.filter((entry) =>
-        entry.resources?.some((resource) =>
-          selectedFacets.value.resources.includes(resource.title),
+        Object.entries(groups).every(([type, titles]) =>
+          entry.resources?.some(
+            (resource) =>
+              (type === '*' || resource.type === type) &&
+              titles.includes(getResourceTitle(resource)),
+          ),
         ),
       )
     }
@@ -194,6 +244,8 @@ export const useJournalStore = defineStore('journalData', () => {
       resourceTypes: [],
       resources: [],
       tags: [],
+      quotes: [],
+      links: [],
     }
   }
 
@@ -505,6 +557,7 @@ export const useJournalStore = defineStore('journalData', () => {
   }
   return {
     entries,
+    decryptedEntries,
     loading,
     searchTerm,
     filteredEntries,

@@ -210,7 +210,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { supabase } from 'src/boot/supabase'
@@ -263,9 +263,29 @@ const linkedVerses = computed(() => {
     .map(createDisplayVerse)
 })
 
+const resetEntryState = () => {
+  entry.value = null
+  mainVerse.value = {}
+  selectedPastor.value = null
+  selectedSeries.value = null
+  selectedSermon.value = null
+  selectedPodcast.value = null
+  selectedArtist.value = null
+  selectedMinistry.value = null
+  selectedDevotionalSeries.value = null
+  selectedBook.value = null
+  selectedAuthor.value = null
+  selectedChapter.value = null
+  selectedGroup.value = null
+  selectedShow.value = null
+  selectedSeason.value = null
+  selectedEpisode.value = null
+}
+
 const fetchEntry = async () => {
   try {
     loading.value = true
+    resetEntryState()
     const entryData = await journalStore.getEntry(route.params.id)
     if (!entryData) throw new Error('Entry not found')
 
@@ -427,6 +447,14 @@ const handleTouchEnd = () => {
 // Lifecycle hooks
 onMounted(() => {
   fetchEntry()
+})
+
+// Vue Router reuses this component when only the :id param changes
+// (e.g. jumping between entries from the sidebar), so refetch on change
+watch(() => route.params.id, (newId, oldId) => {
+  if (newId && newId !== oldId) {
+    fetchEntry()
+  }
 })
 </script>
 

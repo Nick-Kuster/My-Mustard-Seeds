@@ -19,20 +19,25 @@ const routes = [
         meta: { requiresAuth: true },
       },
       {
-        path: '/entry/:id/edit',
+        path: 'entry/:id/edit',
         component: () => import('pages/EditEntryPage.vue'),
         meta: { requiresAuth: true },
       },
       {
-        path: '/search',
-        component: () => import('layouts/MainLayout.vue'),
+        path: 'search',
+        component: () => import('pages/SearchPage.vue'),
         meta: { requiresAuth: true },
-        children: [
-          {
-            path: '',
-            component: () => import('pages/SearchPage.vue'),
-          },
-        ],
+      },
+    ],
+  },
+  {
+    path: '/print',
+    component: () => import('layouts/BlankLayout.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        component: () => import('pages/PrintPage.vue'),
       },
     ],
   },

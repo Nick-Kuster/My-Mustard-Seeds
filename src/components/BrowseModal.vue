@@ -145,6 +145,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useResourcesStore } from 'src/stores/resources'
+import { useJournalStore } from 'src/stores/journalData'
 import { RESOURCE_TYPES } from 'src/constants/resourceTypes'
 import { getResourceConfig } from 'src/configs/resourceConfigs'
 
@@ -157,6 +158,7 @@ const emit = defineEmits(['update:modelValue'])
 const router = useRouter()
 const $q = useQuasar()
 const resourcesStore = useResourcesStore()
+const journalStore = useJournalStore()
 
 // State
 const navigationStack = ref([])
@@ -329,11 +331,34 @@ const handleResourceClick = async (resource) => {
       journalType: currentContext.journalType
     })
   } else {
+    // Leaf resource: if exactly one entry references it, open that entry
+    // directly; otherwise fall back to the filtered search screen
+    const entryId = await findSingleEntryForResource(resource.id)
+    if (entryId) {
+      isOpen.value = false // Close the modal
+      router.push(`/entry/${entryId}`)
+      return
+    }
     navigateToSearch({
       type: currentContext.journalType,
       resource,
       contextPath: navigationStack.value
     })
+  }
+}
+
+const findSingleEntryForResource = async (resourceId) => {
+  try {
+    if (!journalStore.decryptedEntries.length) {
+      await journalStore.fetchEntries()
+    }
+    const matches = journalStore.decryptedEntries.filter((entry) =>
+      entry.resources?.some((r) => r.id === resourceId)
+    )
+    return matches.length === 1 ? matches[0].id : null
+  } catch (error) {
+    console.error('Could not check entries for resource:', error)
+    return null
   }
 }
 

@@ -30,3 +30,40 @@ export const createDisplayVerse = (verse) => ({
   startVerse: verse.start_verse_number,
   endVerse: verse.end_verse_number,
 })
+
+/**
+ * Tests whether an entry's verse reference overlaps a verse-range filter.
+ * Range fields other than book are optional: null start means "from the
+ * beginning of the book", null end means "to the end".
+ * @param {Object} verse - Entry verse ({ book, start_chapter, start_verse, end_chapter, end_verse })
+ * @param {Object} range - Filter ({ book, startChapter, startVerse, endChapter, endVerse })
+ * @returns {boolean}
+ */
+export const verseMatchesRange = (verse, range) => {
+  if (verse.book !== range.book) return false
+  const compare = (a, b) => a[0] - b[0] || a[1] - b[1]
+  const entryStart = [verse.start_chapter, verse.start_verse]
+  const entryEnd = [verse.end_chapter, verse.end_verse]
+  const filterStart = [range.startChapter ?? 1, range.startVerse ?? 1]
+  const filterEnd = [range.endChapter ?? Infinity, range.endVerse ?? Infinity]
+  return compare(entryStart, filterEnd) <= 0 && compare(entryEnd, filterStart) >= 0
+}
+
+/**
+ * Human-readable label for a verse-range filter,
+ * e.g. "John", "John 3", "John 3-5", "John 3:16", "John 3:16-18", "John 3:16-4:2"
+ */
+export const buildVerseRangeLabel = (range) => {
+  const { book, startChapter, startVerse, endChapter, endVerse } = range
+  if (!startChapter) return book
+  let label = `${book} ${startChapter}`
+  if (startVerse) label += `:${startVerse}`
+  const sameChapter = !endChapter || endChapter === startChapter
+  if (sameChapter) {
+    if (endVerse && endVerse !== startVerse) label += `-${endVerse}`
+    return label
+  }
+  label += `-${endChapter}`
+  if (endVerse) label += `:${endVerse}`
+  return label
+}
