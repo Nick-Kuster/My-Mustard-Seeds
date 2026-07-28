@@ -25,6 +25,12 @@
               </q-item-section>
               <q-item-section>Plant a Seed</q-item-section>
             </q-item>
+            <q-item clickable v-ripple to="/resources">
+              <q-item-section avatar>
+                <q-icon name="inventory_2" />
+              </q-item-section>
+              <q-item-section>Manage Resources</q-item-section>
+            </q-item>
             <q-separator spaced />
           </q-list>
           <BrowseContent />

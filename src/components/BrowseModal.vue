@@ -13,7 +13,12 @@
           </div>
         </div>
 
-        <div class="text-h6 q-mb-md">{{ navigationStack.length ? currentView.title : 'Browse Resources' }}</div>
+        <div class="row items-center q-mb-md">
+          <div class="text-h6 col">{{ navigationStack.length ? currentView.title : 'Browse Resources' }}</div>
+          <q-btn flat round dense icon="refresh" :loading="refreshing" @click="handleRefresh">
+            <q-tooltip>Refresh resources</q-tooltip>
+          </q-btn>
+        </div>
 
         <!-- Loading State -->
         <div v-if="resourcesStore.loading" class="text-center q-pa-md">
@@ -34,11 +39,11 @@
 
             <q-separator spaced />
 
-            <q-item clickable v-ripple @click="navigateToSearch({ type: 'Bible' })">
+            <q-item clickable v-ripple @click="navigateToSearch({ type: 'Daily Bible Reading' })">
               <q-item-section avatar>
                 <q-icon name="auto_stories" />
               </q-item-section>
-              <q-item-section>Bible Study</q-item-section>
+              <q-item-section>Daily Bible Reading</q-item-section>
               <q-item-section side>
                 <q-icon name="chevron_right" />
               </q-item-section>
@@ -147,7 +152,7 @@ import { useQuasar } from 'quasar'
 import { useResourcesStore } from 'src/stores/resources'
 import { useJournalStore } from 'src/stores/journalData'
 import { RESOURCE_TYPES } from 'src/constants/resourceTypes'
-import { getResourceConfig } from 'src/configs/resourceConfigs'
+import { getResourceConfig, pluralizeTitle } from 'src/configs/resourceConfigs'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -166,6 +171,7 @@ const currentResources = ref([])
 const showAddDialog = ref(false)
 const newResource = ref({})
 const saving = ref(false)
+const refreshing = ref(false)
 
 // Computed
 const isOpen = computed({
@@ -189,7 +195,8 @@ const otherResourceTypes = [
   { id: RESOURCE_TYPES.SONG_ARTIST, icon: 'music_note', label: 'Songs' },
   { id: RESOURCE_TYPES.MINISTRY, icon: 'groups', label: 'Ministries' },
   { id: RESOURCE_TYPES.CHURCH, icon: 'church', label: 'Churches' },
-  { id: RESOURCE_TYPES.SHOW, icon: 'smart_display', label: 'Shows' }
+  { id: RESOURCE_TYPES.SHOW, icon: 'smart_display', label: 'Shows' },
+  { id: RESOURCE_TYPES.PODCAST, icon: 'podcasts', label: 'Podcasts' }
 ]
 
 // Methods
@@ -289,6 +296,7 @@ const navigateToCurrentLevelSearch = () => {
 
 const getJournalTypeForResource = (resourceType) => {
   switch (resourceType) {
+    case RESOURCE_TYPES.CHURCH:
     case RESOURCE_TYPES.PASTOR:
     case RESOURCE_TYPES.SERMON_SERIES:
     case RESOURCE_TYPES.SERMON:
@@ -303,6 +311,9 @@ const getJournalTypeForResource = (resourceType) => {
     case RESOURCE_TYPES.SEASON:
     case RESOURCE_TYPES.EPISODE:
       return 'Show'
+    case RESOURCE_TYPES.PODCAST:
+    case RESOURCE_TYPES.PODCAST_EPISODE:
+      return 'Podcast'
     default:
       return null
   }
@@ -311,7 +322,7 @@ const getJournalTypeForResource = (resourceType) => {
 const navigateToResourceType = (resourceType) => {
   const config = getResourceConfig(resourceType)
   navigationStack.value = [{
-    title: config.title + 's',
+    title: pluralizeTitle(config.title),
     resourceType,
     parentResource: null,
     journalType: getJournalTypeForResource(resourceType)
@@ -400,6 +411,22 @@ const navigateBack = () => {
   navigationStack.value.pop()
 }
 
+// Bypasses the resource cache — needed after resources are added
+// or changed outside the app (e.g. directly in Supabase)
+const handleRefresh = async () => {
+  refreshing.value = true
+  try {
+    resourcesStore.clearCache()
+    await resourcesStore.loadResources(true)
+    await loadCurrentResources()
+  } catch (error) {
+    console.error('Error refreshing resources:', error)
+    $q.notify({ type: 'negative', message: 'Failed to refresh resources' })
+  } finally {
+    refreshing.value = false
+  }
+}
+
 const navigateToIndex = (index) => {
   navigationStack.value = navigationStack.value.slice(0, index + 1)
 }
@@ -428,6 +455,8 @@ const getResourceIcon = (type) => {
     case RESOURCE_TYPES.SHOW: return 'smart_display'
     case RESOURCE_TYPES.SEASON: return 'playlist_play'
     case RESOURCE_TYPES.EPISODE: return 'play_circle'
+    case RESOURCE_TYPES.PODCAST: return 'podcasts'
+    case RESOURCE_TYPES.PODCAST_EPISODE: return 'play_circle'
     default: return 'article'
   }
 }

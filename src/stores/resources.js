@@ -188,23 +188,81 @@ export const useResourcesStore = defineStore('resources', () => {
     }
   }
 
-  const deleteResource = async (id) => {
-    loading.value = true
-    error.value = null
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (!session) throw new Error('No active session')
-
-      const { error: supabaseError } = await supabase.from('resources').delete().match({ id })
+  // Recursively collect all descendant resource ids (children, grandchildren, ...)
+  const getDescendantIds = async (rootId) => {
+    const collected = []
+    let frontier = [rootId]
+    while (frontier.length > 0) {
+      const { data, error: supabaseError } = await supabase
+        .from('resource_resources')
+        .select('child_resource_id')
+        .in('parent_resource_id', frontier)
 
       if (supabaseError) throw supabaseError
 
+      const childIds = (data || []).map((row) => row.child_resource_id)
+      collected.push(...childIds)
+      frontier = childIds
+    }
+    return collected
+  }
+
+  // Journal entries (id + title) that reference this resource, so a delete
+  // confirmation can tell the user what will lose this link
+  const getJournalUsage = async (resourceId) => {
+    const { data, error: supabaseError } = await supabase
+      .from('journal_resources')
+      .select('journal_id, journal_entries(title)')
+      .eq('resource_id', resourceId)
+
+    if (supabaseError) throw supabaseError
+    return (data || []).map((row) => ({ id: row.journal_id, title: row.journal_entries?.title }))
+  }
+
+  /**
+   * Deletes a resource. With cascade=false (default), direct children are
+   * detached instead of deleted — they become independent, top-level
+   * resources (their own children, if any, stay attached to them). With
+   * cascade=true, the entire subtree is deleted along with it. Either way,
+   * any journal entry links to the deleted resource(s) are removed first —
+   * the entries themselves are untouched, they just lose that reference.
+   */
+  const deleteResource = async (id, { cascade = false } = {}) => {
+    loading.value = true
+    error.value = null
+    try {
+      const idsToDelete = cascade ? [id, ...(await getDescendantIds(id))] : [id]
+
+      const { error: journalLinkError } = await supabase
+        .from('journal_resources')
+        .delete()
+        .in('resource_id', idsToDelete)
+      if (journalLinkError) throw journalLinkError
+
+      const { error: parentLinkError } = await supabase
+        .from('resource_resources')
+        .delete()
+        .in('parent_resource_id', idsToDelete)
+      if (parentLinkError) throw parentLinkError
+
+      const { error: childLinkError } = await supabase
+        .from('resource_resources')
+        .delete()
+        .in('child_resource_id', idsToDelete)
+      if (childLinkError) throw childLinkError
+
+      const { error: supabaseError } = await supabase
+        .from('resources')
+        .delete()
+        .in('id', idsToDelete)
+      if (supabaseError) throw supabaseError
+
       // Remove from local state and cache
-      resources.value = resources.value.filter((r) => r.id !== id)
-      localStorage.removeItem(`child_resources_${id}`)
+      resources.value = resources.value.filter((r) => !idsToDelete.includes(r.id))
+      idsToDelete.forEach((deletedId) => localStorage.removeItem(`child_resources_${deletedId}`))
       updateCache()
+
+      return idsToDelete
     } catch (err) {
       console.error('Error deleting resource:', err)
       error.value = err.message
@@ -302,6 +360,40 @@ export const useResourcesStore = defineStore('resources', () => {
     }
   }
 
+  // All parent/child resource relationships for the current user, for
+  // building a full tree client-side in one query rather than per-node
+  const getAllRelationships = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    if (!session) throw new Error('No active session')
+
+    const { data, error: supabaseError } = await supabase
+      .from('resource_resources')
+      .select('parent_resource_id, child_resource_id')
+      .eq('user_id', session.user.id)
+
+    if (supabaseError) throw supabaseError
+    return data || []
+  }
+
+  // Look up a resource's parent (e.g. the Church a Pastor belongs to)
+  const getParentResource = async (childId) => {
+    try {
+      const { data, error: supabaseError } = await supabase
+        .from('resource_resources')
+        .select('parent_resource:parent_resource_id (id, type, metadata)')
+        .eq('child_resource_id', childId)
+        .limit(1)
+
+      if (supabaseError) throw supabaseError
+      return data?.[0]?.parent_resource || null
+    } catch (err) {
+      console.error('Error fetching parent resource:', err)
+      return null
+    }
+  }
+
   const clearCache = () => {
     try {
       localStorage.removeItem(CACHE_KEYS.RESOURCES)
@@ -328,6 +420,10 @@ export const useResourcesStore = defineStore('resources', () => {
     getResourceById,
     getMetadataTemplate,
     getChildResources,
+    getParentResource,
+    getDescendantIds,
+    getJournalUsage,
+    getAllRelationships,
     canHaveChildOfType,
 
     // Actions

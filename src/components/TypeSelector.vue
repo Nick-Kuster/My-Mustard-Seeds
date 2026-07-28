@@ -55,7 +55,9 @@ const emit = defineEmits(['update:modelValue'])
 const isOpen = ref(false)
 
 const types = [
-  { id: 'Bible', icon: 'menu_book', label: 'Bible Study', description: 'Study and reflect on Scripture' },
+  { id: 'Daily Bible Reading', icon: 'menu_book', label: 'Daily Bible Reading', description: 'Read and meditate on Scripture' },
+  { id: 'Inductive Study', icon: 'travel_explore', label: 'Inductive Study', description: 'Observe, interpret, and apply a passage in depth' },
+  { id: 'Study Overview', icon: 'summarize', label: 'Study Overview', description: 'Book theme, key words, and chapter-at-a-glance for a study' },
   { id: 'Sermon', icon: 'church', label: 'Sermon Notes', description: 'Notes from a sermon or teaching' },
   { id: 'Answered Prayer / Miracle', icon: 'front_hand', label: 'Answered Prayer/\nMiracle', description: 'Record of God\'s faithfulness' },
   { id: 'Devotional', icon: 'auto_stories', label: 'Devotional', description: 'Daily devotional reflections' },

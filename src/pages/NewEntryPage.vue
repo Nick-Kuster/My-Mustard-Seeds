@@ -16,8 +16,8 @@
           <TypeSelector v-model="entryType" @update:modelValue="handleTypeChange" />
 
           <!-- Resource Selection Section -->
-          <!-- Bible Verse Selector -->
-          <div v-if="entryType === 'Bible'" class="q-mb-lg">
+          <!-- Bible Verse Selector (daily reading + inductive study types) -->
+          <div v-if="verseEntryTypes.includes(entryType)" class="q-mb-lg">
             <div v-if="mainVerse.display" class="q-mb-md">
               <div class="row items-center q-mb-sm">
                 <div class="col">
@@ -36,10 +36,30 @@
                 :startVerse="mainVerse.startVerse" :endVerse="mainVerse.endVerse" />
             </div>
             <div v-else>
-              <q-btn unelevated color="primary" label="Select Verse" @click="showVerseModal = true" />
+              <q-btn unelevated color="primary"
+                :label="entryType === 'Study Overview' ? 'Select Book / Passage' : 'Select Verse'"
+                @click="showVerseModal = true" />
             </div>
 
             <VerseSelectionModal v-model="showVerseModal" @select="onVerseSelect" />
+
+            <!-- Optional link to a study (Ministry -> Devotional Series) -->
+            <div v-if="entryType !== 'Daily Bible Reading'" class="q-mt-md">
+              <div v-if="selectedDevotionalSeries">
+                <div class="text-body1">{{ selectedDevotionalSeries.metadata.name }}</div>
+                <div v-if="selectedMinistry" class="text-caption text-grey-8">
+                  by {{ selectedMinistry.metadata.name }}
+                </div>
+                <q-btn flat dense color="primary" class="q-px-none" label="Change Study"
+                  @click="showStudyModal = true" />
+              </div>
+              <div v-else>
+                <q-btn outline color="primary" label="Link to a Study (optional)" @click="showStudyModal = true" />
+              </div>
+
+              <ResourceSelectionModal v-model="showStudyModal" :resource-type="RESOURCE_TYPES.MINISTRY"
+                @select="onStudySelect" />
+            </div>
           </div>
 
           <!-- Book Specific Select -->
@@ -161,7 +181,11 @@
             <div v-if="selectedPodcast">
               <div class="q-mb-md">
                 <div class="text-body1">{{ selectedPodcast.metadata.title }}</div>
-                <div class="text-caption text-grey-8">by {{ selectedPodcast.metadata.host }}</div>
+                <div class="text-caption text-grey-8">
+                  <span v-if="selectedPodcastEpisode?.metadata.episodeNumber">Episode {{
+                    selectedPodcastEpisode.metadata.episodeNumber }}: </span>
+                  <span v-if="selectedPodcastEpisode">{{ selectedPodcastEpisode.metadata.title }}</span>
+                </div>
               </div>
               <q-btn flat dense color="primary" class="q-px-none" label="Change" @click="showPodcastModal = true" />
             </div>
@@ -333,7 +357,7 @@ import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { supabase } from 'src/boot/supabase'
 import { getEncryptionKey, encryptData } from 'src/utils/encryption'
-import { RESOURCE_TYPES } from 'stores/resources'
+import { RESOURCE_TYPES, useResourcesStore } from 'stores/resources'
 import VerseSelectionModal from 'components/VerseSelectionModal.vue'
 import ResourceSelectionModal from 'components/ResourceSelectionModal.vue'
 import { useJournalStore } from 'stores/journalData'
@@ -350,6 +374,7 @@ const dragging = ref(false)
 const router = useRouter()
 const $q = useQuasar()
 const journalStore = useJournalStore()
+const resourcesStore = useResourcesStore()
 const activeTab = ref('main')
 
 // Modals
@@ -369,6 +394,7 @@ const selectedPastor = ref(null)
 const selectedSeries = ref(null)
 const selectedSermon = ref(null)
 const selectedPodcast = ref(null)
+const selectedPodcastEpisode = ref(null)
 const selectedArtist = ref(null)
 const selectedMinistry = ref(null)
 const selectedDevotionalSeries = ref(null)
@@ -389,7 +415,11 @@ const linkedVerses = ref([])
 const selectedTags = ref([])
 const selectedQuotes = ref([])
 
-const entryType = ref('Bible')
+const entryType = ref('Daily Bible Reading')
+
+// Types that use the main-verse (passage) selector
+const verseEntryTypes = ['Daily Bible Reading', 'Inductive Study', 'Study Overview']
+const showStudyModal = ref(false)
 
 const getTodayDate = () => {
   const today = new Date()
@@ -422,9 +452,21 @@ const songSections = [
   createSection('Lyrics', '', 'longText')
 ]
 
-const devotionSections = [
-  createSection('Observations', '', 'longText'),
-  createSection('Application', '', 'longText')
+const inductiveStudySections = [
+  createSection('Chapter Theme', '', 'shortText'),
+  createSection('Observations (Who, What, When, Where, Why, How)', '', 'longText'),
+  createSection('Key Words & Markings', '', 'longText'),
+  createSection('Cross-References', '', 'longText'),
+  createSection('Word Studies', '', 'longText'),
+  createSection('Interpretation', '', 'longText'),
+  createSection('Application', '', 'longText'),
+]
+
+const studyOverviewSections = [
+  createSection('Book Theme', '', 'shortText'),
+  createSection('Key Word Legend', '', 'longText'),
+  createSection('At a Glance (Chapter Themes)', '', 'longText'),
+  createSection('Notes', '', 'longText'),
 ]
 
 const miracleSections = [
@@ -453,10 +495,6 @@ const groupSections = [
   createSection('Date', '', 'date', true)
 ]
 
-const podcastSections = [
-  createSection('Episode Title', '', 'shortText', true, 'podcast-title')
-]
-
 const otherSections = [
   createSection('Title', '', 'shortText', true, 'other-title'),
   createSection('Date', '', 'date', true)
@@ -474,17 +512,20 @@ const handleTypeChange = (newType) => {
   let newSections = []
   title.value = '';
   switch (newType) {
-    case 'Bible':
+    case 'Daily Bible Reading':
       newSections = bibleSections.map(s => ({ ...s }))
+      break
+    case 'Inductive Study':
+      newSections = inductiveStudySections.map(s => ({ ...s }))
+      break
+    case 'Study Overview':
+      newSections = studyOverviewSections.map(s => ({ ...s }))
       break
     case 'Sermon':
       newSections = sermonSections.map(s => ({
         ...s,
         content: s.fieldType === 'date' ? today : s.content
       }))
-      break
-    case 'Devotion':
-      newSections = devotionSections.map(s => ({ ...s }))
       break
     case 'Song':
       newSections = songSections.map(s => ({
@@ -518,12 +559,6 @@ const handleTypeChange = (newType) => {
       break
     case 'Group':
       newSections = groupSections.map(s => ({
-        ...s,
-        content: s.fieldType === 'date' ? today : s.content
-      }))
-      break
-    case 'Podcast':
-      newSections = podcastSections.map(s => ({
         ...s,
         content: s.fieldType === 'date' ? today : s.content
       }))
@@ -618,7 +653,14 @@ const handleResourceSelection = (selections) => {
       break
 
     case 'Podcast':
-      selectedPodcast.value = finalSelection
+      if (selections.length >= 2) {
+        selectedPodcast.value = selections[0]
+        selectedPodcastEpisode.value = selections[1]
+        title.value = `${selectedPodcast.value.metadata.title}${selectedPodcastEpisode.value.metadata.episodeNumber ? ` - Episode ${selectedPodcastEpisode.value.metadata.episodeNumber}` : ''}: ${selectedPodcastEpisode.value.metadata.title}`
+      } else {
+        selectedPodcast.value = finalSelection
+        selectedPodcastEpisode.value = null
+      }
       break
 
     case 'Song':
@@ -626,6 +668,8 @@ const handleResourceSelection = (selections) => {
       break
 
     case 'Devotional':
+    case 'Inductive Study':
+    case 'Study Overview':
       selectedMinistry.value = selections[0]
       selectedDevotionalSeries.value = finalSelection
       break
@@ -642,6 +686,7 @@ const handleResourceSelection = (selections) => {
   }
 }
 
+const onStudySelect = handleResourceSelection
 const onBookSelect = handleResourceSelection
 const onPastorSelect = handleResourceSelection
 const onPodcastSelect = handleResourceSelection
@@ -654,12 +699,6 @@ const generateTitle = () => {
   const headerSections = contentSections.value.filter(section => section.headerProperty)
 
   switch (entryType.value) {
-    case 'Podcast':
-      {
-        const episodeTitle = headerSections.find(s => s.id === 'podcast-title')?.content
-        return `${episodeTitle || ''}`
-      }
-
     case 'Song':
       {
         const songTitle = headerSections.find(s => s.id === 'song-title')?.content
@@ -704,6 +743,14 @@ const generateTitle = () => {
         return `${otherTitle || ''} (${otherDate || ''})`
       }
 
+    case 'Study Overview':
+      {
+        // title.value holds the selected passage display (e.g. the book range)
+        const studyName = selectedDevotionalSeries.value?.metadata?.name
+        const base = studyName || title.value
+        return base ? `Study Overview — ${base}` : 'Study Overview'
+      }
+
     default:
       return title.value
   }
@@ -740,7 +787,7 @@ const saveEntry = async () => {
 
     if (entryError) throw entryError
 
-    if (entryType.value === 'Bible' && mainVerse.value.startVerseId) {
+    if (verseEntryTypes.includes(entryType.value) && mainVerse.value.startVerseId) {
       const { error: mainVerseError } = await supabase
         .from('journal_verses')
         .insert({
@@ -775,13 +822,20 @@ const saveEntry = async () => {
         resources.push({ resourceId: selectedBook.value.id, primary: false });
         resources.push({ resourceId: selectedChapter.value.id, primary: false });
         break;
-      case 'Sermon':
+      case 'Sermon': {
         resources.push({ resourceId: selectedPastor.value.id, primary: true });
         resources.push({ resourceId: selectedSeries.value.id, primary: false });
         resources.push({ resourceId: selectedSermon.value.id, primary: false });
+        // Link the pastor's church too, when one is set up
+        const church = await resourcesStore.getParentResource(selectedPastor.value.id)
+        if (church?.type === 'Church') {
+          resources.push({ resourceId: church.id, primary: false });
+        }
         break;
+      }
       case 'Podcast':
         resources.push({ resourceId: selectedPodcast.value.id, primary: true });
+        resources.push({ resourceId: selectedPodcastEpisode.value.id, primary: false });
         break;
       case 'Song':
         resources.push({ resourceId: selectedArtist.value.id, primary: true });
@@ -789,6 +843,16 @@ const saveEntry = async () => {
       case 'Devotional':
         resources.push({ resourceId: selectedMinistry.value.id, primary: true });
         resources.push({ resourceId: selectedDevotionalSeries.value.id, primary: false });
+        break;
+      case 'Inductive Study':
+      case 'Study Overview':
+        // Study link is optional for these types
+        if (selectedMinistry.value) {
+          resources.push({ resourceId: selectedMinistry.value.id, primary: true });
+        }
+        if (selectedDevotionalSeries.value) {
+          resources.push({ resourceId: selectedDevotionalSeries.value.id, primary: false });
+        }
         break;
       case 'Show':
         resources.push({ resourceId: selectedShow.value.id, primary: true });
@@ -810,7 +874,7 @@ const saveEntry = async () => {
           journal_id: entry.id,
           resource_id: resource.resourceId,
           primary_resource: resource.primary,
-          user_id: session.user_id
+          user_id: session.user.id
         })
 
       if (journalResourceError) throw journalResourceError
@@ -821,7 +885,7 @@ const saveEntry = async () => {
       const tagInserts = selectedTags.value.map(tag => ({
         journal_id: entry.id,
         tag_id: tag.id,
-        user_id: session.user_id
+        user_id: session.user.id
       }))
 
       const { error: tagError } = await supabase

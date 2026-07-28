@@ -126,7 +126,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useJournalStore, getResourceTitle } from 'stores/journalData'
 import { useBibleDataStore } from 'stores/bibleData'
 import { verseMatchesRange, buildVerseRangeLabel } from 'src/utils/verseUtils'
-import { getResourceConfig } from 'src/configs/resourceConfigs'
+import { getResourceConfig, pluralizeTitle } from 'src/configs/resourceConfigs'
 import { RESOURCE_TYPES } from 'src/constants/resourceTypes'
 
 const props = defineProps({
@@ -230,7 +230,7 @@ const resourceTypeSections = computed(() => {
   return RESOURCE_TYPE_ORDER.filter((type) => byType.has(type)).map((type) => {
     let label
     try {
-      label = getResourceConfig(type).title + 's'
+      label = pluralizeTitle(getResourceConfig(type).title)
     } catch {
       label = type
     }

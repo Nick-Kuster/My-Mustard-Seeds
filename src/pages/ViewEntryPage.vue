@@ -13,7 +13,7 @@
               <div class="row items-center q-mb-lg">
                 <div class="col">
                   <!-- Bible -->
-                  <div v-if="entry?.type === 'Bible'" class="q-mb-lg">
+                  <div v-if="verseEntryTypes.includes(entry?.type)" class="q-mb-lg">
                     <div v-if="mainVerse" class="q-mb-md">
                       <div class="row items-center q-mb-sm">
                         <div class="col">
@@ -83,18 +83,21 @@
                       <div class="text-body1"><strong>Sermon:</strong> {{ selectedSermon.metadata.title }}</div>
                       <div class="text-body1"><strong>Series:</strong> {{ selectedSeries.metadata.title }}</div>
                       <div class="text-caption text-grey-8">By {{ selectedPastor.metadata.name }} From {{
-                        selectedPastor.metadata.church }}</div>
+                        selectedChurch?.metadata?.name || selectedPastor.metadata.church }}</div>
                       <div class="text-caption text-grey-8">On {{ selectedSermon.metadata.date }}</div>
                     </div>
                   </div>
                 </div>
 
-                <!-- Devotional -->
-                <div v-if="entry?.type === 'Devotional'" class="q-mb-lg">
-                  <div v-if="selectedMinistry">
+                <!-- Devotional / study-linked types -->
+                <div v-if="['Devotional', 'Inductive Study', 'Study Overview'].includes(entry?.type)"
+                  class="q-mb-lg">
+                  <div v-if="selectedDevotionalSeries">
                     <div class="q-mb-md">
                       <div class="text-body1">{{ selectedDevotionalSeries.metadata.name }}</div>
-                      <div class="text-caption text-grey-8">by {{ selectedMinistry.metadata.name }}</div>
+                      <div v-if="selectedMinistry" class="text-caption text-grey-8">
+                        by {{ selectedMinistry.metadata.name }}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -113,7 +116,11 @@
                   <div v-if="selectedPodcast">
                     <div class="q-mb-md">
                       <div class="text-body1">{{ selectedPodcast.metadata.title }}</div>
-                      <div class="text-caption text-grey-8">by {{ selectedPodcast.metadata.host }}</div>
+                      <div class="text-caption text-grey-8">
+                        <span v-if="selectedPodcastEpisode?.metadata.episodeNumber">Episode {{
+                          selectedPodcastEpisode.metadata.episodeNumber }}: </span>
+                        <span v-if="selectedPodcastEpisode">{{ selectedPodcastEpisode.metadata.title }}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -240,11 +247,17 @@ const selectedVerse = ref(null)
 const activeTab = ref('main')
 const mainVerse = ref({})
 
+// Types that use the main-verse (passage) selector; 'Bible' kept for
+// entries created before the type rename migration
+const verseEntryTypes = ['Daily Bible Reading', 'Inductive Study', 'Study Overview', 'Bible']
+
 // Resources
+const selectedChurch = ref(null)
 const selectedPastor = ref(null)
 const selectedSeries = ref(null)
 const selectedSermon = ref(null)
 const selectedPodcast = ref(null)
+const selectedPodcastEpisode = ref(null)
 const selectedArtist = ref(null)
 const selectedMinistry = ref(null)
 const selectedDevotionalSeries = ref(null)
@@ -266,10 +279,12 @@ const linkedVerses = computed(() => {
 const resetEntryState = () => {
   entry.value = null
   mainVerse.value = {}
+  selectedChurch.value = null
   selectedPastor.value = null
   selectedSeries.value = null
   selectedSermon.value = null
   selectedPodcast.value = null
+  selectedPodcastEpisode.value = null
   selectedArtist.value = null
   selectedMinistry.value = null
   selectedDevotionalSeries.value = null
@@ -300,15 +315,18 @@ const fetchEntry = async () => {
       }
     }
 
-    if (entryData.type === 'Bible') {
+    if (verseEntryTypes.includes(entryData.type)) {
       mainVerse.value = entryData.verses
         .filter(v => v.main_verse)
-        .map(createDisplayVerse)[0];
+        .map(createDisplayVerse)[0] || {};
     }
 
     for (let i = 0; i < entryData.resources.length; i++) {
       const resource = entryData.resources[i];
       switch (resource.type) {
+        case 'Church':
+          selectedChurch.value = resource;
+          break;
         case 'Pastor':
           selectedPastor.value = resource;
           break;
@@ -320,6 +338,9 @@ const fetchEntry = async () => {
           break;
         case 'Podcast':
           selectedPodcast.value = resource;
+          break;
+        case 'PodcastEpisode':
+          selectedPodcastEpisode.value = resource;
           break;
         case 'Chapter':
           selectedChapter.value = resource;

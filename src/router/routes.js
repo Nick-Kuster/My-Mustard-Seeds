@@ -28,6 +28,11 @@ const routes = [
         component: () => import('pages/SearchPage.vue'),
         meta: { requiresAuth: true },
       },
+      {
+        path: 'resources',
+        component: () => import('pages/ResourceManagementPage.vue'),
+        meta: { requiresAuth: true },
+      },
     ],
   },
   {

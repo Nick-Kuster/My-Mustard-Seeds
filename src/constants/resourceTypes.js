@@ -2,6 +2,7 @@ export const RESOURCE_TYPES = {
   AUTHOR: 'Author',
   BOOK: 'Book',
   PODCAST: 'Podcast',
+  PODCAST_EPISODE: 'PodcastEpisode',
   PASTOR: 'Pastor',
   SONG_ARTIST: 'SongArtist',
   CHURCH: 'Church',

@@ -144,6 +144,7 @@ const configs = {
         type: 'text',
       },
     },
+    allowedChildren: [RESOURCE_TYPES.PASTOR],
     getDisplayTitle: (resource) => resource.metadata.name,
     getDisplaySubtitle: (resource) => resource.metadata.location,
   },
@@ -193,9 +194,34 @@ const configs = {
         type: 'text',
       },
     },
+    allowedChildren: [RESOURCE_TYPES.PODCAST_EPISODE],
     getDisplayTitle: (resource) => resource.metadata.title,
     getDisplaySubtitle: (resource) =>
       resource.metadata.host ? `Hosted by ${resource.metadata.host}` : null,
+  },
+
+  [RESOURCE_TYPES.PODCAST_EPISODE]: {
+    title: 'Episode',
+    fields: {
+      title: {
+        label: 'Episode Title',
+        required: true,
+        type: 'text',
+      },
+      episodeNumber: {
+        label: 'Episode Number',
+        required: false,
+        type: 'text',
+      },
+      date: {
+        label: 'Date Released',
+        required: false,
+        type: 'date',
+      },
+    },
+    getDisplayTitle: (resource) => resource.metadata.title,
+    getDisplaySubtitle: (resource) =>
+      resource.metadata.episodeNumber ? `Episode ${resource.metadata.episodeNumber}` : null,
   },
 
   [RESOURCE_TYPES.GROUP]: {
@@ -267,6 +293,16 @@ const configs = {
   },
 }
 
+// Correct plural for resource titles: Ministry -> Ministries,
+// Church -> Churches, Sermon Series -> Sermon Series (unchanged)
+export const pluralizeTitle = (title) => {
+  if (!title) return title
+  if (/s$/i.test(title)) return title
+  if (/[^aeiou]y$/i.test(title)) return title.slice(0, -1) + 'ies'
+  if (/(ch|sh|x|z)$/i.test(title)) return title + 'es'
+  return title + 's'
+}
+
 export const getResourceConfig = (type) => {
   const config = configs[type]
   if (!config) {
@@ -277,4 +313,11 @@ export const getResourceConfig = (type) => {
 
 export const getAllowedChildTypes = (parentType) => {
   return configs[parentType]?.allowedChildren || []
+}
+
+// Resource types that are never another type's child — i.e. can be created
+// as brand-new top-level resources (Church, Ministry, Author, ...)
+export const getRootResourceTypes = () => {
+  const childTypes = new Set(Object.values(configs).flatMap((cfg) => cfg.allowedChildren || []))
+  return Object.keys(configs).filter((type) => !childTypes.has(type))
 }

@@ -333,7 +333,7 @@ const deleteResource = async () => {
 
   deleting.value = true
   try {
-    await resourcesStore.deleteResourceAndChildren(resourceToDelete.value.id)
+    await resourcesStore.deleteResource(resourceToDelete.value.id, { cascade: true })
 
     // Refresh the current list
     await loadResources()
