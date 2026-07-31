@@ -12,7 +12,7 @@
           </div>
 
           <draggable v-model="orderedTypes" item-key="id" handle=".drag-handle" tag="div" class="q-gutter-y-sm"
-            ghost-class="ghost-type-row">
+            ghost-class="ghost-type-row" @change="markOrderDirty">
             <template #item="{ element }">
               <div class="type-order-row row items-center no-wrap">
                 <q-icon name="drag_indicator" class="drag-handle q-mr-sm" />
@@ -104,21 +104,38 @@ const importing = ref(false)
 const results = ref(null)
 
 // Local editable copy of the user's journal-type order, seeded from the
-// store and re-persisted (via drag) as the whole ordered list of ids
+// store and only persisted when the user hits Save — dragging just
+// reorders this local copy. isOrderDirty is set explicitly from the
+// draggable's own "change" event rather than derived by diffing arrays —
+// that comparison depends on vuedraggable's internal update propagating
+// through the store's computed, which isn't reliable enough for something
+// this simple to hinge Save's enabled state on.
 const orderedTypes = ref([])
+const savingOrder = ref(false)
+const isOrderDirty = ref(false)
 const typesById = new Map(JOURNAL_TYPES.map((t) => [t.id, t]))
 
 const syncOrderedTypes = () => {
   orderedTypes.value = userPreferencesStore.journalOrder
     .map((id) => typesById.get(id))
     .filter(Boolean)
+  isOrderDirty.value = false
+}
+
+const markOrderDirty = () => {
+  isOrderDirty.value = true
 }
 
 const saveOrder = async () => {
+  savingOrder.value = true
   try {
     await userPreferencesStore.setJournalOrder(orderedTypes.value.map((t) => t.id))
+    isOrderDirty.value = false
+    $q.notify({ type: 'positive', message: 'Order saved' })
   } catch {
     $q.notify({ type: 'negative', message: 'Failed to save order' })
+  } finally {
+    savingOrder.value = false
   }
 }
 
@@ -155,6 +172,10 @@ const runImport = async () => {
 </script>
 
 <style scoped>
+.settings-card {
+  border-radius: 12px;
+}
+
 .type-order-row {
   padding: 8px 10px;
   border: 1px solid rgba(0, 0, 0, 0.12);
