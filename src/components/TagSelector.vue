@@ -65,7 +65,7 @@ watch(() => props.modelValue, (newVal) => {
 }
 
 .section-header:hover {
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--color-hover);
 }
 
 .section-header .q-btn {

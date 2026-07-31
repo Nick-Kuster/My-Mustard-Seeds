@@ -280,9 +280,10 @@
                         <div v-for="(item, i) in getListItems(section.content)" :key="i"
                           class="row items-center no-wrap q-mb-xs">
                           <q-icon name="fiber_manual_record" size="6px" class="q-mr-sm list-bullet" />
-                          <q-input :model-value="item"
+                          <q-input :ref="(el) => setListItemRef(section.id, i, el)" :model-value="item"
                             @update:model-value="section.content = setListItem(section.content, i, $event)" dense
-                            borderless placeholder="List item" class="col" :disable="dragging" />
+                            borderless placeholder="List item" class="col" :disable="dragging"
+                            @keydown.enter.prevent="handleListItemEnter(section, i)" />
                           <q-btn flat round dense icon="close" size="sm" :disable="dragging"
                             @click="section.content = removeListItem(section.content, i)" />
                         </div>
@@ -367,7 +368,7 @@
   </q-page>
 </template>
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { supabase } from 'src/boot/supabase'
@@ -378,7 +379,7 @@ import VerseSelectionModal from 'components/VerseSelectionModal.vue'
 import ResourceSelectionModal from 'components/ResourceSelectionModal.vue'
 import { useJournalStore } from 'stores/journalData'
 import draggable from 'vuedraggable'
-import { getListItems, setListItem, addListItem, removeListItem } from 'src/utils/sectionListUtils'
+import { getListItems, setListItem, addListItem, removeListItem, insertListItemAfter } from 'src/utils/sectionListUtils'
 import LinkedVerses from 'components/LinkedVerses.vue'
 import TagSelector from 'src/components/TagSelector.vue'
 import QuoteSelector from 'src/components/QuoteSelector.vue'
@@ -687,6 +688,21 @@ const addSection = (fieldType = 'longText') => {
 const addSectionAndFocus = (fieldType) => {
   addSection(fieldType)
   activeTab.value = 'main'
+}
+
+// List-item inputs, keyed by `${sectionId}-${index}`, so pressing Enter in
+// one can insert a new item right after it and focus that new input —
+// without this, every list item beyond the first needs a click on "Add
+// Item" plus a click into the new field.
+const listItemRefs = {}
+const setListItemRef = (sectionId, index, el) => {
+  if (el) listItemRefs[`${sectionId}-${index}`] = el
+}
+
+const handleListItemEnter = async (section, index) => {
+  section.content = insertListItemAfter(section.content, index)
+  await nextTick()
+  listItemRefs[`${section.id}-${index + 1}`]?.focus()
 }
 
 const openSectionLink = (url) => {
@@ -1177,27 +1193,27 @@ onUnmounted(() => {
 .section-container {
   padding: 12px;
   border-radius: 8px;
-  background: white;
+  background: var(--color-surface);
   transition: all 0.3s ease;
   border: 1px solid transparent;
 }
 
 .dragging-section {
-  background: #ffffff !important;
+  background: var(--color-surface) !important;
   border: 1px solid var(--q-primary) !important;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2) !important;
+  box-shadow: 0 8px 16px var(--color-shadow-strong) !important;
   transform: scale(1.02) !important;
   opacity: 0.9 !important;
 }
 
 .ghost-section {
-  background: #f0f0f0 !important;
+  background: var(--color-surface-muted) !important;
   border: 2px dashed var(--q-primary) !important;
   opacity: 0.5 !important;
 }
 
 .chosen-section {
-  background: #f7f7f7 !important;
+  background: var(--color-surface-alt) !important;
   border: 1px solid var(--q-primary) !important;
 }
 
@@ -1256,7 +1272,7 @@ onUnmounted(() => {
   }
 
   .drag-handle:active {
-    background: rgba(0, 0, 0, 0.1);
+    background: var(--color-hover);
   }
 
   .drag-handle:active .dot {
@@ -1265,18 +1281,18 @@ onUnmounted(() => {
 
   .dragging-section {
     transform: scale(1.03) !important;
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3) !important;
-    background: #f8f8f8 !important;
+    box-shadow: 0 12px 24px var(--color-shadow-strong) !important;
+    background: var(--color-surface-alt) !important;
   }
 
   .ghost-section {
-    background: #e0e0e0 !important;
+    background: var(--color-surface-muted) !important;
     border: 2px dashed var(--q-primary) !important;
     opacity: 0.7 !important;
   }
 
   .chosen-section {
-    background: #eef5ff !important;
+    background: var(--color-surface-alt) !important;
   }
 }
 
@@ -1313,7 +1329,7 @@ onUnmounted(() => {
 }
 
 .list-bullet {
-  color: rgba(0, 0, 0, 0.4);
+  color: var(--color-text-muted);
   flex-shrink: 0;
 }
 </style>

@@ -24,7 +24,7 @@
            (last 10 entries across all types) — no more separate toggle, this
            is the only view now. -->
       <div class="type-lanes-wrapper">
-        <div ref="lanesEl" class="type-lanes" @scroll="updateScrollArrows">
+        <div class="type-lanes">
         <div v-for="group in typeGroups" :key="group.type" class="type-lane">
           <div class="type-lane-header" :class="{ 'type-lane-header--clickable': isDesktop }"
             :style="{ borderTopColor: typeColorsStore.getColor(group.type) }"
@@ -77,19 +77,16 @@
           </div>
         </div>
         </div>
-        <div v-if="canScrollLeft" class="scroll-arrow scroll-arrow-left">
-          <q-icon name="chevron_left" size="18px" />
-        </div>
-        <div v-if="canScrollRight" class="scroll-arrow scroll-arrow-right">
-          <q-icon name="chevron_right" size="18px" />
-        </div>
+      </div>
+      <div v-if="!isDesktop" class="swipe-hint text-center">
+        <q-icon name="swipe" size="14px" class="q-mr-xs" />Swipe left or right to browse
       </div>
     </template>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useJournalStore, getResourceTitle } from 'stores/journalData'
@@ -265,29 +262,7 @@ const viewEntry = (id) => {
   router.push(`/entry/${id}`)
 }
 
-// Edge arrows for the type-lanes scroller — only shown when there's
-// actually more to scroll to in that direction
-const lanesEl = ref(null)
-const canScrollLeft = ref(false)
-const canScrollRight = ref(false)
-
-const updateScrollArrows = () => {
-  const el = lanesEl.value
-  if (!el) {
-    canScrollLeft.value = false
-    canScrollRight.value = false
-    return
-  }
-  canScrollLeft.value = el.scrollLeft > 4
-  canScrollRight.value = el.scrollLeft + el.clientWidth < el.scrollWidth - 4
-}
-
-watch(typeGroups, () => {
-  nextTick(updateScrollArrows)
-})
-
 onMounted(async () => {
-  window.addEventListener('resize', updateScrollArrows)
   try {
     await Promise.all([
       journalStore.entries.length ? Promise.resolve() : journalStore.fetchEntries(),
@@ -299,13 +274,7 @@ onMounted(async () => {
       type: 'negative',
       message: 'Error loading entries'
     })
-  } finally {
-    nextTick(updateScrollArrows)
   }
-})
-
-onUnmounted(() => {
-  window.removeEventListener('resize', updateScrollArrows)
 })
 </script>
 
@@ -324,7 +293,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   text-align: center;
-  color: #666;
+  color: var(--color-text-secondary);
   padding: 48px 16px;
 }
 
@@ -344,9 +313,16 @@ onUnmounted(() => {
   font-weight: 700;
 }
 
+.swipe-hint {
+  flex: none;
+  padding: 8px 12px;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+
 .entry-item {
   min-height: 60px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  border-bottom: 1px solid var(--color-border);
   border-left: 3px solid transparent;
 }
 
@@ -363,12 +339,9 @@ onUnmounted(() => {
   min-width: 0;
 }
 
-/* Positioning shell for the type-lanes scroller — lets the swipe hint float
-   on top without taking up any of its own flex space, so it can't disturb
-   the height math above. Mobile default; overridden for tablet/desktop
-   below where lanes stack as full-width rows instead of scrolling. */
+/* Mobile default; overridden for tablet/desktop below where lanes stack
+   as full-width rows instead of scrolling. */
 .type-lanes-wrapper {
-  position: relative;
   display: flex;
   flex: 1;
   min-height: 0;
@@ -394,35 +367,11 @@ onUnmounted(() => {
   width: 280px;
   min-width: 0;
   height: 100%;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   overflow: hidden;
-  background: #fffdf8;
+  background: var(--color-surface-alt);
   scroll-snap-stop: always;
-}
-
-.scroll-arrow {
-  position: absolute;
-  bottom: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: rgba(255, 253, 248, 0.85);
-  color: rgba(0, 0, 0, 0.4);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-  pointer-events: none;
-  z-index: 2;
-}
-
-.scroll-arrow-left {
-  left: 20px;
-}
-
-.scroll-arrow-right {
-  right: 20px;
 }
 
 .type-lane-header {
@@ -430,9 +379,9 @@ onUnmounted(() => {
   align-items: center;
   gap: 6px;
   padding: 10px 12px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid var(--color-border-light);
   border-top: 3px solid transparent;
-  background: #f4f1ea;
+  background: var(--color-surface-muted);
   font-weight: 700;
   font-size: 0.85rem;
 }
@@ -442,11 +391,11 @@ onUnmounted(() => {
 }
 
 .type-lane-header--clickable:hover {
-  background: #eee7d5;
+  background: var(--color-surface-muted-hover);
 }
 
 .type-lane-chevron {
-  color: rgba(0, 0, 0, 0.5);
+  color: var(--color-text-secondary);
 }
 
 .type-lane-label {
@@ -458,7 +407,7 @@ onUnmounted(() => {
 }
 
 .type-lane-count {
-  color: rgba(0, 0, 0, 0.5);
+  color: var(--color-text-secondary);
   font-size: 0.78rem;
   font-weight: 800;
 }
@@ -472,7 +421,7 @@ onUnmounted(() => {
 .type-lane-empty {
   padding: 24px 12px;
   text-align: center;
-  color: rgba(0, 0, 0, 0.4);
+  color: var(--color-text-muted);
   font-size: 0.82rem;
 }
 
@@ -505,10 +454,6 @@ onUnmounted(() => {
   .type-lane-list {
     flex: none;
     max-height: 400px;
-  }
-
-  .scroll-arrow {
-    display: none;
   }
 }
 

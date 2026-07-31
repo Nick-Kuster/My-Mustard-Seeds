@@ -82,30 +82,30 @@ const selectType = (typeId) => {
   cursor: pointer;
   padding: 12px 16px;
   border-radius: 8px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--color-border);
   transition: all 0.2s ease;
 }
 
 .type-display:hover {
-  background: rgba(0, 0, 0, 0.03);
+  background: var(--color-hover);
 }
 
 .entry-type-btn {
   height: 90px;
   padding: 8px !important;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--color-border-light);
   transition: all 0.2s ease;
-  background: white;
+  background: var(--color-surface);
 }
 
 .entry-type-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 8px var(--color-shadow);
 }
 
 .entry-type-btn.selected {
   border-width: 2px;
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--color-hover);
 }
 
 .content-wrapper {

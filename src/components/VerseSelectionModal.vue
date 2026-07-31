@@ -215,7 +215,7 @@ onMounted(async () => {
 }
 
 .verse-preview {
-  background: #f5f5f5;
+  background: var(--color-surface-muted);
   padding: 8px;
   border-radius: 4px;
   font-size: 0.85em;

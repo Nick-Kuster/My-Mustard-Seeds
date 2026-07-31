@@ -1,13 +1,101 @@
 // app global css in SCSS form
-// app global css in SCSS form
+//
+// Theme tokens: every color used for a surface, border, or text treatment
+// anywhere in the app should reference one of these CSS custom properties
+// rather than a hardcoded hex/rgba value. That's what makes dark mode (see
+// body.body--dark below, and src/composables/useThemeMode.js) a matter of
+// swapping the variables in one place instead of hunting through every
+// component's <style> block. Accent colors (primary/secondary/journal
+// type colors/resource type colors) are deliberately left alone — they're
+// chosen to work as accents against either surface, not surface colors
+// themselves.
+:root {
+  --color-bg: #{$body-background};
+  --color-surface: #{$card-background};
+  --color-surface-alt: #fffdf8;
+  --color-surface-muted: #f4f1ea;
+  --color-surface-muted-hover: #eee7d5;
+  --color-parchment: #faf6e9;
+  --color-border: rgba(0, 0, 0, 0.12);
+  --color-border-light: rgba(0, 0, 0, 0.1);
+  --color-text: rgba(0, 0, 0, 0.87);
+  --color-text-secondary: rgba(0, 0, 0, 0.6);
+  --color-text-muted: rgba(0, 0, 0, 0.4);
+  --color-hover: rgba(0, 0, 0, 0.04);
+  --color-shadow: rgba(0, 0, 0, 0.1);
+  --color-shadow-light: rgba(0, 0, 0, 0.06);
+  --color-shadow-strong: rgba(0, 0, 0, 0.2);
+  --color-surface-translucent: rgba(255, 255, 255, 0.9);
+}
+
+body.body--dark {
+  --color-bg: #{$dark-page};
+  --color-surface: #{$dark};
+  --color-surface-alt: #333f3d;
+  --color-surface-muted: #29332f;
+  --color-surface-muted-hover: #333f3d;
+  --color-parchment: #2b332d;
+  --color-border: rgba(255, 255, 255, 0.14);
+  --color-border-light: rgba(255, 255, 255, 0.1);
+  --color-text: rgba(255, 255, 255, 0.92);
+  --color-text-secondary: rgba(255, 255, 255, 0.65);
+  --color-text-muted: rgba(255, 255, 255, 0.45);
+  --color-hover: rgba(255, 255, 255, 0.07);
+  --color-shadow: rgba(0, 0, 0, 0.5);
+  --color-shadow-light: rgba(0, 0, 0, 0.35);
+  --color-shadow-strong: rgba(0, 0, 0, 0.7);
+  --color-surface-translucent: rgba(28, 33, 36, 0.9);
+
+  // The background image in MainLayout.vue is a light paper texture —
+  // dim it in dark mode rather than maintaining a second dark texture asset.
+  .bg-wrapper {
+    filter: brightness(0.35);
+  }
+
+  // Quasar exposes its brand colors ($info, $negative, etc. from
+  // quasar.variables.scss) as CSS custom properties that every Quasar
+  // component reads from at runtime (buttons, banners, icons, borders —
+  // see node_modules/quasar/dist/quasar.css, e.g. .bg-negative reads
+  // var(--q-negative)). $primary and $secondary are already dark/muted
+  // enough to read fine on a dark surface; the rest of the garden palette
+  // is made of light pastels tuned for a light parchment background, so
+  // they glow uncomfortably bright against a dark one — darkened here,
+  // once, instead of touching every button that uses color="info" etc.
+  --q-info: #5d7d87;
+  --q-negative: #a85c4d;
+  --q-accent: #a3805f;
+  --q-positive: #5f8871;
+  --q-warning: #b3903f;
+
+  // Global overrides for Quasar's own static utility classes, which don't
+  // adapt to dark mode on their own — this covers every existing and
+  // future use of these classes app-wide instead of needing every
+  // template to switch to a variable-bound custom class.
+  .bg-white {
+    background: var(--color-surface) !important;
+  }
+
+  .text-grey-9,
+  .text-grey-8,
+  .text-grey-7 {
+    color: var(--color-text-secondary) !important;
+  }
+
+  .text-grey-6,
+  .text-grey-5,
+  .text-grey {
+    color: var(--color-text-muted) !important;
+  }
+}
+
 body {
-  background-color: $body-background;
+  background-color: var(--color-bg);
 }
 
 // Make cards stand out slightly from the background
 .q-card {
-  background-color: $card-background;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  background-color: var(--color-surface);
+  box-shadow: 0 1px 3px var(--color-shadow-light);
 }
 
 // Optional: Add a subtle texture to the background
@@ -18,10 +106,11 @@ body {
 //   background-position: center;
 // }
 
-// Make text slightly softer than pure black for better readability
+// Make text slightly softer than pure black (or white, in dark mode) for
+// better readability
 .text-body1,
 .text-body2 {
-  color: rgba(0, 0, 0, 0.87);
+  color: var(--color-text);
 }
 
 // Optional: Add smooth transitions for better UX
@@ -32,7 +121,7 @@ body {
 
   &:hover {
     transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px var(--color-shadow);
   }
 }
 
@@ -55,7 +144,7 @@ body {
 }
 
 .parchment {
-  background-color: #faf6e9;
+  background-color: var(--color-parchment);
 }
 
 // Page-content cards used to be capped at a Quasar column fraction (e.g.
@@ -77,20 +166,18 @@ body {
   max-width: 1260px !important;
 }
 
-// app.scss
-
 // Reset Quasar's default card transitions and shadows
 .q-card {
   box-shadow:
-    rgba(0, 0, 0, 0.1) 0px 1px 3px 0px,
-    rgba(0, 0, 0, 0.06) 0px 1px 2px 0px !important;
+    var(--color-shadow) 0px 1px 3px 0px,
+    var(--color-shadow-light) 0px 1px 2px 0px !important;
   transition: none !important;
   transform: none !important;
 
   &:hover,
   &:focus {
     box-shadow:
-      rgba(0, 0, 0, 0.1) 0px 4px 6px -1px,
-      rgba(0, 0, 0, 0.06) 0px 2px 4px -1px !important;
+      var(--color-shadow) 0px 4px 6px -1px,
+      var(--color-shadow-light) 0px 2px 4px -1px !important;
   }
 }

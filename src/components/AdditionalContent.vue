@@ -64,11 +64,11 @@ const updateQuotes = (newQuotes) => {
 
 <style scoped>
 .custom-expansion :deep(.q-expansion-item__content) {
-  background: white;
+  background: var(--color-surface);
 }
 
 .custom-expansion {
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
 }
 

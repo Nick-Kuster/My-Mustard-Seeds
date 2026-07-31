@@ -36,6 +36,6 @@ const listItems = computed(() => getListItems(props.section.content).filter((ite
 }
 
 .list-bullet {
-  color: rgba(0, 0, 0, 0.4);
+  color: var(--color-text-muted);
 }
 </style>

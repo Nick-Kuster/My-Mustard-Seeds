@@ -38,6 +38,9 @@
             </router-link>
           </div>
 
+          <q-btn flat dense round :icon="themeIcon" aria-label="Toggle theme" @click="toggleTheme">
+            <q-tooltip>{{ themeLabel }} — click to change</q-tooltip>
+          </q-btn>
           <q-btn flat dense round icon="logout" aria-label="Logout" @click="handleSignOut" />
         </div>
       </q-toolbar>
@@ -54,11 +57,16 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { supabase } from 'src/boot/supabase'
+import { useThemeMode } from 'src/composables/useThemeMode'
 import BottomNavBar from 'components/BottomNavBar.vue'
 
 const $q = useQuasar()
+const { themeIcon, themeLabel, initTheme, toggleTheme } = useThemeMode()
+
+onMounted(initTheme)
 
 const navLinks = [
   { to: '/', icon: 'home', label: 'Home' },
@@ -94,6 +102,10 @@ const handleSignOut = async () => {
 
 .app-header {
   background: linear-gradient(135deg, #8ba192 0%, #7c9082 55%, #66795e 100%);
+}
+
+body.body--dark .app-header {
+  background: linear-gradient(135deg, #5c6e62 0%, #4f5c52 55%, #3d473b 100%);
 }
 
 .app-toolbar {

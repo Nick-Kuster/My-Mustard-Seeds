@@ -19,6 +19,15 @@ export const setListItem = (content, index, value) => {
 
 export const addListItem = (content) => [...getListItems(content), ''].join('\n')
 
+// Inserts a new blank item right after `index` — used when pressing Enter
+// in a list item, so the new item lands next to the one being edited
+// rather than always at the end of the list.
+export const insertListItemAfter = (content, index) => {
+  const items = getListItems(content)
+  items.splice(index + 1, 0, '')
+  return items.join('\n')
+}
+
 export const removeListItem = (content, index) => {
   const items = getListItems(content)
   items.splice(index, 1)

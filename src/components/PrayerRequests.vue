@@ -3,7 +3,48 @@
     <div v-if="loading" class="text-center q-pa-lg">
       <q-spinner color="primary" size="2em" />
     </div>
+
+    <div v-else-if="requests.length === 0" class="text-center text-grey q-pa-lg">
+      No prayer requests yet.
+      <div class="q-mt-sm">
+        <q-btn flat color="primary" label="Add your first prayer" @click="viewMode = 'manage'" />
+      </div>
+    </div>
+
+    <!-- List view: a plain, quick-to-scan read of what's currently active —
+         no drag handles, no group management, nothing interactive besides
+         Edit. This is the default view. -->
+    <template v-else-if="viewMode === 'list'">
+      <div class="row justify-between items-center q-mb-md">
+        <div class="text-subtitle2 text-weight-bold text-grey-8">
+          Active ({{ active.length }})
+        </div>
+        <q-btn flat dense no-caps icon="edit" label="Edit" @click="viewMode = 'manage'" />
+      </div>
+
+      <div v-if="active.length === 0" class="text-center text-grey q-pa-lg">
+        Nothing active right now.
+      </div>
+      <div v-else>
+        <template v-for="section in groupSections" :key="section.key || '__ungrouped__'">
+          <template v-if="section.items.length > 0">
+            <div v-if="section.key" class="list-group-label text-caption text-weight-bold text-grey-6">
+              {{ section.label }}
+            </div>
+            <div v-for="request in section.items" :key="request.id" class="prayer-list-item">
+              {{ request.decryptedContent }}
+            </div>
+          </template>
+        </template>
+      </div>
+    </template>
+
+    <!-- Manage view: add, group, reorder, mark answered, delete. -->
     <template v-else>
+      <div class="row justify-end q-mb-sm">
+        <q-btn flat dense no-caps icon="visibility" label="View As List" @click="viewMode = 'list'" />
+      </div>
+
       <div class="row q-col-gutter-sm q-mb-sm items-start">
         <div class="col-12 col-sm">
           <q-input v-model="newRequest" placeholder="What's on your heart?" outlined dense autogrow />
@@ -22,93 +63,87 @@
         <q-btn flat dense no-caps icon="create_new_folder" label="New Group" size="sm" @click="promptNewGroupSection" />
       </div>
 
-      <div v-if="requests.length === 0" class="text-center text-grey q-pa-lg">
-        No prayer requests yet — add the first one above.
+      <div class="text-subtitle2 text-weight-bold text-grey-8 q-mb-sm">
+        Active ({{ active.length }})
+      </div>
+      <div v-if="active.length === 0" class="text-caption text-grey q-mb-lg">
+        Nothing active right now.
       </div>
 
-      <template v-else>
-        <div class="text-subtitle2 text-weight-bold text-grey-8 q-mb-sm">
-          Active ({{ active.length }})
-        </div>
-        <div v-if="active.length === 0" class="text-caption text-grey q-mb-lg">
-          Nothing active right now.
-        </div>
-
-        <div v-else class="q-mb-lg">
-          <draggable :list="groupSections" item-key="key" handle=".group-drag-handle" class="q-gutter-y-md"
-            ghost-class="ghost-group" @end="persistOrder">
-            <template #item="{ element: section }">
-              <div class="group-section">
-                <div class="group-header row items-center no-wrap"
-                  @click="toggleGroupCollapse(section.key)">
-                  <q-icon name="drag_indicator" class="group-drag-handle q-mr-xs" />
-                  <q-icon :name="isGroupCollapsed(section.key) ? 'chevron_right' : 'expand_more'" size="18px"
-                    class="q-mr-xs" />
-                  <span class="text-caption text-weight-bold text-grey-7">
-                    {{ section.label }} ({{ section.items.length }})
-                  </span>
-                </div>
-
-                <draggable v-show="!isGroupCollapsed(section.key)" :list="section.items" group="prayer-requests"
-                  item-key="id" handle=".drag-handle" class="q-gutter-y-xs q-mt-xs" ghost-class="ghost-request"
-                  @end="persistOrder">
-                  <template #item="{ element: request }">
-                    <q-item class="request-item rounded-borders bg-white">
-                      <q-item-section avatar class="drag-handle-section">
-                        <q-icon name="drag_indicator" class="drag-handle" />
-                      </q-item-section>
-                      <q-item-section>
-                        <q-item-label class="text-wrap">{{ request.decryptedContent }}</q-item-label>
-                        <q-item-label caption>{{ formatDate(request.created_at) }}</q-item-label>
-                      </q-item-section>
-                      <q-item-section side>
-                        <div class="row no-wrap q-gutter-xs">
-                          <q-btn flat round dense icon="check_circle" color="positive" @click="openAnswer(request)">
-                            <q-tooltip>Mark answered</q-tooltip>
-                          </q-btn>
-                          <q-btn flat round dense icon="delete" color="negative" @click="openDelete(request)">
-                            <q-tooltip>Delete</q-tooltip>
-                          </q-btn>
-                        </div>
-                      </q-item-section>
-                    </q-item>
-                  </template>
-                  <template #footer>
-                    <div v-if="section.items.length === 0" class="empty-group-drop text-caption text-grey text-center">
-                      {{ section.key ? 'Drag prayers here' : 'Drag prayers here to remove from a group' }}
-                    </div>
-                  </template>
-                </draggable>
+      <div v-else class="q-mb-lg">
+        <draggable :list="groupSections" item-key="key" handle=".group-drag-handle" class="q-gutter-y-md"
+          ghost-class="ghost-group" @end="persistOrder">
+          <template #item="{ element: section }">
+            <div class="group-section">
+              <div class="group-header row items-center no-wrap"
+                @click="toggleGroupCollapse(section.key)">
+                <q-icon name="drag_indicator" class="group-drag-handle q-mr-xs" />
+                <q-icon :name="isGroupCollapsed(section.key) ? 'chevron_right' : 'expand_more'" size="18px"
+                  class="q-mr-xs" />
+                <span class="text-caption text-weight-bold text-grey-7">
+                  {{ section.label }} ({{ section.items.length }})
+                </span>
               </div>
-            </template>
-          </draggable>
-        </div>
 
-        <q-expansion-item v-if="answered.length > 0" label="Answered" :caption="`${answered.length} answered`"
-          header-class="text-weight-bold" class="rounded-borders bg-white answered-section">
-          <q-list separator>
-            <q-item v-for="request in answered" :key="request.id">
-              <q-item-section>
-                <q-item-label class="text-wrap answered-content text-grey-7">{{ request.decryptedContent }}</q-item-label>
-                <q-item-label v-if="request.decryptedAnswerNote" caption class="text-wrap">
-                  {{ request.decryptedAnswerNote }}
-                </q-item-label>
-                <q-item-label caption>Answered {{ formatDate(request.answered_at) }}</q-item-label>
-              </q-item-section>
-              <q-item-section side>
-                <div class="row no-wrap q-gutter-xs">
-                  <q-btn flat round dense icon="undo" @click="reopen(request)">
-                    <q-tooltip>Reopen</q-tooltip>
-                  </q-btn>
-                  <q-btn flat round dense icon="delete" color="negative" @click="openDelete(request)">
-                    <q-tooltip>Delete</q-tooltip>
-                  </q-btn>
-                </div>
-              </q-item-section>
-            </q-item>
-          </q-list>
-        </q-expansion-item>
-      </template>
+              <draggable v-show="!isGroupCollapsed(section.key)" :list="section.items" group="prayer-requests"
+                item-key="id" handle=".drag-handle" class="q-gutter-y-xs q-mt-xs" ghost-class="ghost-request"
+                @end="persistOrder">
+                <template #item="{ element: request }">
+                  <q-item class="request-item rounded-borders bg-white">
+                    <q-item-section avatar class="drag-handle-section">
+                      <q-icon name="drag_indicator" class="drag-handle" />
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label class="text-wrap">{{ request.decryptedContent }}</q-item-label>
+                      <q-item-label caption>{{ formatDate(request.created_at) }}</q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                      <div class="row no-wrap q-gutter-xs">
+                        <q-btn flat round dense icon="check_circle" color="positive" @click="openAnswer(request)">
+                          <q-tooltip>Mark answered</q-tooltip>
+                        </q-btn>
+                        <q-btn flat round dense icon="delete" color="negative" @click="openDelete(request)">
+                          <q-tooltip>Delete</q-tooltip>
+                        </q-btn>
+                      </div>
+                    </q-item-section>
+                  </q-item>
+                </template>
+                <template #footer>
+                  <div v-if="section.items.length === 0" class="empty-group-drop text-caption text-grey text-center">
+                    {{ section.key ? 'Drag prayers here' : 'Drag prayers here to remove from a group' }}
+                  </div>
+                </template>
+              </draggable>
+            </div>
+          </template>
+        </draggable>
+      </div>
+
+      <q-expansion-item v-if="answered.length > 0" label="Answered" :caption="`${answered.length} answered`"
+        header-class="text-weight-bold" class="rounded-borders bg-white answered-section">
+        <q-list separator>
+          <q-item v-for="request in answered" :key="request.id">
+            <q-item-section>
+              <q-item-label class="text-wrap answered-content text-grey-7">{{ request.decryptedContent }}</q-item-label>
+              <q-item-label v-if="request.decryptedAnswerNote" caption class="text-wrap">
+                {{ request.decryptedAnswerNote }}
+              </q-item-label>
+              <q-item-label caption>Answered {{ formatDate(request.answered_at) }}</q-item-label>
+            </q-item-section>
+            <q-item-section side>
+              <div class="row no-wrap q-gutter-xs">
+                <q-btn flat round dense icon="undo" @click="reopen(request)">
+                  <q-tooltip>Reopen</q-tooltip>
+                </q-btn>
+                <q-btn flat round dense icon="delete" color="negative" @click="openDelete(request)">
+                  <q-tooltip>Delete</q-tooltip>
+                </q-btn>
+              </div>
+            </q-item-section>
+          </q-item>
+        </q-list>
+      </q-expansion-item>
     </template>
 
     <!-- Mark answered dialog -->
@@ -177,6 +212,9 @@ const adding = ref(false)
 const newRequest = ref('')
 const newGroup = ref(null)
 
+// List (default, read-only quick glance) or manage (add/group/reorder/etc.)
+const viewMode = ref('list')
+
 const requests = computed(() => store.requests)
 const active = computed(() => requests.value.filter((r) => r.status !== 'answered'))
 const answered = computed(() => requests.value.filter((r) => r.status === 'answered'))
@@ -185,7 +223,8 @@ const answered = computed(() => requests.value.filter((r) => r.status === 'answe
 // from the store after every mutation (fetch/add/answer/reopen/delete) —
 // dragging only ever mutates this local structure, then persistOrder
 // flattens it back into the store. Ungrouped is always shown, even empty,
-// so there's somewhere to drop an item to take it out of a group.
+// so there's somewhere to drop an item to take it out of a group. Also
+// doubles as the grouping used to render the read-only list view.
 const groupSections = ref([])
 const UNGROUPED = ''
 
@@ -386,7 +425,8 @@ onMounted(async () => {
 }
 
 .request-item {
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
   min-height: 56px;
 }
 
@@ -397,7 +437,7 @@ onMounted(async () => {
 
 .drag-handle {
   cursor: grab;
-  color: rgba(0, 0, 0, 0.35);
+  color: var(--color-text-muted);
 }
 
 .ghost-request {
@@ -410,7 +450,7 @@ onMounted(async () => {
 
 .empty-group-drop {
   padding: 10px;
-  border: 1px dashed rgba(0, 0, 0, 0.2);
+  border: 1px dashed var(--color-border);
   border-radius: 8px;
 }
 
@@ -421,11 +461,33 @@ onMounted(async () => {
 }
 
 .group-header:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--color-hover);
 }
 
 .group-drag-handle {
   cursor: grab;
-  color: rgba(0, 0, 0, 0.35);
+  color: var(--color-text-muted);
+}
+
+.list-group-label {
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-top: 20px;
+  margin-bottom: 6px;
+}
+
+.list-group-label:first-child {
+  margin-top: 0;
+}
+
+.prayer-list-item {
+  padding: 10px 2px;
+  border-bottom: 1px solid var(--color-border-light);
+  line-height: 1.6;
+  font-size: 1rem;
+}
+
+.prayer-list-item:last-child {
+  border-bottom: none;
 }
 </style>

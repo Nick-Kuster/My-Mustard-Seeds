@@ -109,7 +109,7 @@ const { footerActions: contextualActions } = storeToRefs(usePageActionsStore())
 
 <style lang="scss" scoped>
 .bottom-nav-bar {
-  background: #ffffff;
+  background: var(--color-surface);
   padding-bottom: env(safe-area-inset-bottom);
 }
 
@@ -129,7 +129,7 @@ const { footerActions: contextualActions } = storeToRefs(usePageActionsStore())
   padding: 6px 2px;
   border: 0;
   background: transparent;
-  color: rgba(0, 0, 0, 0.55);
+  color: var(--color-text-secondary);
   font-size: 0.66rem;
   font-weight: 600;
   cursor: pointer;
@@ -155,8 +155,8 @@ const { footerActions: contextualActions } = storeToRefs(usePageActionsStore())
   width: 56px;
   height: 56px;
   box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.15),
-    0 4px 10px rgba(0, 0, 0, 0.15);
+    0 2px 4px var(--color-shadow-strong),
+    0 4px 10px var(--color-shadow-strong);
 }
 
 .bottom-nav-fab :deep(.q-icon) {

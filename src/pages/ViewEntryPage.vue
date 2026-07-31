@@ -129,6 +129,9 @@
           </div>
           <div v-if="$q.screen.gt.sm" class="row q-col-gutter-sm justify-end q-mb-xl">
             <div class="col-auto">
+              <q-btn rounded unelevated color="secondary" icon="home" style="height: 40px" @click="router.push('/')" />
+            </div>
+            <div class="col-auto">
               <q-btn rounded unelevated color="primary" icon="edit" style="height: 40px"
                 @click="router.push(`/entry/${entry.id}/edit`)" />
             </div>
@@ -463,6 +466,13 @@ const pageActionsStore = usePageActionsStore()
 
 onMounted(() => {
   pageActionsStore.setFooterActions([
+    {
+      key: 'home',
+      label: 'Home',
+      icon: 'home',
+      color: 'secondary',
+      handler: () => router.push('/'),
+    },
     {
       key: 'edit',
       label: 'Edit',

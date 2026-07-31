@@ -87,24 +87,22 @@ watch(
 
 <style scoped>
 .verse-modal {
-  background-color: #FAF6E9;
-  /* Warm parchment color */
+  background-color: var(--color-parchment);
 }
 
 .verse-modal :deep(.q-card__section) {
-  background-color: #FAF6E9;
+  background-color: var(--color-parchment);
 }
 
 /* Style the header section slightly differently */
 .verse-modal :deep(.q-card__section:first-child) {
-  background-color: #F5EFD7;
-  /* Slightly darker for the header */
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  background-color: var(--color-surface-muted);
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .verse-number {
   margin-right: 0.5rem;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 .verse-content {

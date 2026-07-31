@@ -474,15 +474,15 @@ onMounted(async () => {
 
 <style scoped>
 .resource-item {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .year-header {
-  background-color: rgba(0, 0, 0, 0.03);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  background-color: var(--color-hover);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .child-resource {
-  background-color: rgba(0, 0, 0, 0.02);
+  background-color: var(--color-hover);
 }
 </style>

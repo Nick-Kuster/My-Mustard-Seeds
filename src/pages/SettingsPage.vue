@@ -6,27 +6,31 @@
         <q-card class="settings-card q-pa-lg parchment">
           <div class="text-h6 q-mb-lg">Preferences</div>
 
-          <div class="text-subtitle1 text-weight-medium q-mb-sm">Home Screen Order</div>
-          <div class="text-body2 text-grey-8 q-mb-md">
-            Drag to change the order journal types appear in on the home screen, then save.
-          </div>
-
-          <draggable v-model="orderedTypes" item-key="id" handle=".drag-handle" tag="div" class="q-gutter-y-sm"
-            ghost-class="ghost-type-row" @change="markOrderDirty">
-            <template #item="{ element }">
-              <div class="type-order-row row items-center no-wrap">
-                <q-icon name="drag_indicator" class="drag-handle q-mr-sm" />
-                <q-icon :name="element.icon" size="20px" :style="{ color: typeColorsStore.getColor(element.id) }"
-                  class="q-mr-sm" />
-                <span>{{ element.label }}</span>
+          <q-expansion-item label="Home Screen Order" header-class="text-subtitle1 text-weight-medium"
+            class="rounded-borders order-section">
+            <q-card-section>
+              <div class="text-body2 text-grey-8 q-mb-md">
+                Drag to change the order journal types appear in on the home screen, then save.
               </div>
-            </template>
-          </draggable>
 
-          <div class="row justify-end q-mt-md">
-            <q-btn unelevated color="primary" label="Save" :loading="savingOrder" :disable="!isOrderDirty"
-              @click="saveOrder" />
-          </div>
+              <draggable v-model="orderedTypes" item-key="id" handle=".drag-handle" tag="div" class="q-gutter-y-sm"
+                ghost-class="ghost-type-row" @change="markOrderDirty">
+                <template #item="{ element }">
+                  <div class="type-order-row row items-center no-wrap">
+                    <q-icon name="drag_indicator" class="drag-handle q-mr-sm" />
+                    <q-icon :name="element.icon" size="20px" :style="{ color: typeColorsStore.getColor(element.id) }"
+                      class="q-mr-sm" />
+                    <span>{{ element.label }}</span>
+                  </div>
+                </template>
+              </draggable>
+
+              <div class="row justify-end q-mt-md">
+                <q-btn unelevated color="primary" label="Save" :loading="savingOrder" :disable="!isOrderDirty"
+                  @click="saveOrder" />
+              </div>
+            </q-card-section>
+          </q-expansion-item>
         </q-card>
       </div>
 
@@ -176,16 +180,20 @@ const runImport = async () => {
   border-radius: 12px;
 }
 
+.order-section {
+  border: 1px solid var(--color-border);
+}
+
 .type-order-row {
   padding: 8px 10px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: #fffdf8;
+  background: var(--color-surface-alt);
 }
 
 .drag-handle {
   cursor: grab;
-  color: rgba(0, 0, 0, 0.4);
+  color: var(--color-text-muted);
 }
 
 .ghost-type-row {

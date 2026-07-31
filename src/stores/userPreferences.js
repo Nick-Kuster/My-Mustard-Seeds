@@ -82,6 +82,11 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
 
   const setJournalOrder = (order) => setPreferences({ journalOrder: order })
 
+  // 'light' | 'dark' — see src/composables/useThemeMode.js for where this
+  // is applied.
+  const themeMode = computed(() => (preferences.value.themeMode === 'dark' ? 'dark' : 'light'))
+  const setThemeMode = (mode) => setPreferences({ themeMode: mode })
+
   return {
     preferences,
     loaded,
@@ -90,5 +95,7 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
     setPreferences,
     journalOrder,
     setJournalOrder,
+    themeMode,
+    setThemeMode,
   }
 })

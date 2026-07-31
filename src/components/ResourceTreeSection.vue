@@ -42,7 +42,7 @@ const formatDate = (dateString) => {
 <style scoped>
 .entry-item {
   min-height: 60px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  border-bottom: 1px solid var(--color-border);
   border-left: 3px solid transparent;
 }
 

@@ -40,7 +40,7 @@ const activeTab = ref('seeds')
 <style scoped>
 .garden-card {
   backdrop-filter: blur(10px);
-  background-color: rgba(255, 255, 255, 0.9) !important;
+  background-color: var(--color-surface-translucent) !important;
   border-radius: 12px;
   overflow: hidden;
 }

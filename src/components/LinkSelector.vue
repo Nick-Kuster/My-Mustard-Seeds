@@ -119,7 +119,7 @@ const openLink = (url) => {
 }
 
 .section-header:hover {
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--color-hover);
 }
 
 .section-header .q-btn {
@@ -129,7 +129,7 @@ const openLink = (url) => {
 .link-item {
   padding: 8px 12px;
   border-radius: 4px;
-  background: #f8f9fa;
+  background: var(--color-surface-muted);
   border-left: 3px solid #0d6efd;
 }
 
