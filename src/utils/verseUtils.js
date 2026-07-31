@@ -50,6 +50,77 @@ export const verseMatchesRange = (verse, range) => {
 }
 
 /**
+ * Parses free-text "chapter:verse" input (e.g. "1:1") into { chapter, verse }.
+ * Returns null for anything that doesn't match — callers trust the user to
+ * type a valid reference rather than validating against live chapter/verse data.
+ * @param {string} text
+ * @returns {{chapter: number, verse: number}|null}
+ */
+const VERSE_REF_PATTERN = /^\s*(\d+)\s*:\s*(\d+)\s*$/
+
+export const parseVerseRef = (text) => {
+  const match = VERSE_REF_PATTERN.exec(text || '')
+  if (!match) return null
+  return { chapter: Number(match[1]), verse: Number(match[2]) }
+}
+
+/**
+ * Like parseVerseRef, but also accepts a bare chapter number (e.g. "3"),
+ * returning { chapter, verse: null } — used by the search filter, where a
+ * whole-chapter match is meaningful. VerseSelectionModal keeps using the
+ * stricter parseVerseRef since it must resolve to one exact verse.
+ * @param {string} text
+ * @returns {{chapter: number, verse: number|null}|null}
+ */
+const CHAPTER_ONLY_PATTERN = /^\s*(\d+)\s*$/
+
+export const parseVerseFilterRef = (text) => {
+  const verseMatch = VERSE_REF_PATTERN.exec(text || '')
+  if (verseMatch) return { chapter: Number(verseMatch[1]), verse: Number(verseMatch[2]) }
+  const chapterMatch = CHAPTER_ONLY_PATTERN.exec(text || '')
+  if (chapterMatch) return { chapter: Number(chapterMatch[1]), verse: null }
+  return null
+}
+
+/**
+ * Parses a free-standing verse reference that includes the book name, e.g.
+ * "John 3:16", "Genesis 1:1-2:3", "Psalm 23", "1 Corinthians 13:4-7" — used
+ * by the ChatGPT import, where there's no book already selected in the UI
+ * for the reference to be relative to (unlike parseVerseRef/parseVerseFilterRef).
+ * Book names are matched case-insensitively by the caller.
+ * @param {string} text
+ * @returns {{book: string, startChapter: number, startVerse: number|null, endChapter: number, endVerse: number|null}|null}
+ */
+const FULL_REF_PATTERN = /^\s*(.+?)\s+(\d+)(?::(\d+))?(?:\s*-\s*(?:(\d+)\s*:\s*)?(\d+))?\s*$/
+
+export const parseFullVerseReference = (text) => {
+  const match = FULL_REF_PATTERN.exec(text || '')
+  if (!match) return null
+  const [, book, chapter, verse, endChapter, trailingNum] = match
+
+  const startChapter = Number(chapter)
+  const startVerse = verse != null ? Number(verse) : null
+
+  if (trailingNum == null) {
+    // No range suffix at all: "Book C" or "Book C:V"
+    return { book, startChapter, startVerse, endChapter: startChapter, endVerse: startVerse }
+  }
+
+  if (startVerse == null) {
+    // "Book C-C2": trailingNum is an end chapter, whole chapters throughout
+    return { book, startChapter, startVerse: null, endChapter: Number(trailingNum), endVerse: null }
+  }
+
+  if (endChapter != null) {
+    // "Book C:V-C2:V2"
+    return { book, startChapter, startVerse, endChapter: Number(endChapter), endVerse: Number(trailingNum) }
+  }
+
+  // "Book C:V-V2": same-chapter verse range
+  return { book, startChapter, startVerse, endChapter: startChapter, endVerse: Number(trailingNum) }
+}
+
+/**
  * Human-readable label for a verse-range filter,
  * e.g. "John", "John 3", "John 3-5", "John 3:16", "John 3:16-18", "John 3:16-4:2"
  */

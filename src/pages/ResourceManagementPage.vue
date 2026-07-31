@@ -1,9 +1,8 @@
 <template>
-  <q-page class="q-pa-md">
+  <q-page class="q-pa-md q-mt-lg">
     <div class="row q-col-gutter-md justify-center">
-      <div class="col-12 col-sm-10 col-md-8 q-pa-lg parchment">
+      <div class="col-12 wide-content-card q-pa-lg parchment">
         <div class="row items-center q-mb-md">
-          <q-btn flat round icon="arrow_back" color="primary" @click="router.go(-1)" />
           <div class="col text-h6 text-center">Manage Resources</div>
           <q-btn flat round icon="refresh" color="primary" :loading="refreshing" @click="handleRefresh">
             <q-tooltip>Refresh from database</q-tooltip>
@@ -36,20 +35,40 @@
                 </q-item-label>
               </q-item-section>
               <q-item-section side>
-                <div class="row q-gutter-xs no-wrap">
-                  <q-btn flat round dense :icon="isLeafType(resource.type) ? 'notes' : 'manage_search'" color="teal"
-                    :loading="viewingNotesId === resource.id" @click="viewNotes(resource)">
-                    <q-tooltip>
-                      {{ isLeafType(resource.type) ? 'View Journal Entries' : 'Browse Entries Under This' }}
-                    </q-tooltip>
-                  </q-btn>
-                  <q-btn v-if="childTypeLabel(resource.type)" flat round dense icon="add" color="positive"
-                    @click="openAddChild(resource)">
-                    <q-tooltip>Add {{ childTypeLabel(resource.type) }}</q-tooltip>
-                  </q-btn>
-                  <q-btn flat round dense icon="edit" color="primary" @click="openEdit(resource)" />
-                  <q-btn flat round dense icon="delete" color="negative" @click="openDelete(resource)" />
-                </div>
+                <q-btn flat round dense icon="more_vert" :loading="viewingNotesId === resource.id"
+                  aria-label="Resource actions">
+                  <q-menu anchor="bottom right" self="top right">
+                    <q-list style="min-width: 220px">
+                      <q-item clickable v-close-popup @click="viewNotes(resource)">
+                        <q-item-section avatar>
+                          <q-icon :name="isLeafType(resource.type) ? 'notes' : 'manage_search'" color="teal" />
+                        </q-item-section>
+                        <q-item-section>
+                          {{ isLeafType(resource.type) ? 'View Journal Entries' : 'Browse Entries Under This' }}
+                        </q-item-section>
+                      </q-item>
+                      <q-item v-if="childTypeLabel(resource.type)" clickable v-close-popup
+                        @click="openAddChild(resource)">
+                        <q-item-section avatar>
+                          <q-icon name="add" color="positive" />
+                        </q-item-section>
+                        <q-item-section>Add {{ childTypeLabel(resource.type) }}</q-item-section>
+                      </q-item>
+                      <q-item clickable v-close-popup @click="openEdit(resource)">
+                        <q-item-section avatar>
+                          <q-icon name="edit" color="primary" />
+                        </q-item-section>
+                        <q-item-section>Edit</q-item-section>
+                      </q-item>
+                      <q-item clickable v-close-popup @click="openDelete(resource)">
+                        <q-item-section avatar>
+                          <q-icon name="delete" color="negative" />
+                        </q-item-section>
+                        <q-item-section class="text-negative">Delete</q-item-section>
+                      </q-item>
+                    </q-list>
+                  </q-menu>
+                </q-btn>
               </q-item-section>
             </q-item>
           </q-list>
@@ -84,12 +103,13 @@
                 No {{ section.label.toLowerCase() }} yet
               </div>
               <q-item v-for="row in section.rows" :key="row.resource.id"
+                :clickable="row.hasChildren" v-ripple="row.hasChildren"
+                @click="row.hasChildren && toggleExpand(row.resource.id)"
                 :style="{ paddingLeft: `${16 + row.depth * 24}px` }">
                 <q-item-section avatar>
                   <div class="row-toggle">
-                    <q-btn v-if="row.hasChildren" flat round dense
-                      :icon="collapsedIds.has(row.resource.id) ? 'chevron_right' : 'expand_more'"
-                      @click="toggleExpand(row.resource.id)" />
+                    <q-icon v-if="row.hasChildren"
+                      :name="expandedIds.has(row.resource.id) ? 'expand_more' : 'chevron_right'" />
                     <q-icon v-else name="fiber_manual_record" size="8px" class="text-grey-5" />
                   </div>
                 </q-item-section>
@@ -98,20 +118,40 @@
                   <q-item-label v-if="row.depth > 0" caption>{{ typeLabel(row.resource.type) }}</q-item-label>
                 </q-item-section>
                 <q-item-section side>
-                  <div class="row q-gutter-xs no-wrap">
-                    <q-btn flat round dense :icon="isLeafType(row.resource.type) ? 'notes' : 'manage_search'"
-                      color="teal" :loading="viewingNotesId === row.resource.id" @click="viewNotes(row.resource)">
-                      <q-tooltip>
-                        {{ isLeafType(row.resource.type) ? 'View Journal Entries' : 'Browse Entries Under This' }}
-                      </q-tooltip>
-                    </q-btn>
-                    <q-btn v-if="childTypeLabel(row.resource.type)" flat round dense icon="add" color="positive"
-                      @click="openAddChild(row.resource)">
-                      <q-tooltip>Add {{ childTypeLabel(row.resource.type) }}</q-tooltip>
-                    </q-btn>
-                    <q-btn flat round dense icon="edit" color="primary" @click="openEdit(row.resource)" />
-                    <q-btn flat round dense icon="delete" color="negative" @click="openDelete(row.resource)" />
-                  </div>
+                  <q-btn flat round dense icon="more_vert" :loading="viewingNotesId === row.resource.id"
+                    aria-label="Resource actions" @click.stop>
+                    <q-menu anchor="bottom right" self="top right">
+                      <q-list style="min-width: 220px">
+                        <q-item clickable v-close-popup @click="viewNotes(row.resource)">
+                          <q-item-section avatar>
+                            <q-icon :name="isLeafType(row.resource.type) ? 'notes' : 'manage_search'" color="teal" />
+                          </q-item-section>
+                          <q-item-section>
+                            {{ isLeafType(row.resource.type) ? 'View Journal Entries' : 'Browse Entries Under This' }}
+                          </q-item-section>
+                        </q-item>
+                        <q-item v-if="childTypeLabel(row.resource.type)" clickable v-close-popup
+                          @click="openAddChild(row.resource)">
+                          <q-item-section avatar>
+                            <q-icon name="add" color="positive" />
+                          </q-item-section>
+                          <q-item-section>Add {{ childTypeLabel(row.resource.type) }}</q-item-section>
+                        </q-item>
+                        <q-item clickable v-close-popup @click="openEdit(row.resource)">
+                          <q-item-section avatar>
+                            <q-icon name="edit" color="primary" />
+                          </q-item-section>
+                          <q-item-section>Edit</q-item-section>
+                        </q-item>
+                        <q-item clickable v-close-popup @click="openDelete(row.resource)">
+                          <q-item-section avatar>
+                            <q-icon name="delete" color="negative" />
+                          </q-item-section>
+                          <q-item-section class="text-negative">Delete</q-item-section>
+                        </q-item>
+                      </q-list>
+                    </q-menu>
+                  </q-btn>
                 </q-item-section>
               </q-item>
             </q-expansion-item>
@@ -274,16 +314,16 @@ const roots = computed(() => {
   )
 })
 
-// Ids of expanded nodes that the user has manually collapsed; everything
-// else defaults to expanded. A plain JS walk (not a recursive component)
-// flattens the tree into rows with a depth, so rendering is a single v-for.
-const collapsedIds = reactive(new Set())
+// Ids of nodes the user has manually expanded; everything else defaults to
+// collapsed. A plain JS walk (not a recursive component) flattens the tree
+// into rows with a depth, so rendering is a single v-for.
+const expandedIds = reactive(new Set())
 
 const toggleExpand = (id) => {
-  if (collapsedIds.has(id)) {
-    collapsedIds.delete(id)
+  if (expandedIds.has(id)) {
+    expandedIds.delete(id)
   } else {
-    collapsedIds.add(id)
+    expandedIds.add(id)
   }
 }
 
@@ -298,7 +338,7 @@ const flattenTree = (rootResources) => {
       depth,
       hasChildren: children.length > 0,
     })
-    if (collapsedIds.has(resource.id)) return
+    if (!expandedIds.has(resource.id)) return
     children.forEach((child) => walk(child, depth + 1))
   }
   rootResources.forEach((r) => walk(r, 0))
@@ -306,8 +346,8 @@ const flattenTree = (rootResources) => {
 }
 
 // Types that can be created as brand-new top-level resources (Church,
-// Ministry, Author, ...) — their sections always show, even with zero
-// items yet, so there's somewhere to add the first one
+// Author/Ministry, Devotional, ...) — their sections always show, even with
+// zero items yet, so there's somewhere to add the first one
 const ROOT_TYPES = getRootResourceTypes()
 
 // Which sections are expanded; nothing open by default
@@ -438,7 +478,7 @@ const openAddChild = (parentResource) => {
   showAddDialog.value = true
 }
 
-// A brand-new top-level resource (Church, Ministry, ...) — no parent
+// A brand-new top-level resource (Church, Author/Ministry, ...) — no parent
 const openAddRoot = (type) => {
   addParentResource.value = null
   addChildType.value = type
@@ -452,7 +492,7 @@ const saveAdd = async () => {
     if (addParentResource.value) {
       await resourcesStore.addChildResource(addParentResource.value.id, addChildType.value, { ...addForm.value })
       await loadRelationships()
-      collapsedIds.delete(addParentResource.value.id) // reveal the new child
+      expandedIds.add(addParentResource.value.id) // reveal the new child
     } else {
       await resourcesStore.addResource(addChildType.value, { ...addForm.value })
       openSectionTypes.add(addChildType.value) // reveal the new root item

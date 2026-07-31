@@ -1,7 +1,7 @@
 <template>
   <q-page class="q-pt-xl q-px-md q-pb-md">
     <div class="row q-col-gutter-md justify-center">
-      <div class="col-12 col-sm-8 col-md-6 q-pa-lg parchment">
+      <div class="col-12 content-card q-pa-lg parchment">
         <div v-if="loading" class="text-center q-pa-lg">
           <q-spinner color="primary" size="3em" />
         </div>
@@ -89,14 +89,13 @@
                   </div>
                 </div>
 
-                <!-- Devotional / study-linked types -->
-                <div v-if="['Devotional', 'Inductive Study', 'Study Overview'].includes(entry?.type)"
-                  class="q-mb-lg">
-                  <div v-if="selectedDevotionalSeries">
+                <!-- Devotional -->
+                <div v-if="entry?.type === 'Devotional'" class="q-mb-lg">
+                  <div v-if="selectedDevotional">
                     <div class="q-mb-md">
-                      <div class="text-body1">{{ selectedDevotionalSeries.metadata.name }}</div>
-                      <div v-if="selectedMinistry" class="text-caption text-grey-8">
-                        by {{ selectedMinistry.metadata.name }}
+                      <div class="text-body1">{{ selectedDevotional.metadata.name }}</div>
+                      <div v-if="selectedDevotional.metadata.author" class="text-caption text-grey-8">
+                        by {{ selectedDevotional.metadata.author }}
                       </div>
                     </div>
                   </div>
@@ -128,16 +127,13 @@
               </div>
             </div>
           </div>
-          <div class="row q-col-gutter-sm justify-end q-mb-xl">
+          <div v-if="$q.screen.gt.sm" class="row q-col-gutter-sm justify-end q-mb-xl">
             <div class="col-auto">
               <q-btn rounded unelevated color="primary" icon="edit" style="height: 40px"
                 @click="router.push(`/entry/${entry.id}/edit`)" />
             </div>
             <div class="col-auto">
               <q-btn rounded unelevated color="negative" icon="delete" style="height: 40px" @click="confirmDelete" />
-            </div>
-            <div class="col-auto">
-              <q-btn rounded unelevated color="grey" label="Back" @click="router.go(-1)" style="height: 40px" />
             </div>
           </div>
           <!-- Tabs Section -->
@@ -154,12 +150,8 @@
             <q-tab-panel name="main" class="q-pa-md">
               <div class="q-mb-xl">
                 <template v-if="entry?.decryptedContent?.sections">
-                  <div v-for="(section, index) in entry.decryptedContent.sections" :key="index" class="q-mb-lg">
-                    <div class="text-subtitle1 text-weight-medium q-mb-sm">
-                      {{ section.title || 'Untitled Section' }}
-                    </div>
-                    <div class="text-body1" style="white-space: pre-wrap">{{ section.content }}</div>
-                  </div>
+                  <ContentSectionView v-for="(section, index) in entry.decryptedContent.sections"
+                    :key="section.id || index" :section="section" />
                 </template>
               </div>
             </q-tab-panel>
@@ -217,16 +209,18 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { supabase } from 'src/boot/supabase'
 import { useJournalStore } from 'src/stores/journalData'
+import { usePageActionsStore } from 'stores/pageActions'
 import LinkedVerses from 'components/LinkedVerses.vue'
 import TagSelector from 'components/TagSelector.vue'
 import QuoteSelector from 'components/QuoteSelector.vue'
 import LinkSelector from 'components/LinkSelector.vue'
 import VerseDisplayModal from 'components/VerseDisplayModal.vue'
+import ContentSectionView from 'components/ContentSectionView.vue'
 import { createDisplayVerse } from 'src/utils/verseUtils'
 import { useResourcesStore } from 'src/stores/resources'
 
@@ -249,7 +243,7 @@ const mainVerse = ref({})
 
 // Types that use the main-verse (passage) selector; 'Bible' kept for
 // entries created before the type rename migration
-const verseEntryTypes = ['Daily Bible Reading', 'Inductive Study', 'Study Overview', 'Bible']
+const verseEntryTypes = ['Daily Bible Reading', 'Bible']
 
 // Resources
 const selectedChurch = ref(null)
@@ -259,8 +253,7 @@ const selectedSermon = ref(null)
 const selectedPodcast = ref(null)
 const selectedPodcastEpisode = ref(null)
 const selectedArtist = ref(null)
-const selectedMinistry = ref(null)
-const selectedDevotionalSeries = ref(null)
+const selectedDevotional = ref(null)
 const selectedBook = ref(null)
 const selectedAuthor = ref(null)
 const selectedChapter = ref(null)
@@ -286,8 +279,7 @@ const resetEntryState = () => {
   selectedPodcast.value = null
   selectedPodcastEpisode.value = null
   selectedArtist.value = null
-  selectedMinistry.value = null
-  selectedDevotionalSeries.value = null
+  selectedDevotional.value = null
   selectedBook.value = null
   selectedAuthor.value = null
   selectedChapter.value = null
@@ -366,11 +358,8 @@ const fetchEntry = async () => {
         case 'Book':
           selectedBook.value = resource;
           break;
-        case 'Ministry':
-          selectedMinistry.value = resource;
-          break;
-        case 'DevotionalSeries':
-          selectedDevotionalSeries.value = resource;
+        case 'Devotional':
+          selectedDevotional.value = resource;
           break;
         default:
           break;
@@ -468,6 +457,31 @@ const handleTouchEnd = () => {
 // Lifecycle hooks
 onMounted(() => {
   fetchEntry()
+})
+
+const pageActionsStore = usePageActionsStore()
+
+onMounted(() => {
+  pageActionsStore.setFooterActions([
+    {
+      key: 'edit',
+      label: 'Edit',
+      icon: 'edit',
+      color: 'primary',
+      handler: () => router.push(`/entry/${entry.value.id}/edit`),
+    },
+    {
+      key: 'delete',
+      label: 'Delete',
+      icon: 'delete',
+      color: 'negative',
+      handler: confirmDelete,
+    },
+  ])
+})
+
+onUnmounted(() => {
+  pageActionsStore.clearFooterActions()
 })
 
 // Vue Router reuses this component when only the :id param changes

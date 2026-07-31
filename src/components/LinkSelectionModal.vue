@@ -25,6 +25,7 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue'
+import { isSafeExternalUrl } from 'src/utils/urlUtils'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -56,6 +57,7 @@ watch(() => props.editData, (newValue) => {
 
 const submitLink = () => {
   if (!linkData.value.name || !linkData.value.url) return
+  if (!isSafeExternalUrl(linkData.value.url)) return
 
   if (props.editData) {
     emit('update', { ...linkData.value })

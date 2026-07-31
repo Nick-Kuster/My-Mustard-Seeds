@@ -22,6 +22,18 @@ export const getVerseDisplay = (verse) => {
   }
 }
 
+const sectionsMatchSearch = (sections, search) => {
+  return sections.some((section) => {
+    if (
+      section?.title?.toLowerCase().includes(search) ||
+      section?.content?.toLowerCase().includes(search)
+    ) {
+      return true
+    }
+    return section?.children ? sectionsMatchSearch(section.children, search) : false
+  })
+}
+
 export const useJournalStore = defineStore('journalData', () => {
   const entries = ref([])
   const loading = ref(false)
@@ -32,6 +44,7 @@ export const useJournalStore = defineStore('journalData', () => {
   const selectedFacets = ref({
     types: [], // journal types like 'Bible', 'Sermon', etc.
     verses: [], // selected verse references
+    books: [], // selected Bible book names
     resourceTypes: [], // types of resources
     resources: [], // specific resources
     tags: [], // selected tags
@@ -111,16 +124,9 @@ export const useJournalStore = defineStore('journalData', () => {
         // Search in title
         if (entry.title?.toLowerCase().includes(search)) return true
 
-        // Search in content sections
-        const content = entry.decryptedContent || {}
-        for (const section of Object.values(content)) {
-          if (
-            section?.title?.toLowerCase().includes(search) ||
-            section?.content?.toLowerCase().includes(search)
-          ) {
-            return true
-          }
-        }
+        // Search in content sections (recursing into nested subsections)
+        const sections = entry.decryptedContent?.sections || []
+        if (sectionsMatchSearch(sections, search)) return true
 
         // Search in verses
         if (
@@ -183,6 +189,13 @@ export const useJournalStore = defineStore('journalData', () => {
       )
     }
 
+    // Book facet matches any verse from that book, independent of chapter/verse
+    if (selectedFacets.value.books.length > 0) {
+      filtered = filtered.filter((entry) =>
+        entry.verses?.some((verse) => selectedFacets.value.books.includes(verse.book)),
+      )
+    }
+
     if (selectedFacets.value.resourceTypes.length > 0) {
       filtered = filtered.filter((entry) =>
         entry.resources?.some((resource) =>
@@ -241,6 +254,7 @@ export const useJournalStore = defineStore('journalData', () => {
     selectedFacets.value = {
       types: [],
       verses: [],
+      books: [],
       resourceTypes: [],
       resources: [],
       tags: [],

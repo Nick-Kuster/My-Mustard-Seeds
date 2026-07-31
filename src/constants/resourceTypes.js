@@ -6,7 +6,6 @@ export const RESOURCE_TYPES = {
   PASTOR: 'Pastor',
   SONG_ARTIST: 'SongArtist',
   CHURCH: 'Church',
-  MINISTRY: 'Ministry',
   SERMON_SERIES: 'SermonSeries',
   SERMON: 'Sermon',
   CHAPTER: 'Chapter',
@@ -14,5 +13,5 @@ export const RESOURCE_TYPES = {
   SEASON: 'Season',
   EPISODE: 'Episode',
   GROUP: 'Group',
-  DEVOTIONAL_SERIES: 'DevotionalSeries',
+  DEVOTIONAL: 'Devotional',
 }

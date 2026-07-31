@@ -6,61 +6,67 @@
 
   <!-- Main layout container -->
   <q-layout view="lHh Lpr lFf">
-    <q-header elevated>
-      <q-toolbar>
-        <q-btn flat dense round icon="menu" aria-label="Menu" @click="toggleLeftDrawer" />
-        <q-toolbar-title>
-          <router-link to="/" class="text-white text-decoration-none header-link">
-            My Mustard Seeds
-            <q-icon size="xs" class="q-ml-sm fa-solid fa-cross" />
-          </router-link>
-        </q-toolbar-title>
-        <q-btn flat dense round icon="logout" aria-label="Logout" @click="handleSignOut" />
+    <q-header elevated class="app-header">
+      <q-toolbar class="app-toolbar">
+        <!-- On very wide screens the bar itself still spans edge to edge,
+             but its content stays capped and centered so the logo and the
+             nav/logout aren't stretched far apart from each other. -->
+        <div class="app-toolbar-inner">
+          <q-toolbar-title>
+            <router-link to="/" class="text-white text-decoration-none header-link">
+              <q-avatar size="32px" class="header-logo-badge">
+                <img src="icons/favicon-32x32.png" alt="" class="header-logo" />
+              </q-avatar>
+              <span class="header-title-text">My Mustard Seeds</span>
+              <q-icon size="xs" class="q-ml-sm header-cross fa-solid fa-cross" />
+            </router-link>
+          </q-toolbar-title>
+
+          <!-- Desktop nav: the side drawer no longer exists, so this is the
+               only way to reach anything besides Home on larger screens -->
+          <div v-if="$q.screen.gt.sm" class="header-nav">
+            <router-link v-for="link in navLinks" :key="link.to" :to="link.to" custom
+              v-slot="{ navigate, isExactActive }">
+              <q-btn
+                flat no-caps dense
+                :class="['header-nav-btn', { 'header-nav-btn--active': isExactActive }]"
+                @click="navigate"
+              >
+                <q-icon :name="link.icon" size="18px" class="q-mr-xs" />
+                {{ link.label }}
+              </q-btn>
+            </router-link>
+          </div>
+
+          <q-btn flat dense round icon="logout" aria-label="Logout" @click="handleSignOut" />
+        </div>
       </q-toolbar>
     </q-header>
-
-    <NavigationDrawer v-model="leftDrawerOpen" />
 
     <q-page-container>
       <div class="content-wrapper">
         <router-view />
       </div>
     </q-page-container>
+
+    <BottomNavBar />
   </q-layout>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
-import { useRoute } from 'vue-router'
 import { supabase } from 'src/boot/supabase'
-import NavigationDrawer from 'components/NavigationDrawer.vue'
+import BottomNavBar from 'components/BottomNavBar.vue'
 
 const $q = useQuasar()
-const route = useRoute()
-const leftDrawerOpen = ref(false)
-const previousIsMobile = ref($q.platform.is.mobile)
-onMounted(() => {
-  leftDrawerOpen.value = false
-})
 
-
-// Close the drawer after navigating so the destination page is visible
-watch(() => route.fullPath, () => {
-  leftDrawerOpen.value = false
-})
-
-// Only trigger when switching between mobile/desktop modes
-watch(() => $q.platform.is.mobile, (isMobile, oldIsMobile) => {
-  if (isMobile !== oldIsMobile) {
-    leftDrawerOpen.value = !isMobile
-    previousIsMobile.value = isMobile
-  }
-})
-
-const toggleLeftDrawer = () => {
-  leftDrawerOpen.value = !leftDrawerOpen.value
-}
+const navLinks = [
+  { to: '/', icon: 'home', label: 'Home' },
+  { to: '/entry/new', icon: 'agriculture', label: 'Plant a Seed' },
+  { to: '/search', icon: 'search', label: 'Search' },
+  { to: '/resources', icon: 'inventory_2', label: 'Resources' },
+  { to: '/settings', icon: 'settings', label: 'Settings' },
+]
 
 const handleSignOut = async () => {
   try {
@@ -86,6 +92,27 @@ const handleSignOut = async () => {
   z-index: -1;
 }
 
+.app-header {
+  background: linear-gradient(135deg, #8ba192 0%, #7c9082 55%, #66795e 100%);
+}
+
+.app-toolbar {
+  min-height: 60px;
+  padding: 0 12px;
+}
+
+.app-toolbar-inner {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.app-toolbar-inner :deep(.q-toolbar__title) {
+  flex: 1;
+}
+
 .text-decoration-none {
   text-decoration: none;
 }
@@ -99,15 +126,49 @@ const handleSignOut = async () => {
   align-items: center;
 }
 
+.header-logo-badge {
+  background: rgba(255, 253, 248, 0.95);
+  padding: 4px;
+  margin-right: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
 .header-logo {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  object-fit: cover;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 12px;
+}
+
+.header-nav-btn {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.header-nav-btn--active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.header-title-text {
+  font-weight: 800;
+  font-size: 1.2rem;
+  letter-spacing: 0.02em;
+}
+
+.header-cross {
+  opacity: 0.85;
 }
 
 .content-wrapper {
-  max-width: 1280px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 0 16px;
   position: relative;

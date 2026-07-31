@@ -33,6 +33,11 @@ const routes = [
         component: () => import('pages/ResourceManagementPage.vue'),
         meta: { requiresAuth: true },
       },
+      {
+        path: 'settings',
+        component: () => import('pages/SettingsPage.vue'),
+        meta: { requiresAuth: true },
+      },
     ],
   },
   {

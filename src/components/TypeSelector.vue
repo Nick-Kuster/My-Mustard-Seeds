@@ -3,7 +3,8 @@
     <!-- Clickable Type Display -->
     <div class="type-display q-mb-md" role="button" @click="isOpen = true">
       <div class="row items-center no-wrap">
-        <q-icon :name="getTypeIcon(modelValue)" size="24px" class="q-mr-sm" />
+        <q-icon :name="getTypeIcon(modelValue)" size="24px" class="q-mr-sm"
+          :style="{ color: typeColorsStore.getColor(modelValue) }" />
         <div class="col">
           <div class="text-subtitle1 text-weight-medium">{{ modelValue || 'Select Journal Type' }}</div>
           <div v-if="getTypeDescription(modelValue)" class="text-caption text-grey-8">
@@ -23,9 +24,10 @@
           <div class="row q-col-gutter-md">
             <div v-for="type in types" :key="type.id" class="col-4 col-xs-4">
               <q-btn class="full-width entry-type-btn" :class="{ 'selected': modelValue === type.id }" unelevated
+                :style="modelValue === type.id ? { borderColor: typeColorsStore.getColor(type.id) } : {}"
                 @click="selectType(type.id)">
                 <div class="content-wrapper">
-                  <q-icon :name="type.icon" size="24px" />
+                  <q-icon :name="type.icon" size="24px" :style="{ color: typeColorsStore.getColor(type.id) }" />
                   <div class="label-wrapper">{{ type.label }}</div>
                 </div>
               </q-btn>
@@ -40,8 +42,11 @@
 <script setup>
 import { ref } from 'vue'
 import { useQuasar } from 'quasar'
+import { JOURNAL_TYPES } from 'src/constants/journalTypes'
+import { useJournalTypeColorsStore } from 'stores/journalTypeColors'
 
 const $q = useQuasar()
+const typeColorsStore = useJournalTypeColorsStore()
 
 defineProps({
   modelValue: {
@@ -54,22 +59,7 @@ const emit = defineEmits(['update:modelValue'])
 
 const isOpen = ref(false)
 
-const types = [
-  { id: 'Daily Bible Reading', icon: 'menu_book', label: 'Daily Bible Reading', description: 'Read and meditate on Scripture' },
-  { id: 'Inductive Study', icon: 'travel_explore', label: 'Inductive Study', description: 'Observe, interpret, and apply a passage in depth' },
-  { id: 'Study Overview', icon: 'summarize', label: 'Study Overview', description: 'Book theme, key words, and chapter-at-a-glance for a study' },
-  { id: 'Sermon', icon: 'church', label: 'Sermon Notes', description: 'Notes from a sermon or teaching' },
-  { id: 'Answered Prayer / Miracle', icon: 'front_hand', label: 'Answered Prayer/\nMiracle', description: 'Record of God\'s faithfulness' },
-  { id: 'Devotional', icon: 'auto_stories', label: 'Devotional', description: 'Daily devotional reflections' },
-  { id: 'Group', icon: 'group', label: 'Group Study', description: 'Small group or Bible study notes' },
-  { id: 'Video', icon: 'smart_display', label: 'Video', description: 'Notes from Christian videos' },
-  { id: 'Book', icon: 'book', label: 'Book Notes', description: 'Notes from Christian books' },
-  { id: 'Song', icon: 'music_note', label: 'Worship Song', description: 'Reflections on worship music' },
-  { id: 'Article', icon: 'article', label: 'Article Notes', description: 'Notes from Christian articles' },
-  { id: 'Podcast', icon: 'podcasts', label: 'Podcast Notes', description: 'Notes from Christian podcasts' },
-  { id: 'Show', icon: 'tv', label: 'Show Notes', description: 'Notes from Christian shows/videos' },
-  { id: 'Other', icon: 'more_horiz', label: 'Other', description: 'Other spiritual reflections' }
-]
+const types = JOURNAL_TYPES
 
 const getTypeIcon = (typeId) => {
   const type = types.find(t => t.id === typeId)
@@ -114,8 +104,8 @@ const selectType = (typeId) => {
 }
 
 .entry-type-btn.selected {
-  border: 2px solid var(--q-primary);
-  background: rgba(var(--q-primary), 0.05);
+  border-width: 2px;
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .content-wrapper {

@@ -6,7 +6,6 @@
         Print Preview — {{ entries.length }} {{ entries.length === 1 ? 'entry' : 'entries' }}
       </div>
       <div class="row items-center">
-        <q-btn flat round icon="arrow_back" color="primary" @click="router.go(-1)" />
         <q-space />
         <q-btn unelevated color="primary" icon="print" label="Print / Save as PDF" @click="printPage"
           :disable="loading || entries.length === 0" />
@@ -74,10 +73,8 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { useJournalStore, getVerseDisplay } from 'src/stores/journalData'
 
-const router = useRouter()
 const journalStore = useJournalStore()
 
 const loading = ref(true)

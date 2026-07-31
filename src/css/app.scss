@@ -58,6 +58,25 @@ body {
   background-color: #faf6e9;
 }
 
+// Page-content cards used to be capped at a Quasar column fraction (e.g.
+// col-md-6) that never grew past the "md" breakpoint, so on any screen wider
+// than a small laptop the card stayed roughly phone-width with empty space
+// on either side. width:100% + max-width lets them actually use the extra
+// room up to a sensible cap instead of stalling. !important because Quasar's
+// own .col-12 utility also sets max-width: 100%, and that rule happens to
+// come later in the cascade at equal specificity.
+.content-card {
+  width: 100% !important;
+  max-width: 880px !important;
+}
+
+// For browsing/list pages (resource tree) where more horizontal room is
+// useful, not just readable prose width.
+.wide-content-card {
+  width: 100% !important;
+  max-width: 1260px !important;
+}
+
 // app.scss
 
 // Reset Quasar's default card transitions and shadows

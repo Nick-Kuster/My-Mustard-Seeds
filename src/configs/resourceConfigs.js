@@ -2,7 +2,7 @@ import { RESOURCE_TYPES } from '../constants/resourceTypes'
 
 const configs = {
   [RESOURCE_TYPES.AUTHOR]: {
-    title: 'Author',
+    title: 'Author/Ministry',
     fields: {
       name: {
         label: 'Name',
@@ -12,6 +12,7 @@ const configs = {
     },
     allowedChildren: [RESOURCE_TYPES.BOOK],
     getDisplayTitle: (resource) => resource.metadata.name,
+    getDisplaySubtitle: null,
   },
   [RESOURCE_TYPES.BOOK]: {
     title: 'Book',
@@ -52,6 +53,11 @@ const configs = {
 
   [RESOURCE_TYPES.SERMON_SERIES]: {
     title: 'Sermon Series',
+    // Used in the resource-selection modal, where a Sermon Series and a
+    // one-off Sermon can appear side by side and need a quick label (and
+    // color) to tell them apart
+    shortTitle: 'Series',
+    color: '#5f9ea8',
     fields: {
       title: {
         label: 'Series Title',
@@ -63,20 +69,17 @@ const configs = {
         required: false,
         type: 'text',
       },
-      description: {
-        label: 'Description',
-        required: false,
-        type: 'text',
-      },
     },
     allowedChildren: [RESOURCE_TYPES.SERMON],
     getDisplayTitle: (resource) => resource.metadata.title,
     getDisplaySubtitle: (resource) =>
       resource.metadata.year ? `(${resource.metadata.year})` : null,
+    getYear: (resource) => resource.metadata.year || null,
   },
 
   [RESOURCE_TYPES.SERMON]: {
     title: 'Sermon',
+    color: '#c98a6b',
     fields: {
       title: {
         label: 'Title',
@@ -88,14 +91,10 @@ const configs = {
         required: false,
         type: 'date',
       },
-      description: {
-        label: 'Description',
-        required: false,
-        type: 'text',
-      },
     },
     getDisplayTitle: (resource) => resource.metadata.title,
     getDisplaySubtitle: (resource) => resource.metadata.date,
+    getYear: (resource) => resource.metadata.date?.slice(0, 4) || null,
   },
 
   [RESOURCE_TYPES.PASTOR]: {
@@ -106,15 +105,13 @@ const configs = {
         required: true,
         type: 'text',
       },
-      church: {
-        label: 'Church',
-        required: false,
-        type: 'text',
-      },
     },
-    allowedChildren: [RESOURCE_TYPES.SERMON_SERIES],
+    // A Pastor can hold either a full Sermon Series or a one-off Sermon
+    // directly — the drill-down lets a sermon skip the series level when
+    // it isn't part of one
+    allowedChildren: [RESOURCE_TYPES.SERMON_SERIES, RESOURCE_TYPES.SERMON],
     getDisplayTitle: (resource) => resource.metadata.name,
-    getDisplaySubtitle: (resource) => resource.metadata.church,
+    getDisplaySubtitle: null,
   },
 
   [RESOURCE_TYPES.SONG_ARTIST]: {
@@ -149,35 +146,22 @@ const configs = {
     getDisplaySubtitle: (resource) => resource.metadata.location,
   },
 
-  [RESOURCE_TYPES.MINISTRY]: {
-    title: 'Ministry',
+  [RESOURCE_TYPES.DEVOTIONAL]: {
+    title: 'Devotional',
     fields: {
       name: {
         label: 'Name',
         required: true,
         type: 'text',
       },
-      website: {
-        label: 'Website',
+      author: {
+        label: 'Author or Ministry',
         required: false,
         type: 'text',
       },
     },
-    allowedChildren: [RESOURCE_TYPES.DEVOTIONAL_SERIES],
     getDisplayTitle: (resource) => resource.metadata.name,
-    getDisplaySubtitle: (resource) => resource.metadata.website,
-  },
-
-  [RESOURCE_TYPES.DEVOTIONAL_SERIES]: {
-    title: 'Devotional Series',
-    fields: {
-      name: {
-        label: 'Name',
-        required: true,
-        type: 'text',
-      },
-    },
-    getDisplayTitle: (resource) => resource.metadata.name,
+    getDisplaySubtitle: (resource) => resource.metadata.author,
   },
 
   [RESOURCE_TYPES.PODCAST]: {
@@ -293,7 +277,7 @@ const configs = {
   },
 }
 
-// Correct plural for resource titles: Ministry -> Ministries,
+// Correct plural for resource titles: Author/Ministry -> Author/Ministries,
 // Church -> Churches, Sermon Series -> Sermon Series (unchanged)
 export const pluralizeTitle = (title) => {
   if (!title) return title
@@ -316,8 +300,37 @@ export const getAllowedChildTypes = (parentType) => {
 }
 
 // Resource types that are never another type's child — i.e. can be created
-// as brand-new top-level resources (Church, Ministry, Author, ...)
+// as brand-new top-level resources (Church, Author/Ministry, Devotional, ...)
 export const getRootResourceTypes = () => {
   const childTypes = new Set(Object.values(configs).flatMap((cfg) => cfg.allowedChildren || []))
   return Object.keys(configs).filter((type) => !childTypes.has(type))
+}
+
+// child type -> parent types, derived once from allowedChildren so it can
+// never drift out of sync with the tree defined above. Usually one parent,
+// but a type like Sermon can attach at more than one level (under a
+// SermonSeries, or directly under a Pastor as a one-off)
+const parentTypesOf = (() => {
+  const map = {}
+  Object.entries(configs).forEach(([parentType, cfg]) => {
+    ;(cfg.allowedChildren || []).forEach((childType) => {
+      if (!map[childType]) map[childType] = []
+      map[childType].push(parentType)
+    })
+  })
+  return map
+})()
+
+// How many levels deep a type sits below its root (Church=0, Pastor=1,
+// SermonSeries=2, Sermon=3, ...) — useful for ordering a flat bag of
+// resources into their natural parent-first hierarchy. For a type with
+// multiple possible parents, uses the deepest chain (e.g. Sermon is always
+// treated as 3 levels down, its depth via SermonSeries) so a one-off sermon
+// — which has no SermonSeries in its resource list at all — still sorts
+// after its Pastor rather than colliding with a real series at the same
+// depth.
+export const getResourceTypeDepth = (type) => {
+  const parents = parentTypesOf[type]
+  if (!parents || parents.length === 0) return 0
+  return 1 + Math.max(...parents.map((parentType) => getResourceTypeDepth(parentType)))
 }

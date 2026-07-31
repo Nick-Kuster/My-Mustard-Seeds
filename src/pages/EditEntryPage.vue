@@ -1,14 +1,11 @@
 <template>
-  <q-page class="q-pa-md">
+  <q-page class="q-pa-md q-mt-lg">
     <div v-if="loading" class="text-center q-pa-lg">
       <q-spinner color="primary" size="3em" />
     </div>
     <div v-else class="row q-col-gutter-md justify-center">
-      <div class="col-12 col-sm-8 col-md-6 q-ma-lg  q-pa-lg parchment">
+      <div class="col-12 content-card q-ma-lg q-pa-lg parchment">
         <div class="row items-center q-mb-md">
-          <div class="col-auto">
-            <q-btn flat round icon="arrow_back" color="primary" @click="router.go(-1)" />
-          </div>
           <div class="col">
             <div class="text-h6">Edit Seed</div>
           </div>
@@ -39,37 +36,21 @@
                 :startVerse="mainVerse.startVerse" :endVerse="mainVerse.endVerse" />
             </div>
             <div v-else>
-              <q-btn unelevated color="primary" label="Select Verse" @click="showVerseModal = true" />
+              <q-btn unelevated color="primary" label="Select Passage" @click="showVerseModal = true" />
             </div>
 
             <VerseSelectionModal v-model="showVerseModal" @select="onVerseSelect" />
-
-            <!-- Optional link to a study (Ministry -> Devotional Series) -->
-            <div v-if="entryType === 'Inductive Study' || entryType === 'Study Overview'" class="q-mt-md">
-              <div v-if="selectedDevotionalSeries">
-                <div class="text-body1">{{ selectedDevotionalSeries.metadata.name }}</div>
-                <div v-if="selectedMinistry" class="text-caption text-grey-8">
-                  by {{ selectedMinistry.metadata.name }}
-                </div>
-                <q-btn flat dense color="primary" class="q-px-none" label="Change Study"
-                  @click="showStudyModal = true" />
-              </div>
-              <div v-else>
-                <q-btn outline color="primary" label="Link to a Study (optional)" @click="showStudyModal = true" />
-              </div>
-
-              <ResourceSelectionModal v-model="showStudyModal" :resource-type="RESOURCE_TYPES.MINISTRY"
-                @select="onStudySelect" />
-            </div>
           </div>
           <!-- Sermon Specific Select -->
           <div v-else-if="entryType === 'Sermon'" class="q-mb-lg">
             <div v-if="selectedPastor">
               <div class="q-mb-md">
                 <div class="text-body1"><strong>Sermon:</strong> {{ selectedSermon.metadata.title }}</div>
-                <div class="text-body1"><strong>Series:</strong> {{ selectedSeries.metadata.title }}</div>
-                <div class="text-caption text-grey-8">By {{ selectedPastor.metadata.name }} From {{
-                  selectedPastor.metadata.church }}</div>
+                <div v-if="selectedSeries" class="text-body1"><strong>Series:</strong> {{ selectedSeries.metadata.title
+                }}</div>
+                <div class="text-caption text-grey-8">By {{ selectedPastor.metadata.name }}<template
+                    v-if="selectedChurch"> From {{ selectedChurch.metadata.name }}</template>
+                </div>
                 <div class="text-caption text-grey-8">On {{ selectedSermon.metadata.date }}</div>
               </div>
               <q-btn flat dense color="primary" class="q-px-none" label="Change" @click="showPastorModal = true" />
@@ -78,8 +59,8 @@
               <q-btn unelevated color="primary" label="Select Sermon" @click="showPastorModal = true" />
             </div>
 
-            <ResourceSelectionModal v-model="showPastorModal" :resource-type="RESOURCE_TYPES.PASTOR"
-              @select="onPastorSelect" />
+            <ResourceSelectionModal v-model="showPastorModal" :resource-type="RESOURCE_TYPES.CHURCH"
+              @select="onChurchSelect" />
           </div>
           <!-- Book Specific Select -->
           <div v-else-if="entryType === 'Book'" class="q-mb-lg">
@@ -137,21 +118,23 @@
               @select="onArtistSelect" />
           </div>
 
-          <!-- Ministry Specific Select -->
+          <!-- Devotional Specific Select -->
           <div v-else-if="entryType === 'Devotional'" class="q-mb-lg">
-            <div v-if="selectedMinistry">
+            <div v-if="selectedDevotional">
               <div class="q-mb-md">
-                <div class="text-body1">{{ selectedDevotionalSeries.metadata.name }}</div>
-                <div class="text-caption text-grey-8">by {{ selectedMinistry.metadata.name }}</div>
+                <div class="text-body1">{{ selectedDevotional.metadata.name }}</div>
+                <div v-if="selectedDevotional.metadata.author" class="text-caption text-grey-8">
+                  by {{ selectedDevotional.metadata.author }}
+                </div>
               </div>
-              <q-btn flat dense color="primary" class="q-px-none" label="Change" @click="showMinistryModal = true" />
+              <q-btn flat dense color="primary" class="q-px-none" label="Change" @click="showDevotionalModal = true" />
             </div>
             <div v-else>
-              <q-btn unelevated color="primary" label="Select Ministry" @click="showMinistryModal = true" />
+              <q-btn unelevated color="primary" label="Select Devotional" @click="showDevotionalModal = true" />
             </div>
 
-            <ResourceSelectionModal v-model="showMinistryModal" :resource-type="RESOURCE_TYPES.MINISTRY"
-              @select="onMinistrySelect" />
+            <ResourceSelectionModal v-model="showDevotionalModal" :resource-type="RESOURCE_TYPES.DEVOTIONAL"
+              @select="onDevotionalSelect" />
           </div>
 
           <!-- Group Specific Select -->
@@ -225,7 +208,7 @@
                   ]" class="q-mb-sm">
                     <template v-slot:append>
                       <q-btn v-if="section.content" flat round dense icon="open_in_new"
-                        @click="window.open(section.content, '_blank')" />
+                        @click="openSectionLink(section.content)" />
                     </template>
                   </q-input>
                 </div>
@@ -255,6 +238,9 @@
                 <template #item="{ element: section, index }">
                   <div class="section-container q-mb-md">
                     <div class="row items-center q-mb-sm section-header">
+                      <q-btn flat round dense size="sm"
+                        :icon="isCollapsed(section.id) ? 'chevron_right' : 'expand_more'"
+                        @click="toggleCollapse(section.id)" class="q-mr-xs" />
                       <div class="col">
                         <q-input v-model="section.title" label="Section Title" dense />
                       </div>
@@ -285,18 +271,28 @@
                         </div>
                       </div>
                     </div>
-                    <q-input v-model="section.content" type="textarea" :label="section.title || 'Your thoughts...'"
-                      autogrow class="custom-textarea" :disable="dragging" />
+                    <div v-show="!isCollapsed(section.id)">
+                      <q-input v-if="section.fieldType !== 'list'" v-model="section.content" type="textarea"
+                        :label="section.title || 'Your thoughts...'" autogrow class="custom-textarea"
+                        :disable="dragging" />
+
+                      <div v-else class="list-editor q-mb-sm">
+                        <div v-for="(item, i) in getListItems(section.content)" :key="i"
+                          class="row items-center no-wrap q-mb-xs">
+                          <q-icon name="fiber_manual_record" size="6px" class="q-mr-sm list-bullet" />
+                          <q-input :model-value="item"
+                            @update:model-value="section.content = setListItem(section.content, i, $event)" dense
+                            borderless placeholder="List item" class="col" :disable="dragging" />
+                          <q-btn flat round dense icon="close" size="sm" :disable="dragging"
+                            @click="section.content = removeListItem(section.content, i)" />
+                        </div>
+                        <q-btn flat dense no-caps icon="add" label="Add Item" color="primary" size="sm"
+                          :disable="dragging" @click="section.content = addListItem(section.content)" />
+                      </div>
+                    </div>
                   </div>
                 </template>
               </draggable>
-
-              <div class="q-mt-md">
-                <q-btn rounded unelevated color="info" class="full-width" style="height: 40px" @click="addSection">
-                  <q-icon name="add" class="q-mr-sm" />
-                  Add Section
-                </q-btn>
-              </div>
             </q-tab-panel>
 
             <!-- Additional Content Tab -->
@@ -325,15 +321,37 @@
             </q-tab-panel>
           </q-tab-panels>
 
-          <!-- Action Buttons -->
-          <div class="row q-col-gutter-x-sm q-mt-lg">
-            <div class="col-6">
+          <!-- Action Buttons (mobile: these live in the bottom nav bar instead, see pageActions store) -->
+          <div v-if="$q.screen.gt.sm" class="row q-col-gutter-x-sm q-mt-lg">
+            <div class="col-4">
+              <q-btn rounded unelevated color="info" no-caps class="full-width" style="height: 40px">
+                <q-icon name="add" class="q-mr-sm" />
+                Add Section
+                <q-menu anchor="top left" self="bottom left">
+                  <q-list style="min-width: 160px">
+                    <q-item clickable v-close-popup @click="addSectionAndFocus('longText')">
+                      <q-item-section avatar>
+                        <q-icon name="notes" />
+                      </q-item-section>
+                      <q-item-section>Text</q-item-section>
+                    </q-item>
+                    <q-item clickable v-close-popup @click="addSectionAndFocus('list')">
+                      <q-item-section avatar>
+                        <q-icon name="checklist" />
+                      </q-item-section>
+                      <q-item-section>List</q-item-section>
+                    </q-item>
+                  </q-list>
+                </q-menu>
+              </q-btn>
+            </div>
+            <div class="col-4">
               <q-btn rounded unelevated color="negative" class="full-width" @click="router.push('/entry/' + entryId)"
                 style="height: 40px">
                 <q-icon name="cancel" class="q-mr-sm" /> Cancel
               </q-btn>
             </div>
-            <div class="col-6">
+            <div class="col-4">
               <q-btn rounded unelevated color="primary" @click="updateEntry" class="full-width" :loading="saving"
                 style="height: 40px">
                 <span v-if="!saving">
@@ -349,28 +367,30 @@
   </q-page>
 </template>
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { supabase } from 'src/boot/supabase'
 import { getEncryptionKey, encryptData, decryptData } from 'src/utils/encryption'
-import { RESOURCE_TYPES, useResourcesStore } from 'stores/resources'
+import { RESOURCE_TYPES } from 'stores/resources'
+import { usePageActionsStore } from 'stores/pageActions'
 import VerseSelectionModal from 'components/VerseSelectionModal.vue'
 import ResourceSelectionModal from 'components/ResourceSelectionModal.vue'
 import { useJournalStore } from 'stores/journalData'
 import draggable from 'vuedraggable'
+import { getListItems, setListItem, addListItem, removeListItem } from 'src/utils/sectionListUtils'
 import LinkedVerses from 'components/LinkedVerses.vue'
 import TagSelector from 'src/components/TagSelector.vue'
 import QuoteSelector from 'src/components/QuoteSelector.vue'
 import VerseDisplayModal from 'components/VerseDisplayModal.vue'
 import LinkSelector from 'src/components/LinkSelector.vue'
+import { isSafeExternalUrl } from 'src/utils/urlUtils'
 
 const dragging = ref(false)
 const router = useRouter()
 const route = useRoute()
 const $q = useQuasar()
 const journalStore = useJournalStore()
-const resourcesStore = useResourcesStore()
 const activeTab = ref('main')
 const loading = ref(true)
 const saving = ref(false)
@@ -379,12 +399,11 @@ const entryId = route.params.id
 // Modals
 const showVerseDisplayModal = ref(false)
 const showVerseModal = ref(false)
-const showStudyModal = ref(false)
 const showBookModal = ref(false)
 const showPastorModal = ref(false)
 const showPodcastModal = ref(false)
 const showArtistModal = ref(false)
-const showMinistryModal = ref(false)
+const showDevotionalModal = ref(false)
 const showGroupModal = ref(false)
 const showShowModal = ref(false)
 
@@ -393,7 +412,8 @@ const entryType = ref('')
 
 // Types that use the main-verse (passage) selector; 'Bible' kept for
 // entries created before the type rename migration
-const verseEntryTypes = ['Daily Bible Reading', 'Inductive Study', 'Study Overview', 'Bible']
+const verseEntryTypes = ['Daily Bible Reading', 'Bible']
+
 const title = ref('')
 const contentSections = ref([])
 const mainVerse = ref({})
@@ -403,14 +423,14 @@ const selectedQuotes = ref([])
 const selectedLinks = ref([])
 
 // Selected Resources
+const selectedChurch = ref(null)
 const selectedPastor = ref(null)
 const selectedSeries = ref(null)
 const selectedSermon = ref(null)
 const selectedPodcast = ref(null)
 const selectedPodcastEpisode = ref(null)
 const selectedArtist = ref(null)
-const selectedMinistry = ref(null)
-const selectedDevotionalSeries = ref(null)
+const selectedDevotional = ref(null)
 const selectedBook = ref(null)
 const selectedAuthor = ref(null)
 const selectedChapter = ref(null)
@@ -420,13 +440,23 @@ const selectedSeason = ref(null)
 const selectedEpisode = ref(null)
 
 // Section Templates
-const createSection = (title = '', content = '', fieldType = 'longText', headerProperty = false, id = '') => ({
+const createSection = (title = '', content = '', fieldType = 'longText', headerProperty = false, id = null) => ({
   id: id ?? 'section-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
   title,
   content: fieldType === 'date' ? getTodayDate() : content,
   fieldType,
-  headerProperty
+  headerProperty,
 })
+
+// Older saved entries (from before an `id` default-parameter bug was fixed)
+// may have sections with a blank id, which breaks anything keyed by id —
+// e.g. the per-section collapse state in the editor. Backfill on load.
+const ensureSectionIds = (sections) => {
+  for (const section of sections || []) {
+    if (!section.id) section.id = 'section-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9)
+  }
+  return sections
+}
 
 const getTodayDate = () => {
   const today = new Date()
@@ -469,7 +499,7 @@ const loadEntry = async () => {
     // Set basic entry data
     entryType.value = entry.type
     title.value = entry.title
-    contentSections.value = decryptedContent.sections
+    contentSections.value = ensureSectionIds(decryptedContent.sections)
 
     // Load main verse if this is a verse-based entry
     if (verseEntryTypes.includes(entry.type)) {
@@ -600,19 +630,18 @@ const loadEntry = async () => {
           case 'Author': selectedAuthor.value = resource; break
           case 'Book': selectedBook.value = resource; break
           case 'Chapter': selectedChapter.value = resource; break
+          case 'Church': selectedChurch.value = resource; break
           case 'Pastor': selectedPastor.value = resource; break
           case 'SermonSeries': selectedSeries.value = resource; break
           case 'Sermon': selectedSermon.value = resource; break
           case 'Podcast': selectedPodcast.value = resource; break
           case 'PodcastEpisode': selectedPodcastEpisode.value = resource; break
           case 'SongArtist': selectedArtist.value = resource; break
-          case 'Ministry': selectedMinistry.value = resource; break
-          case 'DevotionalSeries': selectedDevotionalSeries.value = resource; break
+          case 'Devotional': selectedDevotional.value = resource; break
           case 'Group': selectedGroup.value = resource; break
           case 'Show': selectedShow.value = resource; break
           case 'Season': selectedSeason.value = resource; break
           case 'Episode': selectedEpisode.value = resource; break
-          // 'Church' is re-derived from the pastor's parent on save
           default: break
         }
       }
@@ -649,12 +678,35 @@ const clearMainVerse = () => {
   mainVerse.value = {}
 }
 
-const addSection = () => {
-  contentSections.value.push(createSection())
+const addSection = (fieldType = 'longText') => {
+  contentSections.value.push(createSection('', '', fieldType))
+}
+
+// Adding a section is available regardless of which tab is active, so jump
+// to Main Content afterward — otherwise the new section is invisible
+const addSectionAndFocus = (fieldType) => {
+  addSection(fieldType)
+  activeTab.value = 'main'
+}
+
+const openSectionLink = (url) => {
+  if (!isSafeExternalUrl(url)) {
+    $q.notify({ type: 'negative', message: 'This link is not a valid http(s) URL and was not opened' })
+    return
+  }
+  window.open(url, '_blank')
 }
 
 const removeSection = (index) => {
   contentSections.value.splice(index, 1)
+}
+
+// Collapse state is purely an editing convenience, not saved with the entry
+const collapsedIds = ref(new Set())
+const isCollapsed = (id) => collapsedIds.value.has(id)
+const toggleCollapse = (id) => {
+  if (collapsedIds.value.has(id)) collapsedIds.value.delete(id)
+  else collapsedIds.value.add(id)
 }
 
 const handleResourceSelection = (selections) => {
@@ -663,14 +715,27 @@ const handleResourceSelection = (selections) => {
   const finalSelection = selections[selections.length - 1]
 
   switch (entryType.value) {
-    case 'Sermon':
-      if (selections.length >= 3) {
-        selectedPastor.value = selections[0]
-        selectedSeries.value = selections[1]
-        selectedSermon.value = selections[2]
+    case 'Sermon': {
+      // Drill-down starts at Church, but a Sermon can attach either under
+      // a Series (Church, Pastor, Series, Sermon) or directly under a
+      // Pastor as a one-off (Church, Pastor, Sermon) — match by type
+      // rather than position so either path resolves correctly
+      selectedChurch.value = selections.find((r) => r.type === RESOURCE_TYPES.CHURCH) || null
+      selectedPastor.value = selections.find((r) => r.type === RESOURCE_TYPES.PASTOR) || null
+      selectedSeries.value = selections.find((r) => r.type === RESOURCE_TYPES.SERMON_SERIES) || null
+      selectedSermon.value = selections.find((r) => r.type === RESOURCE_TYPES.SERMON) || null
+
+      if (selectedSermon.value && selectedSeries.value) {
         title.value = `${selectedPastor.value.metadata.name} - ${selectedSeries.value.metadata.title}: ${selectedSermon.value.metadata.title}`
+      } else if (selectedSermon.value) {
+        title.value = `${selectedPastor.value.metadata.name}: ${selectedSermon.value.metadata.title}`
+      } else if (selectedPastor.value) {
+        title.value = selectedPastor.value.metadata.name
+      } else if (selectedChurch.value) {
+        title.value = selectedChurch.value.metadata.name
       }
       break
+    }
 
     case 'Book':
       if (selections.length === 3) {
@@ -697,12 +762,7 @@ const handleResourceSelection = (selections) => {
       break
 
     case 'Devotional':
-    case 'Inductive Study':
-    case 'Study Overview':
-      if (selections.length >= 2) {
-        selectedMinistry.value = selections[0]
-        selectedDevotionalSeries.value = selections[1]
-      }
+      selectedDevotional.value = finalSelection
       break
 
     case 'Show':
@@ -720,12 +780,11 @@ const handleResourceSelection = (selections) => {
   }
 }
 
-const onStudySelect = handleResourceSelection
 const onBookSelect = handleResourceSelection
-const onPastorSelect = handleResourceSelection
+const onChurchSelect = handleResourceSelection
 const onPodcastSelect = handleResourceSelection
 const onArtistSelect = handleResourceSelection
-const onMinistrySelect = handleResourceSelection
+const onDevotionalSelect = handleResourceSelection
 const onGroupSelect = handleResourceSelection
 const onShowSelect = handleResourceSelection
 
@@ -871,14 +930,14 @@ const updateEntry = async () => {
         }
         break
       case 'Sermon':
-        if (selectedPastor.value && selectedSeries.value && selectedSermon.value) {
+        if (selectedPastor.value && selectedSermon.value) {
           resources.push({ resourceId: selectedPastor.value.id, primary: true })
-          resources.push({ resourceId: selectedSeries.value.id, primary: false })
+          if (selectedSeries.value) {
+            resources.push({ resourceId: selectedSeries.value.id, primary: false })
+          }
           resources.push({ resourceId: selectedSermon.value.id, primary: false })
-          // Link the pastor's church too, when one is set up
-          const church = await resourcesStore.getParentResource(selectedPastor.value.id)
-          if (church?.type === 'Church') {
-            resources.push({ resourceId: church.id, primary: false })
+          if (selectedChurch.value) {
+            resources.push({ resourceId: selectedChurch.value.id, primary: false })
           }
         }
         break
@@ -894,19 +953,8 @@ const updateEntry = async () => {
         }
         break
       case 'Devotional':
-        if (selectedMinistry.value && selectedDevotionalSeries.value) {
-          resources.push({ resourceId: selectedMinistry.value.id, primary: true })
-          resources.push({ resourceId: selectedDevotionalSeries.value.id, primary: false })
-        }
-        break
-      case 'Inductive Study':
-      case 'Study Overview':
-        // Study link is optional for these types
-        if (selectedMinistry.value) {
-          resources.push({ resourceId: selectedMinistry.value.id, primary: true })
-        }
-        if (selectedDevotionalSeries.value) {
-          resources.push({ resourceId: selectedDevotionalSeries.value.id, primary: false })
+        if (selectedDevotional.value) {
+          resources.push({ resourceId: selectedDevotional.value.id, primary: true })
         }
         break
       case 'Show':
@@ -1077,6 +1125,52 @@ const handleTouchEnd = () => {
 onMounted(() => {
   loadEntry()
 })
+
+const pageActionsStore = usePageActionsStore()
+
+onMounted(() => {
+  pageActionsStore.setFooterActions([
+    {
+      key: 'add-section',
+      label: 'Add',
+      icon: 'add',
+      color: 'info',
+      menu: [
+        {
+          key: 'add-text',
+          label: 'Text',
+          icon: 'notes',
+          handler: () => addSectionAndFocus('longText'),
+        },
+        {
+          key: 'add-list',
+          label: 'List',
+          icon: 'checklist',
+          handler: () => addSectionAndFocus('list'),
+        },
+      ],
+    },
+    {
+      key: 'cancel',
+      label: 'Cancel',
+      icon: 'cancel',
+      color: 'negative',
+      handler: () => router.push('/entry/' + entryId),
+    },
+    {
+      key: 'save',
+      label: 'Save',
+      icon: 'save',
+      color: 'primary',
+      loading: computed(() => saving.value),
+      handler: updateEntry,
+    },
+  ])
+})
+
+onUnmounted(() => {
+  pageActionsStore.clearFooterActions()
+})
 </script>
 <style scoped>
 /* Keep all your existing styles */
@@ -1216,5 +1310,10 @@ onMounted(() => {
 
 .verse-link:hover {
   opacity: 0.8;
+}
+
+.list-bullet {
+  color: rgba(0, 0, 0, 0.4);
+  flex-shrink: 0;
 }
 </style>

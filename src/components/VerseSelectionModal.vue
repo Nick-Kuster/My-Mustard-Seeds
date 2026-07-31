@@ -8,54 +8,29 @@
       </q-card-section>
 
       <q-card-section class="verse-selection-content">
-        <div class="text-subtitle2 q-mb-sm">Starting Verse</div>
-        <div class="q-gutter-y-md">
-          <!-- Added menu-self and menu-anchor props -->
-          <q-select v-model="selectedBook" :options="bibleData.books" option-label="book" label="Book" dense
-            menu-self="top start" menu-anchor="bottom start" popup-content-class="verse-select-menu" />
+        <q-select v-model="selectedBook" :options="bibleData.books" option-label="book" label="Book" dense
+          menu-self="top start" menu-anchor="bottom start" popup-content-class="verse-select-menu" />
 
-          <div class="row q-col-gutter-sm">
-            <div class="col">
-              <!-- Added menu-self and menu-anchor props -->
-              <q-select v-model="selectedChapter" :options="chapterOptions" label="Chapter" :disable="!selectedBook"
-                dense emit-value map-options menu-self="top start" menu-anchor="bottom start"
-                popup-content-class="verse-select-menu" />
-            </div>
-            <div class="col">
-              <!-- Added menu-self and menu-anchor props -->
-              <q-select v-model="selectedVerse" :options="verseOptions" label="Verse" :disable="!selectedChapter" dense
-                emit-value map-options menu-self="top start" menu-anchor="bottom start"
-                popup-content-class="verse-select-menu" />
+        <div class="row q-col-gutter-sm q-mt-md">
+          <div class="col">
+            <q-input v-model="fromText" label="From" placeholder="e.g. 1:1 or 1" dense :disable="!selectedBook"
+              :error="!!fromText && !fromRef" error-message="Use chapter:verse or just chapter, e.g. 1:1 or 1" />
+            <div v-if="fromText && fromRef" class="verse-preview">
+              {{ fromPreview || 'Verse not found' }}
             </div>
           </div>
-
-          <div v-if="startVerseContent" class="verse-preview">
-            {{ startVerseContent }}
+          <div class="col">
+            <q-input v-model="toText" label="To" placeholder="e.g. 2:3 or 2" dense :disable="!fromRef"
+              :error="!!toText && !parseVerseFilterRef(toText)"
+              error-message="Use chapter:verse or just chapter, e.g. 2:3 or 2" />
+            <div v-if="toText && parseVerseFilterRef(toText)" class="verse-preview">
+              {{ toPreview || 'Verse not found' }}
+            </div>
           </div>
         </div>
 
-        <div class="text-weight-medium text-center q-my-md">To</div>
-
-        <div class="text-subtitle2 q-mb-sm">Ending Verse</div>
-        <div class="q-gutter-y-md" :class="{ 'disabled-section': !selectedVerse }">
-          <div class="row q-col-gutter-sm">
-            <div class="col">
-              <!-- Added menu-self and menu-anchor props -->
-              <q-select v-model="endChapter" :options="endChapterOptions" label="Chapter" :disable="!selectedVerse"
-                dense emit-value map-options menu-self="top start" menu-anchor="bottom start"
-                popup-content-class="verse-select-menu" />
-            </div>
-            <div class="col">
-              <!-- Added menu-self and menu-anchor props -->
-              <q-select v-model="endVerse" :options="endVerseOptions" label="Verse" :disable="!endChapter" dense
-                emit-value map-options menu-self="top start" menu-anchor="bottom start"
-                popup-content-class="verse-select-menu" />
-            </div>
-          </div>
-
-          <div v-if="endVerseContent" class="verse-preview">
-            {{ endVerseContent }}
-          </div>
+        <div class="text-caption text-grey q-mt-sm">
+          Leave "To" blank to select a single verse; type just a chapter number for the whole chapter
         </div>
       </q-card-section>
 
@@ -70,6 +45,7 @@
 import { ref, watch, computed, onMounted } from 'vue'
 import { useBibleDataStore } from 'stores/bibleData'
 import { supabase } from 'src/boot/supabase'
+import { parseVerseFilterRef } from 'src/utils/verseUtils'
 
 const props = defineProps({
   modelValue: Boolean
@@ -79,160 +55,147 @@ const emit = defineEmits(['update:modelValue', 'select'])
 
 const bibleData = useBibleDataStore()
 const selectedBook = ref(null)
-const selectedChapter = ref(null)
-const selectedVerse = ref(null)
-const endChapter = ref(null)
-const endVerse = ref(null)
-const chapterOptions = ref([])
-const verseOptions = ref([])
-const endVerseOptions = ref([])
-const startVerseContent = ref('')
-const endVerseContent = ref('')
+const fromText = ref('')
+const toText = ref('')
+const fromPreview = ref('')
+const toPreview = ref('')
 
 const isOpen = computed({
   get: () => props.modelValue,
   set: (value) => emit('update:modelValue', value)
 })
 
-const canConfirm = computed(() =>
-  selectedBook.value &&
-  selectedChapter.value &&
-  selectedVerse.value &&
-  endChapter.value &&
-  endVerse.value
-)
+// A bare chapter number (no colon) parses to { chapter, verse: null } —
+// resolved to the chapter's first/last verse in confirmSelection()
+const fromRef = computed(() => parseVerseFilterRef(fromText.value))
+// Blank "to" means a single-verse (or single-chapter) selection, same as "from"
+const toRef = computed(() => (toText.value.trim() ? parseVerseFilterRef(toText.value) : fromRef.value))
 
-const endChapterOptions = computed(() => {
-  if (!selectedChapter.value) return []
-  return chapterOptions.value.filter(ch => ch >= selectedChapter.value)
+const canConfirm = computed(() => !!(selectedBook.value && fromRef.value && toRef.value))
+
+watch(selectedBook, () => {
+  fromText.value = ''
+  toText.value = ''
+  fromPreview.value = ''
+  toPreview.value = ''
 })
 
-watch(selectedBook, async (book) => {
-  if (book) {
-    const chapters = await bibleData.getChapters(book.book)
-    chapterOptions.value = chapters.map(ch => Number(ch.chapter))
-    selectedChapter.value = null
-    selectedVerse.value = null
-    endChapter.value = null
-    endVerse.value = null
+// Mirror "From" into "To" as the user types, so a single-verse selection
+// doesn't require retyping the reference twice — but once "To" is edited
+// independently, stop overwriting it (unless "From" changes again while
+// "To" still matches what was last auto-filled).
+watch(fromText, (newVal, oldVal) => {
+  if (!toText.value || toText.value === oldVal) {
+    toText.value = newVal
   }
 })
 
-watch(selectedChapter, async (chapter) => {
-  if (selectedBook.value?.book && chapter) {
-    const verses = await bibleData.getVerses(selectedBook.value.book, chapter)
-    verseOptions.value = verses.map(v => Number(v))
-    selectedVerse.value = null
-    endChapter.value = chapter
-    endVerse.value = null
-  }
-})
-
-watch(selectedVerse, async (verse) => {
-  if (!selectedBook?.value?.book || !selectedChapter.value || !verse) return
-
+const fetchVerseContent = async (book, chapter, verse) => {
   const { data } = await supabase
     .from('bible_verses')
     .select('content')
-    .eq('book', selectedBook.value.book)
-    .eq('chapter', selectedChapter.value)
+    .eq('book', book)
+    .eq('chapter', chapter)
     .eq('verse', verse)
     .single()
+  return data?.content || ''
+}
 
-  if (data) {
-    startVerseContent.value = data.content
+watch(fromRef, async (ref) => {
+  if (!ref || !selectedBook.value) {
+    fromPreview.value = ''
+    return
   }
-
-  // Set default end verse when start verse is selected
-  endChapter.value = selectedChapter.value
-  endVerse.value = verse
+  if (ref.verse == null) {
+    fromPreview.value = `(Whole chapter ${ref.chapter})`
+    return
+  }
+  fromPreview.value = await fetchVerseContent(selectedBook.value.book, ref.chapter, ref.verse)
 })
 
-watch(endChapter, async (chapter) => {
-  if (!chapter || !selectedBook.value?.book) return
-
-  const verses = await bibleData.getVerses(selectedBook.value.book, chapter)
-  endVerseOptions.value = verses.map(v => Number(v))
-
-  // Filter start verse options if same chapter
-  if (chapter === selectedChapter.value) {
-    endVerseOptions.value = endVerseOptions.value.filter(v => v >= selectedVerse.value)
+watch(toRef, async (ref) => {
+  if (!ref || !selectedBook.value || !toText.value.trim()) {
+    toPreview.value = ''
+    return
   }
-
-  if (chapter !== selectedChapter.value) {
-    endVerse.value = null
+  if (ref.verse == null) {
+    toPreview.value = `(Whole chapter ${ref.chapter})`
+    return
   }
-})
-
-watch([endChapter, endVerse], async () => {
-  if (!endChapter.value || !endVerse.value || !selectedBook.value?.book) return
-
-  const { data } = await supabase
-    .from('bible_verses')
-    .select('content')
-    .eq('book', selectedBook.value.book)
-    .eq('chapter', endChapter.value)
-    .eq('verse', endVerse.value)
-    .single()
-
-  if (data) {
-    endVerseContent.value = data.content
-  }
+  toPreview.value = await fetchVerseContent(selectedBook.value.book, ref.chapter, ref.verse)
 })
 
 const confirmSelection = async () => {
-  // First get the verse_number for the start verse
-  const { data: startVerseData } = await supabase
-    .from('bible_verses')
-    .select('id, verse_number')
-    .eq('book', selectedBook.value.book)
-    .eq('chapter', selectedChapter.value)
-    .eq('verse', selectedVerse.value)
-    .single()
+  if (!canConfirm.value) return
 
-  // Then get the verse_number for the end verse
-  const { data: endVerseData } = await supabase
-    .from('bible_verses')
-    .select('id, verse_number')
-    .eq('book', selectedBook.value.book)
-    .eq('chapter', endChapter.value)
-    .eq('verse', endVerse.value)
-    .single()
+  const book = selectedBook.value.book
+  let start = fromRef.value
+  let end = toRef.value
 
-  if (startVerseData && endVerseData) {
-    let displayText = ''
-
-    // Same chapter and verse
-    if (selectedChapter.value === endChapter.value && selectedVerse.value === endVerse.value) {
-      displayText = `${selectedBook.value.book} ${selectedChapter.value}:${selectedVerse.value}`
+  // Normalize a reversed range — verse is only compared when both sides have one
+  if (start && end) {
+    const chapterDiff = end.chapter - start.chapter
+    const shouldSwap =
+      chapterDiff < 0 ||
+      (chapterDiff === 0 && start.verse != null && end.verse != null && end.verse < start.verse)
+    if (shouldSwap) {
+      ;[start, end] = [end, start]
     }
-    // Same chapter, different verses
-    else if (selectedChapter.value === endChapter.value) {
-      displayText = `${selectedBook.value.book} ${selectedChapter.value}:${selectedVerse.value}-${endVerse.value}`
-    }
-    // Different chapters
-    else {
-      displayText = `${selectedBook.value.book} ${selectedChapter.value}:${selectedVerse.value}-${endChapter.value}:${endVerse.value}`
-    }
-
-    emit('select', {
-      startVerseId: startVerseData.id,
-      startVerse: startVerseData.verse_number,
-      endVerseId: endVerseData.id,
-      endVerse: endVerseData.verse_number,
-      display: displayText
-    })
   }
 
-  selectedBook.value = ''
-  selectedChapter.value = ''
-  selectedVerse.value = ''
-  endChapter.value = ''
-  endVerse.value = ''
-  startVerseContent.value = ''
-  endVerseContent.value = ''
+  // A bare chapter number resolves to that chapter's first verse (as the
+  // start) or last verse (as the end), so "3" alone means the whole chapter
+  const resolveVerseNumber = async (ref, isEnd) => {
+    if (ref.verse != null) return ref.verse
+    if (!isEnd) return 1
+    const verses = await bibleData.getVerses(book, ref.chapter)
+    return verses.length ? Math.max(...verses) : 1
+  }
+  const startVerseNum = await resolveVerseNumber(start, false)
+  const endVerseNum = await resolveVerseNumber(end, true)
+
+  const [{ data: startVerseData }, { data: endVerseData }] = await Promise.all([
+    supabase.from('bible_verses').select('id, verse_number')
+      .eq('book', book).eq('chapter', start.chapter).eq('verse', startVerseNum).single(),
+    supabase.from('bible_verses').select('id, verse_number')
+      .eq('book', book).eq('chapter', end.chapter).eq('verse', endVerseNum).single(),
+  ])
+
+  // A typed reference that doesn't exist (e.g. a chapter the book doesn't
+  // have) — leave the dialog open so the "Verse not found" preview stays visible
+  if (!startVerseData || !endVerseData) return
+
+  // Both ends were typed as bare chapters — show it as a chapter reference,
+  // not the verse range it happens to resolve to
+  let displayText
+  if (start.verse == null && end.verse == null) {
+    displayText = start.chapter === end.chapter
+      ? `${book} ${start.chapter}`
+      : `${book} ${start.chapter}-${end.chapter}`
+  } else if (start.chapter === end.chapter && startVerseNum === endVerseNum) {
+    displayText = `${book} ${start.chapter}:${startVerseNum}`
+  } else if (start.chapter === end.chapter) {
+    displayText = `${book} ${start.chapter}:${startVerseNum}-${endVerseNum}`
+  } else {
+    displayText = `${book} ${start.chapter}:${startVerseNum}-${end.chapter}:${endVerseNum}`
+  }
+
+  emit('select', {
+    startVerseId: startVerseData.id,
+    startVerse: startVerseData.verse_number,
+    endVerseId: endVerseData.id,
+    endVerse: endVerseData.verse_number,
+    display: displayText
+  })
+
+  selectedBook.value = null
+  fromText.value = ''
+  toText.value = ''
+  fromPreview.value = ''
+  toPreview.value = ''
   isOpen.value = false
 }
+
 onMounted(async () => {
   await bibleData.loadBooks()
 })
@@ -242,36 +205,26 @@ onMounted(async () => {
 .verse-selection-modal {
   width: 90vw;
   max-width: 500px;
-  /* Increased max-width for better layout */
   max-height: 90vh;
   overflow: hidden;
-  /* Prevent overall modal overflow */
 }
 
 .verse-selection-content {
   overflow-y: auto;
-  /* Allow scrolling of content if needed */
   max-height: calc(90vh - 120px);
-  /* Account for header and footer */
 }
 
 .verse-preview {
   background: #f5f5f5;
   padding: 8px;
   border-radius: 4px;
-  font-size: 0.9em;
-  margin-top: 8px;
+  font-size: 0.85em;
+  margin-top: 4px;
 }
 
-.disabled-section {
-  opacity: 0.7;
-  pointer-events: none;
-}
-
-/* Target the select menus globally */
+/* Target the select menu globally */
 :global(.verse-select-menu) {
   max-height: 300px !important;
   z-index: 10000 !important;
-  /* Ensure menus stay on top */
 }
 </style>

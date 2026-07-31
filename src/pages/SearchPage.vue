@@ -1,13 +1,10 @@
 <template>
-  <q-page class="q-pa-md">
+  <q-page class="q-pa-md q-mt-lg">
     <div class="row q-col-gutter-md justify-center ">
-      <div class="col-12 col-sm-8 col-md-6 q-pa-lg rounded-borders parchment">
+      <div class="col-12 content-card q-pa-lg rounded-borders parchment">
         <!-- Header with search info -->
         <div class="text-h6 text-center q-mb-sm">Search Results</div>
         <div class="row items-center q-mb-md">
-          <div class="col-auto">
-            <q-btn flat round icon="arrow_back" color="primary" @click="router.go(-1)" />
-          </div>
           <q-space />
           <div class="col-auto">
             <q-btn flat color="primary" icon="filter_list" label="Filters" @click="showFilterModal = true">
@@ -51,7 +48,8 @@
           No entries found matching your search criteria
         </div>
         <q-list v-else bordered separator>
-          <q-item v-for="entry in paginatedEntries" :key="entry.id" clickable @click="viewEntry(entry.id)">
+          <q-item v-for="entry in paginatedEntries" :key="entry.id" clickable class="entry-item"
+            :style="{ borderLeftColor: typeColorsStore.getColor(entry.type) }" @click="viewEntry(entry.id)">
             <q-item-section>
               <q-item-label>{{ entry.title }}</q-item-label>
               <q-item-label caption>
@@ -80,11 +78,13 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useJournalStore } from 'src/stores/journalData'
+import { useJournalTypeColorsStore } from 'src/stores/journalTypeColors'
 import FilterModal from 'src/components/FilterModal.vue'
 
 const router = useRouter()
 const route = useRoute()
 const journalStore = useJournalStore()
+const typeColorsStore = useJournalTypeColorsStore()
 
 const loading = ref(true)
 const showFilterModal = ref(false)
@@ -103,6 +103,7 @@ const filteredEntries = computed(() => journalStore.filteredEntries)
 const facetLabels = {
   types: 'Type',
   verses: 'Verse',
+  books: 'Book',
   resourceTypes: 'Resource Type',
   resources: 'Resource',
   tags: 'Tag',
@@ -207,3 +208,9 @@ onMounted(async () => {
   loading.value = false
 })
 </script>
+
+<style scoped>
+.entry-item {
+  border-left: 3px solid transparent;
+}
+</style>
