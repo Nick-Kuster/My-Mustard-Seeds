@@ -41,7 +41,7 @@ export const usePrayerRequestsStore = defineStore('prayerRequests', () => {
     }
   }
 
-  const addRequest = async (content, groupName) => {
+  const addRequest = async (content, groupId) => {
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -57,7 +57,7 @@ export const usePrayerRequestsStore = defineStore('prayerRequests', () => {
       .insert({
         user_id: session.user.id,
         content: encryptedContent,
-        group_name: groupName || null,
+        group_id: groupId || null,
         position,
       })
       .select()
@@ -71,30 +71,31 @@ export const usePrayerRequestsStore = defineStore('prayerRequests', () => {
 
   // Persists a full reorder/regroup in one go — items is the final flat
   // order across all groups (as displayed), each tagged with the group it
-  // now belongs to. Grouping is single-layer: group_name is just a
-  // freeform label per request, there's no separate groups table.
+  // now belongs to. Positions stay globally monotonic across all groups
+  // (not reset per-group), which still sorts correctly within any one
+  // group's subset.
   const reorder = async (items) => {
     const updates = items.map((item, index) => ({
       id: item.id,
       position: index,
-      group_name: item.group_name || null,
+      group_id: item.group_id || null,
     }))
 
     await Promise.all(
-      updates.map(async ({ id, position, group_name }) => {
+      updates.map(async ({ id, position, group_id }) => {
         const { error } = await supabase
           .from('prayer_requests')
-          .update({ position, group_name, updated_at: new Date().toISOString() })
+          .update({ position, group_id, updated_at: new Date().toISOString() })
           .eq('id', id)
         if (error) throw error
       }),
     )
 
-    updates.forEach(({ id, position, group_name }) => {
+    updates.forEach(({ id, position, group_id }) => {
       const req = requests.value.find((r) => r.id === id)
       if (req) {
         req.position = position
-        req.group_name = group_name
+        req.group_id = group_id
       }
     })
   }

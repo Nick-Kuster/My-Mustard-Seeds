@@ -1076,9 +1076,11 @@ const updateEntry = async () => {
       if (linkError) throw linkError
     }
 
-    // Update store
-    const updatedEntry = await journalStore.getEntry(entryId)
-    await journalStore.updateEntry(updatedEntry)
+    // Refresh the store's cache with what was actually just saved — getEntry
+    // is cache-first and this entry is already cached from before the edit,
+    // so it would otherwise hand the stale pre-save copy right back to
+    // whichever page (typically ViewEntryPage) loads next.
+    await journalStore.refreshEntry(entryId)
 
     $q.notify({
       type: 'positive',

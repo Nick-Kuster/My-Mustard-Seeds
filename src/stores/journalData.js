@@ -296,6 +296,41 @@ export const useJournalStore = defineStore('journalData', () => {
     }
   }
 
+  // Fetches a single entry fresh from the server (bypassing any cache) and
+  // decrypts it — shared by getEntry (cache-first) and refreshEntry
+  // (always fresh, see below).
+  const fetchEntryFromServer = async (id) => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    if (!session) throw new Error('No active session')
+
+    const { data, error } = await supabase.rpc('get_journal_entry_details', {
+      p_entry_id: id,
+      p_user_id: session.user.id,
+    })
+
+    if (error) throw error
+    if (!data || data.length === 0) return null
+
+    const entry = {
+      ...data[0].entry_data,
+      verses: data[0].verses_data,
+      tags: data[0].tags_data,
+      resources: data[0].resources_data,
+      quotes: data[0].quotes_data,
+      links: data[0].links_data,
+    }
+
+    const encryptionKey = await getEncryptionKey(session.user.id)
+    const decryptedContent = await decryptData(entry.content, encryptionKey)
+
+    return {
+      ...entry,
+      decryptedContent,
+    }
+  }
+
   // Update the getEntry function to include links
   const getEntry = async (id) => {
     const existingEntry = decryptedEntries.value.find((entry) => entry.id === id)
@@ -303,37 +338,36 @@ export const useJournalStore = defineStore('journalData', () => {
 
     loading.value = true
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (!session) throw new Error('No active session')
-
-      const { data, error } = await supabase.rpc('get_journal_entry_details', {
-        p_entry_id: id,
-        p_user_id: session.user.id,
-      })
-
-      if (error) throw error
-      if (!data || data.length === 0) return null
-
-      const entry = {
-        ...data[0].entry_data,
-        verses: data[0].verses_data,
-        tags: data[0].tags_data,
-        resources: data[0].resources_data,
-        quotes: data[0].quotes_data,
-        links: data[0].links_data,
-      }
-
-      const encryptionKey = await getEncryptionKey(session.user.id)
-      const decryptedContent = await decryptData(entry.content, encryptionKey)
-
-      return {
-        ...entry,
-        decryptedContent,
-      }
+      return await fetchEntryFromServer(id)
     } catch (error) {
       console.error('Error fetching entry:', error)
+      throw error
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Always fetches fresh from the server (skipping the cache getEntry
+  // checks) and writes the result into both entry caches — for use right
+  // after a save, when the cache is known to be stale and a cache hit
+  // would silently hand back pre-save data to whoever asks next (e.g. the
+  // view page navigated to immediately after saving an edit).
+  const refreshEntry = async (id) => {
+    loading.value = true
+    try {
+      const fresh = await fetchEntryFromServer(id)
+      if (!fresh) return null
+
+      const index = entries.value.findIndex((e) => e.id === id)
+      if (index !== -1) entries.value[index] = fresh
+
+      const decryptedIndex = decryptedEntries.value.findIndex((e) => e.id === id)
+      if (decryptedIndex !== -1) decryptedEntries.value[decryptedIndex] = fresh
+      else decryptedEntries.value.push(fresh)
+
+      return fresh
+    } catch (error) {
+      console.error('Error refreshing entry:', error)
       throw error
     } finally {
       loading.value = false
@@ -550,25 +584,6 @@ export const useJournalStore = defineStore('journalData', () => {
       throw error
     }
   }
-  const updateEntry = async (updatedEntry) => {
-    // Find and update the entry in the entries array
-    const index = entries.value.findIndex((e) => e.id === updatedEntry.id)
-    if (index !== -1) {
-      entries.value[index] = { ...entries.value[index], ...updatedEntry }
-
-      // Find and update in decryptedEntries as well
-      const decryptedIndex = decryptedEntries.value.findIndex((e) => e.id === updatedEntry.id)
-      if (decryptedIndex !== -1) {
-        decryptedEntries.value[decryptedIndex] = {
-          ...decryptedEntries.value[decryptedIndex],
-          ...updatedEntry,
-        }
-      }
-
-      // Refresh the decrypted content
-      await decryptEntries()
-    }
-  }
   return {
     entries,
     decryptedEntries,
@@ -584,7 +599,7 @@ export const useJournalStore = defineStore('journalData', () => {
     updateFacet,
     clearFacets,
     getEntry,
-    updateEntry,
+    refreshEntry,
     addQuote,
     updateQuote,
     deleteQuote,

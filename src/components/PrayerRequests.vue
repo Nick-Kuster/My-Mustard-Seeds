@@ -4,7 +4,10 @@
       <q-spinner color="primary" size="2em" />
     </div>
 
-    <div v-else-if="requests.length === 0" class="text-center text-grey q-pa-lg">
+    <!-- viewMode takes priority over the empty-state check below — otherwise
+         switching to manage mode to add the first prayer would be a no-op,
+         since requests.length is still 0 until you actually add one. -->
+    <div v-else-if="viewMode !== 'manage' && requests.length === 0" class="text-center text-grey q-pa-lg">
       No prayer requests yet.
       <div class="q-mt-sm">
         <q-btn flat color="primary" label="Add your first prayer" @click="viewMode = 'manage'" />
@@ -26,53 +29,57 @@
         Nothing active right now.
       </div>
       <div v-else>
-        <template v-for="section in groupSections" :key="section.key || '__ungrouped__'">
+        <template v-for="section in allSectionsForDisplay" :key="section.key ?? 'misc'">
           <template v-if="section.items.length > 0">
-            <div v-if="section.key" class="list-group-label text-caption text-weight-bold text-grey-6">
-              {{ section.label }}
+            <div class="list-group-label row items-center no-wrap"
+              @click="toggleGroupCollapse(section.key)">
+              <q-icon :name="isGroupCollapsed(section.key) ? 'chevron_right' : 'expand_more'" size="16px"
+                class="q-mr-xs" />
+              <span class="text-caption text-weight-bold text-grey-6">{{ section.label }}</span>
             </div>
-            <div v-for="request in section.items" :key="request.id" class="prayer-list-item">
-              {{ request.decryptedContent }}
-            </div>
+            <template v-if="!isGroupCollapsed(section.key)">
+              <div v-for="request in section.items" :key="request.id" class="prayer-list-item">
+                {{ request.decryptedContent }}
+              </div>
+            </template>
           </template>
         </template>
       </div>
     </template>
 
-    <!-- Manage view: add, group, reorder, mark answered, delete. -->
+    <!-- Manage view: groups come first — add a group, then add prayers
+         directly under it (or under Miscellaneous, always available for
+         anything that doesn't need its own group). Reorder/collapse/answer/
+         delete from here too. -->
     <template v-else>
       <div class="row justify-end q-mb-sm">
         <q-btn flat dense no-caps icon="visibility" label="View As List" @click="viewMode = 'list'" />
       </div>
 
-      <div class="row q-col-gutter-sm q-mb-sm items-start">
-        <div class="col-12 col-sm">
-          <q-input v-model="newRequest" placeholder="What's on your heart?" outlined dense autogrow />
-        </div>
-        <div class="col-12 col-sm-4">
-          <q-select v-model="newGroup" :options="filteredGroupOptions" outlined dense clearable use-input
-            new-value-mode="add-unique" label="Group (optional)" @filter="filterGroupOptions" />
-        </div>
-        <div class="col-auto">
-          <q-btn unelevated color="primary" icon="add" label="Add" :disable="!newRequest.trim()" :loading="adding"
-            @click="submitNew" />
-        </div>
+      <div class="text-body2 text-grey-7 q-mb-md">
+        Add a group, then add prayers under it — or use Miscellaneous below for anything
+        that doesn't need one.
       </div>
 
-      <div class="row justify-end q-mb-lg">
-        <q-btn flat dense no-caps icon="create_new_folder" label="New Group" size="sm" @click="promptNewGroupSection" />
+      <div class="row justify-end items-center q-gutter-sm q-mb-lg">
+        <q-btn v-if="!addingGroup" outline dense no-caps color="primary" icon="create_new_folder" label="New Group"
+          size="sm" @click="startAddGroup" />
+        <template v-else>
+          <q-input ref="newGroupInputRef" v-model="newGroupSectionName" dense outlined placeholder="Group name"
+            style="min-width: 180px" @keyup.enter="confirmNewGroupSection" />
+          <q-btn flat round dense icon="check" color="primary" :loading="savingNewGroup"
+            :disable="!newGroupSectionName.trim()" @click="confirmNewGroupSection" />
+          <q-btn flat round dense icon="close" @click="cancelAddGroup" />
+        </template>
       </div>
 
       <div class="text-subtitle2 text-weight-bold text-grey-8 q-mb-sm">
         Active ({{ active.length }})
       </div>
-      <div v-if="active.length === 0" class="text-caption text-grey q-mb-lg">
-        Nothing active right now.
-      </div>
 
-      <div v-else class="q-mb-lg">
+      <div class="q-mb-lg">
         <draggable :list="groupSections" item-key="key" handle=".group-drag-handle" class="q-gutter-y-md"
-          ghost-class="ghost-group" @end="persistOrder">
+          ghost-class="ghost-group" @end="persistGroupOrder">
           <template #item="{ element: section }">
             <div class="group-section">
               <div class="group-header row items-center no-wrap"
@@ -80,44 +87,125 @@
                 <q-icon name="drag_indicator" class="group-drag-handle q-mr-xs" />
                 <q-icon :name="isGroupCollapsed(section.key) ? 'chevron_right' : 'expand_more'" size="18px"
                   class="q-mr-xs" />
-                <span class="text-caption text-weight-bold text-grey-7">
-                  {{ section.label }} ({{ section.items.length }})
-                </span>
+                <template v-if="editingGroupKey === section.key">
+                  <q-input :ref="(el) => setEditGroupInputRef(section, el)" v-model="editGroupName" dense outlined
+                    class="col" style="max-width: 220px" @click.stop @keyup.enter="confirmEditGroup(section)"
+                    @keyup.esc="cancelEditGroup" />
+                  <q-btn flat round dense icon="check" color="primary" size="sm" :loading="savingGroupEdit"
+                    :disable="!editGroupName.trim()" @click.stop="confirmEditGroup(section)" />
+                  <q-btn flat round dense icon="close" size="sm" @click.stop="cancelEditGroup" />
+                </template>
+                <template v-else>
+                  <span class="text-caption text-weight-bold text-grey-7 col">
+                    {{ section.label }} ({{ section.items.length }})
+                  </span>
+                  <q-btn flat round dense icon="edit" size="sm" @click.stop="startEditGroup(section)">
+                    <q-tooltip>Rename group</q-tooltip>
+                  </q-btn>
+                  <q-btn flat round dense icon="delete" size="sm" color="negative"
+                    @click.stop="openDeleteGroup(section)">
+                    <q-tooltip>Delete group</q-tooltip>
+                  </q-btn>
+                </template>
               </div>
 
-              <draggable v-show="!isGroupCollapsed(section.key)" :list="section.items" group="prayer-requests"
-                item-key="id" handle=".drag-handle" class="q-gutter-y-xs q-mt-xs" ghost-class="ghost-request"
-                @end="persistOrder">
-                <template #item="{ element: request }">
-                  <q-item class="request-item rounded-borders bg-white">
-                    <q-item-section avatar class="drag-handle-section">
-                      <q-icon name="drag_indicator" class="drag-handle" />
-                    </q-item-section>
-                    <q-item-section>
-                      <q-item-label class="text-wrap">{{ request.decryptedContent }}</q-item-label>
-                      <q-item-label caption>{{ formatDate(request.created_at) }}</q-item-label>
-                    </q-item-section>
-                    <q-item-section side>
-                      <div class="row no-wrap q-gutter-xs">
-                        <q-btn flat round dense icon="check_circle" color="positive" @click="openAnswer(request)">
-                          <q-tooltip>Mark answered</q-tooltip>
-                        </q-btn>
-                        <q-btn flat round dense icon="delete" color="negative" @click="openDelete(request)">
-                          <q-tooltip>Delete</q-tooltip>
-                        </q-btn>
-                      </div>
-                    </q-item-section>
-                  </q-item>
-                </template>
-                <template #footer>
-                  <div v-if="section.items.length === 0" class="empty-group-drop text-caption text-grey text-center">
-                    {{ section.key ? 'Drag prayers here' : 'Drag prayers here to remove from a group' }}
-                  </div>
-                </template>
-              </draggable>
+              <div v-show="!isGroupCollapsed(section.key)">
+                <draggable :list="section.items" group="prayer-requests"
+                  item-key="id" handle=".drag-handle" class="q-gutter-y-xs q-mt-xs" ghost-class="ghost-request"
+                  @end="persistOrder">
+                  <template #item="{ element: request }">
+                    <q-item class="request-item rounded-borders bg-white">
+                      <q-item-section avatar class="drag-handle-section">
+                        <q-icon name="drag_indicator" class="drag-handle" />
+                      </q-item-section>
+                      <q-item-section>
+                        <q-item-label class="text-wrap">{{ request.decryptedContent }}</q-item-label>
+                        <q-item-label caption>{{ formatDate(request.created_at) }}</q-item-label>
+                      </q-item-section>
+                      <q-item-section side>
+                        <div class="row no-wrap q-gutter-xs">
+                          <q-btn flat round dense icon="check_circle" color="positive" @click="openAnswer(request)">
+                            <q-tooltip>Mark answered</q-tooltip>
+                          </q-btn>
+                          <q-btn flat round dense icon="delete" color="negative" @click="openDelete(request)">
+                            <q-tooltip>Delete</q-tooltip>
+                          </q-btn>
+                        </div>
+                      </q-item-section>
+                    </q-item>
+                  </template>
+                  <template #footer>
+                    <div v-if="section.items.length === 0" class="empty-group-drop text-caption text-grey text-center">
+                      Drag prayers here, or add one below
+                    </div>
+                  </template>
+                </draggable>
+
+                <div class="quick-add-row row items-center no-wrap q-mt-xs">
+                  <q-input v-model="quickAddText[section.key]" dense borderless
+                    :placeholder="`Add to ${section.label}...`" class="col"
+                    @keyup.enter="quickAdd(section)" />
+                  <q-btn flat round dense icon="add" color="primary"
+                    :disable="!(quickAddText[section.key] || '').trim()"
+                    @click="quickAdd(section)" />
+                </div>
+              </div>
             </div>
           </template>
         </draggable>
+
+        <!-- Miscellaneous: always present (even empty), but not itself a
+             persisted group row — it's just "no group_id" — so it isn't
+             draggable/deletable, only a valid cross-group drop target. -->
+        <div class="group-section q-mt-md">
+          <div class="group-header row items-center no-wrap" @click="toggleGroupCollapse(null)">
+            <q-icon :name="isGroupCollapsed(null) ? 'chevron_right' : 'expand_more'" size="18px"
+              class="q-mr-xs" />
+            <span class="text-caption text-weight-bold text-grey-7 col">
+              Miscellaneous ({{ miscItems.length }})
+            </span>
+          </div>
+
+          <div v-show="!isGroupCollapsed(null)">
+            <draggable :list="miscItems" group="prayer-requests"
+              item-key="id" handle=".drag-handle" class="q-gutter-y-xs q-mt-xs" ghost-class="ghost-request"
+              @end="persistOrder">
+              <template #item="{ element: request }">
+                <q-item class="request-item rounded-borders bg-white">
+                  <q-item-section avatar class="drag-handle-section">
+                    <q-icon name="drag_indicator" class="drag-handle" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label class="text-wrap">{{ request.decryptedContent }}</q-item-label>
+                    <q-item-label caption>{{ formatDate(request.created_at) }}</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <div class="row no-wrap q-gutter-xs">
+                      <q-btn flat round dense icon="check_circle" color="positive" @click="openAnswer(request)">
+                        <q-tooltip>Mark answered</q-tooltip>
+                      </q-btn>
+                      <q-btn flat round dense icon="delete" color="negative" @click="openDelete(request)">
+                        <q-tooltip>Delete</q-tooltip>
+                      </q-btn>
+                    </div>
+                  </q-item-section>
+                </q-item>
+              </template>
+              <template #footer>
+                <div v-if="miscItems.length === 0" class="empty-group-drop text-caption text-grey text-center">
+                  Drag prayers here to remove them from a group, or add one below
+                </div>
+              </template>
+            </draggable>
+
+            <div class="quick-add-row row items-center no-wrap q-mt-xs">
+              <q-input v-model="quickAddText[MISC_KEY]" dense borderless placeholder="Add to Miscellaneous..."
+                class="col" @keyup.enter="quickAdd(miscSection)" />
+              <q-btn flat round dense icon="add" color="primary"
+                :disable="!(quickAddText[MISC_KEY] || '').trim()" @click="quickAdd(miscSection)" />
+            </div>
+          </div>
+        </div>
       </div>
 
       <q-expansion-item v-if="answered.length > 0" label="Answered" :caption="`${answered.length} answered`"
@@ -179,19 +267,28 @@
       </q-card>
     </q-dialog>
 
-    <!-- New group prompt -->
-    <q-dialog v-model="showNewGroupDialog">
-      <q-card style="min-width: 320px">
+    <!-- Delete group confirmation -->
+    <q-dialog v-model="showDeleteGroupDialog">
+      <q-card style="min-width: 340px">
         <q-card-section>
-          <div class="text-h6">New Group</div>
+          <div class="text-h6">Delete "{{ deletingGroupSection?.label }}"?</div>
         </q-card-section>
         <q-card-section class="q-pt-none">
-          <q-input v-model="newGroupSectionName" label="Group name" outlined dense autofocus
-            @keyup.enter="confirmNewGroupSection" />
+          <template v-if="deletingGroupSection?.items.length">
+            <div class="text-body2 q-mb-sm">
+              This group has {{ deletingGroupSection.items.length }}
+              prayer{{ deletingGroupSection.items.length === 1 ? '' : 's' }}.
+            </div>
+            <q-option-group v-model="deleteGroupMode" dense class="delete-group-options" :options="[
+              { label: 'Delete this group only — prayers move to Miscellaneous', value: 'orphan' },
+              { label: `Delete this group and all ${deletingGroupSection.items.length} prayers`, value: 'cascade' }
+            ]" />
+          </template>
+          <div v-else class="text-body2 text-grey-8">This group is empty.</div>
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat label="Cancel" v-close-popup />
-          <q-btn color="primary" label="Add" :disable="!newGroupSectionName.trim()" @click="confirmNewGroupSection" />
+          <q-btn color="negative" label="Delete" :loading="deletingGroup" @click="confirmDeleteGroup" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -199,18 +296,17 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useQuasar } from 'quasar'
 import draggable from 'vuedraggable'
 import { usePrayerRequestsStore } from 'stores/prayerRequests'
+import { usePrayerRequestGroupsStore } from 'stores/prayerRequestGroups'
 
 const $q = useQuasar()
 const store = usePrayerRequestsStore()
+const groupsStore = usePrayerRequestGroupsStore()
 
 const loading = ref(true)
-const adding = ref(false)
-const newRequest = ref('')
-const newGroup = ref(null)
 
 // List (default, read-only quick glance) or manage (add/group/reorder/etc.)
 const viewMode = ref('list')
@@ -219,17 +315,24 @@ const requests = computed(() => store.requests)
 const active = computed(() => requests.value.filter((r) => r.status !== 'answered'))
 const answered = computed(() => requests.value.filter((r) => r.status === 'answered'))
 
-// Local, draggable view of the active list grouped by group_name. Synced
-// from the store after every mutation (fetch/add/answer/reopen/delete) —
-// dragging only ever mutates this local structure, then persistOrder
-// flattens it back into the store. Ungrouped is always shown, even empty,
-// so there's somewhere to drop an item to take it out of a group. Also
-// doubles as the grouping used to render the read-only list view.
+// Local, draggable view of the active list, one entry per real persisted
+// group (groupsStore.groups), synced after every mutation (fetch/add/
+// answer/reopen/delete/group change). Dragging only ever mutates this
+// local structure (plus miscItems below), then persistOrder/
+// persistGroupOrder flush it back to the stores. Miscellaneous
+// (group_id null) isn't a persisted row, so it's tracked separately.
 const groupSections = ref([])
-const UNGROUPED = ''
+const miscItems = ref([])
+const miscSection = computed(() => ({ key: null, label: 'Miscellaneous', items: miscItems.value }))
+const allSectionsForDisplay = computed(() => [...groupSections.value, miscSection.value])
 
-// Groups collapsed by the user — keyed the same as section.key ('' for
-// Ungrouped). Nothing collapsed by default.
+// Object-key namespace for per-group UI state (quick-add text). Real
+// groups key by their uuid; Miscellaneous has no id, so it gets a
+// dedicated key that can't collide with one.
+const MISC_KEY = '__misc__'
+
+// Groups collapsed by the user — keyed the same as section.key (null for
+// Miscellaneous). Nothing collapsed by default.
 const collapsedGroups = reactive(new Set())
 const isGroupCollapsed = (key) => collapsedGroups.has(key)
 const toggleGroupCollapse = (key) => {
@@ -238,54 +341,24 @@ const toggleGroupCollapse = (key) => {
 }
 
 const syncGroups = () => {
-  const sorted = [...active.value].sort((a, b) => a.position - b.position)
-  const map = new Map()
-  const order = []
-  for (const request of sorted) {
-    const key = request.group_name || UNGROUPED
-    if (!map.has(key)) {
-      map.set(key, [])
-      order.push(key)
+  const byGroupId = new Map()
+  const misc = []
+  for (const request of active.value) {
+    if (request.group_id) {
+      if (!byGroupId.has(request.group_id)) byGroupId.set(request.group_id, [])
+      byGroupId.get(request.group_id).push(request)
+    } else {
+      misc.push(request)
     }
-    map.get(key).push(request)
   }
+  byGroupId.forEach((list) => list.sort((a, b) => a.position - b.position))
+  misc.sort((a, b) => a.position - b.position)
 
-  // Groups with items are ordered by where their members fall in the
-  // persisted order — including Ungrouped, once it actually has members.
-  // Groups with no items yet (an unused Ungrouped bucket, or a freshly
-  // created empty group) have no data to derive a position from, so they
-  // keep whatever relative order the user last left them in, appended
-  // after everything with real content.
-  if (!map.has(UNGROUPED)) {
-    map.set(UNGROUPED, [])
-    order.push(UNGROUPED)
-  }
-  groupSections.value
-    .filter((s) => !map.has(s.key))
-    .forEach((s) => {
-      map.set(s.key, [])
-      order.push(s.key)
-    })
+  groupSections.value = [...groupsStore.groups]
+    .sort((a, b) => a.position - b.position)
+    .map((g) => ({ key: g.id, label: g.name, items: byGroupId.get(g.id) || [] }))
 
-  groupSections.value = order.map((key) => ({
-    key,
-    label: key || 'Ungrouped',
-    items: map.get(key) || [],
-  }))
-}
-
-const groupNames = computed(() => groupSections.value.map((s) => s.key).filter(Boolean))
-const filteredGroupOptions = ref([])
-
-const filterGroupOptions = (val, update) => {
-  update(() => {
-    if (!val) {
-      filteredGroupOptions.value = groupNames.value
-      return
-    }
-    const needle = val.toLowerCase()
-    filteredGroupOptions.value = groupNames.value.filter((name) => name.toLowerCase().includes(needle))
-  })
+  miscItems.value = misc
 }
 
 const formatDate = (dateString) => {
@@ -297,49 +370,176 @@ const formatDate = (dateString) => {
   })
 }
 
-const submitNew = async () => {
-  const text = newRequest.value.trim()
+// Quick-add: a per-group inline input, right under that group's list, for
+// adding straight into it — the primary way to add a prayer now that
+// groups come first. Keyed by section so each group's row keeps its own
+// in-progress text.
+const quickAddText = reactive({})
+
+const quickAdd = async (section) => {
+  const mapKey = section.key ?? MISC_KEY
+  const text = (quickAddText[mapKey] || '').trim()
   if (!text) return
-  adding.value = true
   try {
-    await store.addRequest(text, newGroup.value)
-    newRequest.value = ''
-    newGroup.value = null
+    await store.addRequest(text, section.key)
+    quickAddText[mapKey] = ''
     syncGroups()
   } catch {
     $q.notify({ type: 'negative', message: 'Failed to add prayer request' })
-  } finally {
-    adding.value = false
   }
 }
 
-const showNewGroupDialog = ref(false)
+// New group: an inline "New Group" button that swaps for a name input —
+// Enter (or the check button) creates it immediately, no dialog.
+const addingGroup = ref(false)
+const newGroupInputRef = ref(null)
 const newGroupSectionName = ref('')
+const savingNewGroup = ref(false)
 
-const promptNewGroupSection = () => {
+const startAddGroup = async () => {
   newGroupSectionName.value = ''
-  showNewGroupDialog.value = true
+  addingGroup.value = true
+  await nextTick()
+  newGroupInputRef.value?.focus()
 }
 
-const confirmNewGroupSection = () => {
+const cancelAddGroup = () => {
+  addingGroup.value = false
+  newGroupSectionName.value = ''
+}
+
+const confirmNewGroupSection = async () => {
   const name = newGroupSectionName.value.trim()
   if (!name) return
-  if (!groupSections.value.some((s) => s.key === name)) {
-    groupSections.value.splice(groupSections.value.length - 1, 0, { key: name, label: name, items: [] })
+  savingNewGroup.value = true
+  try {
+    await groupsStore.addGroup(name)
+    syncGroups()
+    cancelAddGroup()
+  } catch (error) {
+    $q.notify({
+      type: 'negative',
+      message: error?.code === '23505' ? 'A group with that name already exists' : 'Failed to create group',
+    })
+  } finally {
+    savingNewGroup.value = false
   }
-  showNewGroupDialog.value = false
 }
 
-// Flattens the current on-screen grouping/order and persists it in one go
+// Rename: an inline pencil-to-input swap on the group header, same
+// interaction shape as the "New Group" flow. editGroupInputEl is set via a
+// function ref rather than a template ref name, since a plain named ref
+// would collect one entry per rendered group section (only one of which is
+// ever actually the input being edited).
+const editingGroupKey = ref(null)
+const editGroupName = ref('')
+const editGroupInputEl = ref(null)
+const savingGroupEdit = ref(false)
+
+const setEditGroupInputRef = (section, el) => {
+  if (editingGroupKey.value === section.key) editGroupInputEl.value = el
+}
+
+const startEditGroup = async (section) => {
+  editingGroupKey.value = section.key
+  editGroupName.value = section.label
+  await nextTick()
+  editGroupInputEl.value?.focus()
+}
+
+const cancelEditGroup = () => {
+  editingGroupKey.value = null
+  editGroupName.value = ''
+}
+
+const confirmEditGroup = async (section) => {
+  const name = editGroupName.value.trim()
+  if (!name || name === section.label) {
+    cancelEditGroup()
+    return
+  }
+  savingGroupEdit.value = true
+  try {
+    await groupsStore.renameGroup(section.key, name)
+    syncGroups()
+    cancelEditGroup()
+  } catch (error) {
+    $q.notify({
+      type: 'negative',
+      message: error?.code === '23505' ? 'A group with that name already exists' : 'Failed to rename group',
+    })
+  } finally {
+    savingGroupEdit.value = false
+  }
+}
+
+// Flattens the current on-screen item order/grouping and persists it in
+// one go (used for both within-group reorders and cross-group moves,
+// including into/out of Miscellaneous).
 const persistOrder = async () => {
-  const items = groupSections.value.flatMap((section) =>
-    section.items.map((request) => ({ id: request.id, group_name: section.key || null })),
-  )
+  const items = [
+    ...groupSections.value.flatMap((section) =>
+      section.items.map((request) => ({ id: request.id, group_id: section.key })),
+    ),
+    ...miscItems.value.map((request) => ({ id: request.id, group_id: null })),
+  ]
   try {
     await store.reorder(items)
   } catch {
     $q.notify({ type: 'negative', message: 'Failed to save order' })
     syncGroups()
+  }
+}
+
+// Persists the groups' own order (dragging group sections themselves).
+// Separate from persistOrder since it never touches any prayer's row.
+const persistGroupOrder = async () => {
+  const orderedIds = groupSections.value.map((section) => section.key)
+  try {
+    await groupsStore.reorderGroups(orderedIds)
+  } catch {
+    $q.notify({ type: 'negative', message: 'Failed to save group order' })
+    syncGroups()
+  }
+}
+
+// Deleting a group: 'orphan' (default) deletes just the group row — the
+// group_id FK's ON DELETE SET NULL clears it on member prayers server-side,
+// so they land back in Miscellaneous; 'cascade' deletes the prayers too.
+// Miscellaneous itself has no delete button — it isn't a persisted row.
+const showDeleteGroupDialog = ref(false)
+const deletingGroupSection = ref(null)
+const deleteGroupMode = ref('orphan')
+const deletingGroup = ref(false)
+
+const openDeleteGroup = (section) => {
+  deletingGroupSection.value = section
+  deleteGroupMode.value = 'orphan'
+  showDeleteGroupDialog.value = true
+}
+
+const confirmDeleteGroup = async () => {
+  const section = deletingGroupSection.value
+  deletingGroup.value = true
+  try {
+    if (deleteGroupMode.value === 'cascade') {
+      await Promise.all(section.items.map((request) => store.deleteRequest(request.id)))
+      await groupsStore.deleteGroup(section.key)
+    } else {
+      await groupsStore.deleteGroup(section.key)
+      // The FK already cleared group_id server-side; mirror that in the
+      // local cache so the UI reflects it without a re-fetch.
+      section.items.forEach((request) => {
+        const cached = store.requests.find((r) => r.id === request.id)
+        if (cached) cached.group_id = null
+      })
+    }
+    showDeleteGroupDialog.value = false
+    syncGroups()
+  } catch {
+    $q.notify({ type: 'negative', message: 'Failed to delete group' })
+  } finally {
+    deletingGroup.value = false
   }
 }
 
@@ -400,7 +600,7 @@ const confirmDelete = async () => {
 
 onMounted(async () => {
   try {
-    await store.fetchRequests()
+    await Promise.all([store.fetchRequests(), groupsStore.fetchGroups()])
     syncGroups()
   } catch {
     $q.notify({ type: 'negative', message: 'Failed to load prayer requests' })
@@ -454,6 +654,24 @@ onMounted(async () => {
   border-radius: 8px;
 }
 
+/* Each radio is wrapped in its own single-child <div> by QOptionGroup, so
+   :last-child on .q-radio itself would match every option (each is the
+   lone child of its own wrapper) — target the wrapper divs instead. */
+.delete-group-options > :deep(div) {
+  margin-bottom: 14px;
+}
+
+.delete-group-options > :deep(div:last-child) {
+  margin-bottom: 0;
+}
+
+.quick-add-row {
+  padding: 4px 4px 4px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+
 .group-header {
   cursor: pointer;
   padding: 4px 2px;
@@ -470,10 +688,17 @@ onMounted(async () => {
 }
 
 .list-group-label {
+  cursor: pointer;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   margin-top: 20px;
   margin-bottom: 6px;
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.list-group-label:hover {
+  background: var(--color-hover);
 }
 
 .list-group-label:first-child {

@@ -14,29 +14,48 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
   const loaded = ref(false)
   const loading = ref(false)
 
-  const load = async () => {
-    if (loaded.value || loading.value) return
-    loading.value = true
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (!session) return
+  // Several components call load() independently on mount (MainLayout for
+  // theme, RecentEntries for journal order, ...). Without de-duping to the
+  // same in-flight promise, a caller that lands while another's fetch is
+  // still pending would previously just no-op and read whatever was in
+  // `preferences` at that instant — still the pre-load default — instead
+  // of waiting for the real data. That's exactly what caused dark mode to
+  // apply 'light' on refresh despite the (reactively-bound, so correct)
+  // toggle icon showing 'dark': MainLayout's one-shot $q.dark.set() ran
+  // against stale state and nothing re-triggered it once the real fetch
+  // (kicked off by RecentEntries mounting first) actually resolved.
+  let loadPromise = null
 
-      const { data, error } = await supabase
-        .from('user_preferences')
-        .select('preferences')
-        .eq('user_id', session.user.id)
-        .maybeSingle()
+  const load = () => {
+    if (loaded.value) return Promise.resolve()
+    if (loadPromise) return loadPromise
 
-      if (error) throw error
-      preferences.value = data?.preferences || {}
-      loaded.value = true
-    } catch (error) {
-      console.error('Error loading preferences:', error)
-    } finally {
-      loading.value = false
-    }
+    loadPromise = (async () => {
+      loading.value = true
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+        if (!session) return
+
+        const { data, error } = await supabase
+          .from('user_preferences')
+          .select('preferences')
+          .eq('user_id', session.user.id)
+          .maybeSingle()
+
+        if (error) throw error
+        preferences.value = data?.preferences || {}
+        loaded.value = true
+      } catch (error) {
+        console.error('Error loading preferences:', error)
+      } finally {
+        loading.value = false
+        loadPromise = null
+      }
+    })()
+
+    return loadPromise
   }
 
   // Merges `patch` into the stored preferences and persists the whole blob.

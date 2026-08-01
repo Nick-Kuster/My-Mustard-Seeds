@@ -29,12 +29,37 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import RecentEntries from 'src/components/RecentEntries.vue'
 import PrayerRequests from 'src/components/PrayerRequests.vue'
 import TestimonyEditor from 'src/components/TestimonyEditor.vue'
 
-const activeTab = ref('seeds')
+const route = useRoute()
+const router = useRouter()
+
+// Mirrored in the ?tab= query param so a refresh (or back/forward) lands
+// back on the same tab instead of always resetting to My Seeds. 'seeds' is
+// the default and left out of the URL to keep the plain homepage link tidy.
+const VALID_TABS = ['seeds', 'prayers', 'testimony']
+
+const activeTab = ref(VALID_TABS.includes(route.query.tab) ? route.query.tab : 'seeds')
+
+watch(
+  () => route.query.tab,
+  (tab) => {
+    const next = VALID_TABS.includes(tab) ? tab : 'seeds'
+    if (next !== activeTab.value) activeTab.value = next
+  },
+)
+
+watch(activeTab, (tab) => {
+  if ((route.query.tab || 'seeds') === tab) return
+  const query = { ...route.query }
+  if (tab === 'seeds') delete query.tab
+  else query.tab = tab
+  router.replace({ query })
+})
 </script>
 
 <style scoped>
