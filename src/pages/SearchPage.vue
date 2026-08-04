@@ -13,7 +13,7 @@
               </q-badge>
             </q-btn>
             <q-btn flat round color="primary" icon="print" :disable="filteredEntries.length === 0"
-              @click="router.push('/print')">
+              @click="showPrintOptionsModal = true">
               <q-tooltip>Print / Export to PDF</q-tooltip>
             </q-btn>
           </div>
@@ -70,7 +70,8 @@
       </div>
     </div>
 
-    <FilterModal v-model="showFilterModal" />
+    <FilterModal v-model="showFilterModal" @applied="syncFiltersToRoute" />
+    <PrintOptionsModal v-model="showPrintOptionsModal" />
   </q-page>
 </template>
 
@@ -80,6 +81,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useJournalStore } from 'src/stores/journalData'
 import { useJournalTypeColorsStore } from 'src/stores/journalTypeColors'
 import FilterModal from 'src/components/FilterModal.vue'
+import PrintOptionsModal from 'src/components/PrintOptionsModal.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -88,6 +90,7 @@ const typeColorsStore = useJournalTypeColorsStore()
 
 const loading = ref(true)
 const showFilterModal = ref(false)
+const showPrintOptionsModal = ref(false)
 const currentPage = ref(1)
 const itemsPerPage = 10
 
@@ -135,9 +138,49 @@ const clearAllFilters = () => {
   journalStore.clearFacets()
 }
 
-// Translate query params from the Browse page into store facets
+const FACET_KEYS = ['types', 'verses', 'books', 'resourceTypes', 'resources', 'tags', 'quotes', 'links']
+
+// Reflects the full current facet state into the URL as its own history
+// entry, so Back returns to exactly this filtered view instead of skipping
+// straight past it to whatever was on screen before Apply was clicked.
+const syncFiltersToRoute = () => {
+  const query = { ...route.query }
+  delete query.type
+  delete query.resourceType
+  delete query.resources
+
+  const hasFacets = FACET_KEYS.some((key) => journalStore.selectedFacets[key]?.length > 0)
+  if (hasFacets) {
+    query.facets = JSON.stringify(journalStore.selectedFacets)
+  } else {
+    delete query.facets
+  }
+
+  router.push({ path: '/search', query })
+}
+
+// Translate query params from elsewhere into store facets — either the
+// full facet set applied from within this page (?facets=, see
+// syncFiltersToRoute above) or the narrower single-value shortcuts other
+// pages link in with directly (Browse's type/resourceType/resources).
 const applyRouteFilters = () => {
   const query = route.query
+
+  if (query.facets) {
+    try {
+      const parsed = JSON.parse(query.facets)
+      journalStore.clearFacets()
+      FACET_KEYS.forEach((key) => {
+        if (Array.isArray(parsed[key]) && parsed[key].length > 0) {
+          journalStore.updateFacet(key, parsed[key])
+        }
+      })
+    } catch {
+      // Malformed query param — ignore
+    }
+    return
+  }
+
   if (!query.type && !query.resources && !query.resourceType) return
 
   journalStore.clearFacets()

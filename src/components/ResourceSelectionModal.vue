@@ -129,7 +129,7 @@
 
   <!-- Delete Confirmation Dialog -->
   <q-dialog v-model="showDeleteDialog" persistent>
-    <q-card style="min-width: 300px">
+    <q-card style="width: 90vw; max-width: 300px">
       <q-card-section class="row items-center">
         <div class="text-h6">Delete {{ resourceToDelete ? displayLabel(resourceToDelete.type) : '' }}</div>
       </q-card-section>

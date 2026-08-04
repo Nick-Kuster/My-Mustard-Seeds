@@ -6,6 +6,9 @@
         Print Preview — {{ entries.length }} {{ entries.length === 1 ? 'entry' : 'entries' }}
       </div>
       <div class="row items-center">
+        <q-btn flat round icon="arrow_back" color="primary" @click="router.push('/search')">
+          <q-tooltip>Back to Search</q-tooltip>
+        </q-btn>
         <q-space />
         <q-btn unelevated color="primary" icon="print" label="Print / Save as PDF" @click="printPage"
           :disable="loading || entries.length === 0" />
@@ -35,22 +38,27 @@
         <h2 class="entry-title">{{ entry.title }}</h2>
         <div class="entry-meta">{{ formatDate(entry.created_at) }} • {{ entry.type }}</div>
 
-        <div v-if="entry.verses?.length" class="entry-line">
+        <div v-if="printOptions.verses && entry.verses?.length" class="entry-line">
           <strong>Verses:</strong> {{ verseLine(entry) }}
         </div>
 
-        <div v-if="entry.tags?.length" class="entry-line">
+        <div v-if="printOptions.tags && entry.tags?.length" class="entry-line">
           <strong>Tags:</strong> {{ entry.tags.map((t) => t.name).join(', ') }}
         </div>
 
-        <template v-for="(section, key) in entry.decryptedContent || {}" :key="key">
-          <section v-if="section?.title || section?.content" class="entry-section">
-            <h3 v-if="section?.title" class="section-title">{{ section.title }}</h3>
-            <p v-if="section?.content" class="section-content">{{ section.content }}</p>
-          </section>
+        <template v-if="printOptions.content">
+          <template v-for="(section, index) in entry.decryptedContent?.sections || []" :key="section.id || index">
+            <section v-if="section?.title || section?.content" class="entry-section">
+              <h3 v-if="section?.title" class="section-title">{{ section.title }}</h3>
+              <ul v-if="section.fieldType === 'list'" class="section-list">
+                <li v-for="(item, i) in listItems(section.content)" :key="i">{{ item }}</li>
+              </ul>
+              <p v-else-if="section?.content" class="section-content">{{ section.content }}</p>
+            </section>
+          </template>
         </template>
 
-        <div v-if="entry.quotes?.length" class="entry-quotes">
+        <div v-if="printOptions.quotes && entry.quotes?.length" class="entry-quotes">
           <h3 class="section-title">Quotes</h3>
           <blockquote v-for="quote in entry.quotes" :key="quote.id" class="quote-block">
             <span class="quote-text">"{{ quote.decryptedQuote }}"</span>
@@ -60,7 +68,7 @@
           </blockquote>
         </div>
 
-        <div v-if="entry.links?.length" class="entry-line">
+        <div v-if="printOptions.links && entry.links?.length" class="entry-line">
           <strong>Links:</strong>
           <template v-for="(link, i) in entry.links" :key="link.id">
             {{ link.name }} ({{ link.url }})<template v-if="i < entry.links.length - 1">, </template>
@@ -73,13 +81,19 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useJournalStore, getVerseDisplay } from 'src/stores/journalData'
+import { useUserPreferencesStore } from 'src/stores/userPreferences'
+import { getListItems } from 'src/utils/sectionListUtils'
 
+const router = useRouter()
 const journalStore = useJournalStore()
+const userPreferencesStore = useUserPreferencesStore()
 
 const loading = ref(true)
 
 const entries = computed(() => journalStore.filteredEntries)
+const printOptions = computed(() => userPreferencesStore.printOptions)
 
 const printedDate = new Date().toLocaleDateString(undefined, {
   year: 'numeric',
@@ -131,11 +145,14 @@ const verseLine = (entry) => {
     .join(', ')
 }
 
+const listItems = (content) => getListItems(content).filter((item) => item.trim())
+
 const printPage = () => {
   window.print()
 }
 
 onMounted(async () => {
+  await userPreferencesStore.load()
   if (!journalStore.entries.length) {
     await journalStore.fetchEntries()
   }
@@ -225,6 +242,13 @@ onMounted(async () => {
   font-size: 14px;
   line-height: 1.6;
   margin: 0;
+}
+
+.section-list {
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+  padding-left: 20px;
 }
 
 .entry-quotes {

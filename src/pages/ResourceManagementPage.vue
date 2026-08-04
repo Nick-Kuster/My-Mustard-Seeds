@@ -4,9 +4,6 @@
       <div class="col-12 wide-content-card q-pa-lg parchment">
         <div class="row items-center q-mb-md">
           <div class="col text-h6 text-center">Manage Resources</div>
-          <q-btn flat round icon="refresh" color="primary" :loading="refreshing" @click="handleRefresh">
-            <q-tooltip>Refresh from database</q-tooltip>
-          </q-btn>
         </div>
 
         <q-input v-model="searchTerm" placeholder="Search resources..." dense clearable outlined
@@ -209,7 +206,7 @@
 
     <!-- Delete confirmation dialog -->
     <q-dialog v-model="showDeleteDialog">
-      <q-card style="min-width: 380px">
+      <q-card style="width: 90vw; max-width: 380px">
         <q-card-section>
           <div class="text-h6">Delete {{ deletingResource ? displayTitle(deletingResource) : '' }}?</div>
         </q-card-section>
@@ -258,7 +255,6 @@ const $q = useQuasar()
 const resourcesStore = useResourcesStore()
 
 const initialLoading = ref(true)
-const refreshing = ref(false)
 const searchTerm = ref('')
 const relationships = ref([])
 
@@ -399,20 +395,6 @@ const searchResults = computed(() => {
 
 const loadRelationships = async () => {
   relationships.value = await resourcesStore.getAllRelationships()
-}
-
-const handleRefresh = async () => {
-  refreshing.value = true
-  try {
-    resourcesStore.clearCache()
-    await resourcesStore.loadResources(true)
-    await loadRelationships()
-  } catch (error) {
-    console.error('Error refreshing resources:', error)
-    $q.notify({ type: 'negative', message: 'Failed to refresh resources' })
-  } finally {
-    refreshing.value = false
-  }
 }
 
 onMounted(async () => {

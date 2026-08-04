@@ -253,7 +253,7 @@
 
     <!-- Delete confirmation -->
     <q-dialog v-model="showDeleteDialog">
-      <q-card style="min-width: 320px">
+      <q-card style="width: 90vw; max-width: 320px">
         <q-card-section>
           <div class="text-h6">Delete this request?</div>
         </q-card-section>
@@ -269,7 +269,7 @@
 
     <!-- Delete group confirmation -->
     <q-dialog v-model="showDeleteGroupDialog">
-      <q-card style="min-width: 340px">
+      <q-card style="width: 90vw; max-width: 340px">
         <q-card-section>
           <div class="text-h6">Delete "{{ deletingGroupSection?.label }}"?</div>
         </q-card-section>

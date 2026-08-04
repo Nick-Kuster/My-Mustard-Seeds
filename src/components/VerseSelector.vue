@@ -3,8 +3,9 @@
     <!-- Book Selection -->
     <div class="row q-col-gutter-md q-mb-sm">
       <div class="col">
-        <q-select v-model="selectedBook" :options="bibleData.books" option-label="book" label="Book"
-          @update:model-value="onBookChange" dense />
+        <q-select v-model="selectedBook" :options="filteredBooks" option-label="book" label="Book"
+          @update:model-value="onBookChange" dense use-input fill-input hide-selected input-debounce="0"
+          @filter="filterBooks" />
       </div>
       <div class="col">
         <q-select v-model="selectedChapter" :options="chapterOptions" label="Chapter"
@@ -55,6 +56,18 @@ const startVerse = ref(null)
 const endVerse = ref(null)
 const chapterOptions = ref([])
 const verseOptions = ref([])
+const filteredBooks = ref([])
+
+const filterBooks = (val, update) => {
+  update(() => {
+    if (!val) {
+      filteredBooks.value = bibleData.books
+      return
+    }
+    const needle = val.toLowerCase()
+    filteredBooks.value = bibleData.books.filter((b) => b.book.toLowerCase().includes(needle))
+  })
+}
 const verseContent = ref('')
 const startVerseId = ref(null)
 const endVerseId = ref(null)
@@ -134,6 +147,7 @@ watch([startVerse, endVerse], async () => {
 
 onMounted(async () => {
   await bibleData.loadBooks()
+  filteredBooks.value = bibleData.books
 })
 
 // Handle external modelValue changes

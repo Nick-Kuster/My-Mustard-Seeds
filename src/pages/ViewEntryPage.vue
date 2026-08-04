@@ -189,7 +189,7 @@
 
     <!-- Delete Confirmation Dialog -->
     <q-dialog v-model="showDeleteDialog" persistent>
-      <q-card style="min-width: 300px">
+      <q-card style="width: 90vw; max-width: 300px">
         <q-card-section>
           <div class="text-h6">Delete Entry</div>
         </q-card-section>

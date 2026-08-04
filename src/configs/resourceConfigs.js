@@ -22,11 +22,6 @@ const configs = {
         required: true,
         type: 'text',
       },
-      year: {
-        label: 'Publication Year',
-        required: false,
-        type: 'text',
-      },
     },
     allowedChildren: [RESOURCE_TYPES.CHAPTER],
     getDisplayTitle: (resource) => resource.metadata.title,

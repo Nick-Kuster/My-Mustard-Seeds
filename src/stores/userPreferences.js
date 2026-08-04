@@ -5,6 +5,17 @@ import { JOURNAL_TYPES } from 'src/constants/journalTypes'
 
 const DEFAULT_JOURNAL_ORDER = JOURNAL_TYPES.map((t) => t.id)
 
+// What PrintPage.vue includes per entry — all on by default so existing
+// users (and anyone who's never opened Print Options) get today's behavior
+// unchanged.
+export const DEFAULT_PRINT_OPTIONS = {
+  content: true,
+  verses: true,
+  tags: true,
+  quotes: true,
+  links: true,
+}
+
 // Per-user app preferences, stored as a single jsonb blob (see
 // sql/User Preferences Table.sql for why a blob over columns or a
 // key/value table) rather than one row/column per setting. Loaded once per
@@ -106,6 +117,12 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
   const themeMode = computed(() => (preferences.value.themeMode === 'dark' ? 'dark' : 'light'))
   const setThemeMode = (mode) => setPreferences({ themeMode: mode })
 
+  // Merged over the defaults so a preference saved before a new print
+  // option existed still turns that new option on, same reasoning as
+  // journalOrder appending unknown types rather than dropping them.
+  const printOptions = computed(() => ({ ...DEFAULT_PRINT_OPTIONS, ...(preferences.value.printOptions || {}) }))
+  const setPrintOptions = (options) => setPreferences({ printOptions: options })
+
   return {
     preferences,
     loaded,
@@ -116,5 +133,7 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
     setJournalOrder,
     themeMode,
     setThemeMode,
+    printOptions,
+    setPrintOptions,
   }
 })

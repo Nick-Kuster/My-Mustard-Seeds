@@ -36,8 +36,10 @@
             <div class="text-subtitle2 q-mb-sm">Available Tags</div>
             <div class="row q-gutter-sm">
               <q-chip v-for="tag in filteredTags" :key="tag.id" :color="isSelected(tag) ? 'primary' : 'grey-3'"
-                :text-color="isSelected(tag) ? 'white' : 'black'" clickable @click="toggleTag(tag)">
+                :text-color="isSelected(tag) ? 'white' : 'black'" clickable @click="toggleTag(tag)"
+                removable remove-icon="delete" @remove="openDeleteTag(tag)">
                 {{ tag.name }}
+                <q-tooltip>Click to {{ isSelected(tag) ? 'deselect' : 'select' }}; trash icon deletes it everywhere</q-tooltip>
               </q-chip>
             </div>
           </div>
@@ -49,13 +51,29 @@
         <q-btn flat label="Done" color="primary" v-close-popup />
       </q-card-actions>
     </q-card>
+
+    <!-- Delete tag confirmation -->
+    <q-dialog v-model="showDeleteTagDialog">
+      <q-card style="width: 90vw; max-width: 320px">
+        <q-card-section>
+          <div class="text-h6">Delete "{{ deletingTag?.name }}"?</div>
+        </q-card-section>
+        <q-card-section class="q-pt-none text-body2">
+          This removes the tag from every entry it's on. This cannot be undone.
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" v-close-popup />
+          <q-btn color="negative" label="Delete" :loading="deletingTagBusy" @click="confirmDeleteTag" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-dialog>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { supabase } from 'src/boot/supabase'
 import { useQuasar } from 'quasar'
+import { useTagsStore } from 'stores/tags'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -68,12 +86,13 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'update:selectedTags'])
 
 const $q = useQuasar()
+const tagsStore = useTagsStore()
 const isOpen = computed({
   get: () => props.modelValue,
   set: (value) => emit('update:modelValue', value)
 })
 
-const allTags = ref([])
+const allTags = computed(() => tagsStore.tags)
 const searchQuery = ref('')
 const selectedTags = ref(props.selectedTags || [])
 
@@ -99,26 +118,6 @@ const filteredTags = computed(() => {
   )
 })
 
-const fetchTags = async () => {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return
-
-  const { data, error } = await supabase
-    .from('tags')
-    .select('*')
-    .eq('user_id', session.user.id)
-    .order('name')
-
-  if (error) {
-    console.error('Error fetching tags:', error)
-    return
-  }
-
-  if (data) {
-    allTags.value = data
-  }
-}
-
 const handleEnter = () => {
   if (searchQuery.value && !existingTagNames.value.includes(searchQuery.value.toLowerCase())) {
     createNewTag()
@@ -129,22 +128,8 @@ const createNewTag = async () => {
   if (!searchQuery.value.trim()) return
 
   try {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
-
-    const { data, error } = await supabase
-      .from('tags')
-      .insert({
-        user_id: session.user.id,
-        name: searchQuery.value.trim()
-      })
-      .select()
-      .single()
-
-    if (error) throw error
-
-    allTags.value.push(data)
-    toggleTag(data)
+    const tag = await tagsStore.createTag(searchQuery.value.trim())
+    toggleTag(tag)
     searchQuery.value = ''
 
     $q.notify({
@@ -173,10 +158,39 @@ const toggleTag = (tag) => {
   }
 }
 
+// Deleting a tag removes it everywhere, not just from the entry currently
+// being edited — journal_tags rows are cleared explicitly first so this
+// doesn't depend on the FK having an ON DELETE CASCADE configured.
+const showDeleteTagDialog = ref(false)
+const deletingTag = ref(null)
+const deletingTagBusy = ref(false)
+
+const openDeleteTag = (tag) => {
+  deletingTag.value = tag
+  showDeleteTagDialog.value = true
+}
+
+const confirmDeleteTag = async () => {
+  const tag = deletingTag.value
+  deletingTagBusy.value = true
+  try {
+    await tagsStore.deleteTags([tag.id])
+    selectedTags.value = selectedTags.value.filter((t) => t.id !== tag.id)
+    showDeleteTagDialog.value = false
+
+    $q.notify({ type: 'positive', message: 'Tag deleted' })
+  } catch (error) {
+    console.error('Error deleting tag:', error)
+    $q.notify({ type: 'negative', message: 'Failed to delete tag' })
+  } finally {
+    deletingTagBusy.value = false
+  }
+}
+
 // Fetch tags when the modal opens
 watch(() => props.modelValue, async (newVal) => {
   if (newVal) {
-    await fetchTags()
+    await tagsStore.fetchTags()
   }
 })
 </script>

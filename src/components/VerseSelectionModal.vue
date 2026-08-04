@@ -8,7 +8,8 @@
       </q-card-section>
 
       <q-card-section class="verse-selection-content">
-        <q-select v-model="selectedBook" :options="bibleData.books" option-label="book" label="Book" dense
+        <q-select v-model="selectedBook" :options="filteredBooks" option-label="book" label="Book" dense
+          use-input fill-input hide-selected input-debounce="0" @filter="filterBooks"
           menu-self="top start" menu-anchor="bottom start" popup-content-class="verse-select-menu" />
 
         <div class="row q-col-gutter-sm q-mt-md">
@@ -59,6 +60,18 @@ const fromText = ref('')
 const toText = ref('')
 const fromPreview = ref('')
 const toPreview = ref('')
+const filteredBooks = ref([])
+
+const filterBooks = (val, update) => {
+  update(() => {
+    if (!val) {
+      filteredBooks.value = bibleData.books
+      return
+    }
+    const needle = val.toLowerCase()
+    filteredBooks.value = bibleData.books.filter((b) => b.book.toLowerCase().includes(needle))
+  })
+}
 
 const isOpen = computed({
   get: () => props.modelValue,
@@ -198,6 +211,7 @@ const confirmSelection = async () => {
 
 onMounted(async () => {
   await bibleData.loadBooks()
+  filteredBooks.value = bibleData.books
 })
 </script>
 

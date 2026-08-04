@@ -10,6 +10,42 @@
 
       <q-card-section class="scroll filter-body q-pt-sm q-px-none">
         <q-list separator>
+          <!-- Saved Filters -->
+          <q-expansion-item v-if="savedFiltersStore.filters.length" label="Saved Filters"
+            :caption="`${savedFiltersStore.filters.length} saved`" icon="bookmark" default-opened>
+            <q-list dense class="q-pb-sm">
+              <q-item v-for="saved in savedFiltersStore.filters" :key="saved.id" clickable
+                @click="applySavedFilter(saved)">
+                <q-item-section v-if="editingSavedFilterId !== saved.id">
+                  {{ saved.name }}
+                </q-item-section>
+                <q-item-section v-else @click.stop>
+                  <q-input v-model="editSavedFilterName" dense outlined autofocus
+                    @keyup.enter="confirmRenameSavedFilter(saved)" @keyup.esc="cancelRenameSavedFilter" />
+                </q-item-section>
+                <q-item-section side>
+                  <div class="row no-wrap q-gutter-xs">
+                    <template v-if="editingSavedFilterId === saved.id">
+                      <q-btn flat round dense icon="check" color="primary" size="sm"
+                        :loading="savingSavedFilterEdit" :disable="!editSavedFilterName.trim()"
+                        @click.stop="confirmRenameSavedFilter(saved)" />
+                      <q-btn flat round dense icon="close" size="sm" @click.stop="cancelRenameSavedFilter" />
+                    </template>
+                    <template v-else>
+                      <q-btn flat round dense icon="edit" size="sm" @click.stop="startRenameSavedFilter(saved)">
+                        <q-tooltip>Rename</q-tooltip>
+                      </q-btn>
+                      <q-btn flat round dense icon="delete" size="sm" color="negative"
+                        @click.stop="openDeleteSavedFilter(saved)">
+                        <q-tooltip>Delete</q-tooltip>
+                      </q-btn>
+                    </template>
+                  </div>
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </q-expansion-item>
+
           <!-- Journal Types -->
           <q-expansion-item v-if="availableFacets.types.length" label="Journal Types"
             :caption="selectionCaption(selectedTypes)" icon="category">
@@ -46,8 +82,9 @@
             <div class="q-px-md q-pb-md">
               <div class="row q-col-gutter-sm items-start">
                 <div class="col-12 col-sm-5">
-                  <q-select v-model="verseBook" :options="sortedBooks" label="Book" outlined dense clearable
-                    options-dense hide-bottom-space />
+                  <q-select v-model="verseBook" :options="filteredVerseBooks" label="Book" outlined dense clearable
+                    options-dense hide-bottom-space use-input fill-input hide-selected input-debounce="0"
+                    @filter="filterVerseBooks" />
                 </div>
                 <div class="col-5 col-sm-3">
                   <q-input v-model="verseFromText" label="From" placeholder="e.g. 1:1 or 1" outlined dense
@@ -96,8 +133,10 @@
             <div class="q-px-md q-pb-md">
               <q-select v-for="section in resourceTypeSections" :key="section.type"
                 :model-value="selectedResourcesByType[section.type] || []"
-                @update:model-value="(v) => setResourceSelection(section.type, v)" :options="section.options"
+                @update:model-value="(v) => setResourceSelection(section.type, v)"
+                :options="resourceOptionsFor(section)"
                 multiple outlined dense use-chips stack-label :label="section.label" options-dense
+                use-input input-debounce="0" @filter="(val, update) => filterResourceSection(section, val, update)"
                 class="q-mb-sm" />
               <div class="text-caption text-grey">
                 Options narrow to match your other selected filters
@@ -105,6 +144,18 @@
             </div>
           </q-expansion-item>
         </q-list>
+      </q-card-section>
+
+      <q-separator />
+
+      <q-card-section class="q-py-sm">
+        <div class="row items-center q-gutter-sm">
+          <q-input v-model="newFilterName" dense outlined :disable="!hasActiveFilters"
+            placeholder="Save current selection as..." class="col" @keyup.enter="saveCurrentFilter" />
+          <q-btn outline dense no-caps color="primary" icon="bookmark_add" label="Save Filter"
+            :disable="!hasActiveFilters || !newFilterName.trim()" :loading="savingFilter"
+            @click="saveCurrentFilter" />
+        </div>
       </q-card-section>
 
       <q-separator />
@@ -124,13 +175,32 @@
         </div>
       </q-card-actions>
     </q-card>
+
+    <!-- Delete saved filter confirmation -->
+    <q-dialog v-model="showDeleteSavedFilterDialog">
+      <q-card style="width: 90vw; max-width: 320px">
+        <q-card-section>
+          <div class="text-h6">Delete "{{ deletingSavedFilter?.name }}"?</div>
+        </q-card-section>
+        <q-card-section class="q-pt-none text-body2">
+          This cannot be undone.
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" v-close-popup />
+          <q-btn color="negative" label="Delete" :loading="deletingSavedFilterBusy"
+            @click="confirmDeleteSavedFilter" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-dialog>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { useQuasar } from 'quasar'
 import { useJournalStore, getResourceTitle } from 'stores/journalData'
 import { useBibleDataStore } from 'stores/bibleData'
+import { useSavedFiltersStore } from 'stores/savedFilters'
 import { verseMatchesRange, buildVerseRangeLabel, parseVerseFilterRef } from 'src/utils/verseUtils'
 import { getResourceConfig, pluralizeTitle } from 'src/configs/resourceConfigs'
 import { RESOURCE_TYPES } from 'src/constants/resourceTypes'
@@ -139,10 +209,12 @@ const props = defineProps({
   modelValue: Boolean
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'applied'])
 
+const $q = useQuasar()
 const journalStore = useJournalStore()
 const bibleDataStore = useBibleDataStore()
+const savedFiltersStore = useSavedFiltersStore()
 const availableFacets = computed(() => journalStore.availableFacets)
 
 const isOpen = computed({
@@ -188,6 +260,43 @@ const sortedBooks = computed(() => {
   const order = new Map(bibleDataStore.books.map((b, i) => [b.book ?? b.name ?? b, i]))
   return [...books].sort((a, b) => (order.get(a) ?? 999) - (order.get(b) ?? 999))
 })
+
+// Type-ahead filtering for the verse-range book select — kept in sync with
+// sortedBooks (not just set once) since it can change while the dialog is
+// open (entries/facets loading in).
+const filteredVerseBooks = ref([])
+watch(sortedBooks, (books) => { filteredVerseBooks.value = books }, { immediate: true })
+
+const filterVerseBooks = (val, update) => {
+  update(() => {
+    if (!val) {
+      filteredVerseBooks.value = sortedBooks.value
+      return
+    }
+    const needle = val.toLowerCase()
+    filteredVerseBooks.value = sortedBooks.value.filter((b) => b.toLowerCase().includes(needle))
+  })
+}
+
+// Type-ahead filtering for the per-resource-type multi-selects, keyed by
+// section.type since each renders its own q-select instance. Cleared
+// whenever the dialog reopens so a stale filtered list from a previous
+// visit doesn't linger; typing derives a fresh one from that section's
+// current (already facet-narrowed) options.
+const filteredResourceOptionsByType = reactive({})
+
+const resourceOptionsFor = (section) => filteredResourceOptionsByType[section.type] || section.options
+
+const filterResourceSection = (section, val, update) => {
+  update(() => {
+    if (!val) {
+      filteredResourceOptionsByType[section.type] = section.options
+      return
+    }
+    const needle = val.toLowerCase()
+    filteredResourceOptionsByType[section.type] = section.options.filter((o) => o.toLowerCase().includes(needle))
+  })
+}
 
 function groupResourceSelections(selections) {
   const grouped = {}
@@ -271,6 +380,7 @@ watch(() => props.modelValue, (newVal) => {
     selectedVerseRanges.value = [...journalStore.selectedFacets.verses]
     selectedResourceTypes.value = [...journalStore.selectedFacets.resourceTypes]
     selectedResourcesByType.value = groupResourceSelections(journalStore.selectedFacets.resources)
+    Object.keys(filteredResourceOptionsByType).forEach((key) => delete filteredResourceOptionsByType[key])
   }
 })
 
@@ -355,10 +465,121 @@ const applyFilters = () => {
   journalStore.updateFacet('resourceTypes', selectedResourceTypes.value)
   journalStore.updateFacet('resources', flatSelectedResources.value)
   isOpen.value = false
+  emit('applied')
+}
+
+// Saved filters: named presets of the same facet shape as the store's
+// selectedFacets. quotes/links are always saved empty since this modal has
+// no controls for them (nothing else here ever sets those facet keys).
+const currentFacetsSnapshot = () => ({
+  types: selectedTypes.value,
+  tags: selectedTags.value,
+  books: selectedBooks.value,
+  verses: selectedVerseRanges.value,
+  resourceTypes: selectedResourceTypes.value,
+  resources: flatSelectedResources.value,
+  quotes: [],
+  links: [],
+})
+
+const newFilterName = ref('')
+const savingFilter = ref(false)
+
+// Saving under a name that already exists updates that saved filter's
+// facets in place (an easy "refresh this preset with today's selection")
+// rather than erroring on the table's unique-name constraint.
+const saveCurrentFilter = async () => {
+  const name = newFilterName.value.trim()
+  if (!name || !hasActiveFilters.value) return
+
+  savingFilter.value = true
+  try {
+    const existing = savedFiltersStore.filters.find((f) => f.name.toLowerCase() === name.toLowerCase())
+    if (existing) {
+      await savedFiltersStore.updateFilter(existing.id, { facets: currentFacetsSnapshot() })
+      $q.notify({ type: 'positive', message: `Updated "${name}"` })
+    } else {
+      await savedFiltersStore.saveFilter(name, currentFacetsSnapshot())
+      $q.notify({ type: 'positive', message: `Saved "${name}"` })
+    }
+    newFilterName.value = ''
+  } catch {
+    $q.notify({ type: 'negative', message: 'Failed to save filter' })
+  } finally {
+    savingFilter.value = false
+  }
+}
+
+// Applying a saved filter writes straight to the store (bypassing this
+// modal's local staged refs) and closes immediately, same as Apply Filters
+// — it's meant to be a one-click "jump to this view," not a starting point
+// to tweak further.
+const applySavedFilter = (saved) => {
+  Object.entries(saved.facets || {}).forEach(([key, values]) => {
+    journalStore.updateFacet(key, Array.isArray(values) ? values : [])
+  })
+  isOpen.value = false
+  emit('applied')
+}
+
+const editingSavedFilterId = ref(null)
+const editSavedFilterName = ref('')
+const savingSavedFilterEdit = ref(false)
+
+const startRenameSavedFilter = (saved) => {
+  editingSavedFilterId.value = saved.id
+  editSavedFilterName.value = saved.name
+}
+
+const cancelRenameSavedFilter = () => {
+  editingSavedFilterId.value = null
+  editSavedFilterName.value = ''
+}
+
+const confirmRenameSavedFilter = async (saved) => {
+  const name = editSavedFilterName.value.trim()
+  if (!name || name === saved.name) {
+    cancelRenameSavedFilter()
+    return
+  }
+  savingSavedFilterEdit.value = true
+  try {
+    await savedFiltersStore.updateFilter(saved.id, { name })
+    cancelRenameSavedFilter()
+  } catch (error) {
+    $q.notify({
+      type: 'negative',
+      message: error?.code === '23505' ? 'A saved filter with that name already exists' : 'Failed to rename filter',
+    })
+  } finally {
+    savingSavedFilterEdit.value = false
+  }
+}
+
+const showDeleteSavedFilterDialog = ref(false)
+const deletingSavedFilter = ref(null)
+const deletingSavedFilterBusy = ref(false)
+
+const openDeleteSavedFilter = (saved) => {
+  deletingSavedFilter.value = saved
+  showDeleteSavedFilterDialog.value = true
+}
+
+const confirmDeleteSavedFilter = async () => {
+  deletingSavedFilterBusy.value = true
+  try {
+    await savedFiltersStore.deleteFilter(deletingSavedFilter.value.id)
+    showDeleteSavedFilterDialog.value = false
+  } catch {
+    $q.notify({ type: 'negative', message: 'Failed to delete saved filter' })
+  } finally {
+    deletingSavedFilterBusy.value = false
+  }
 }
 
 onMounted(() => {
   bibleDataStore.loadBooks()
+  savedFiltersStore.fetchFilters()
 })
 </script>
 
