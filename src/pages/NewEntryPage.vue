@@ -10,7 +10,7 @@
 
         <div class="q-gutter-md">
           <!-- Entry Type Selector -->
-          <TypeSelector v-model="entryType" @update:modelValue="handleTypeChange" />
+          <TypeSelector v-model="entryType" data-tour="entry-type-picker" @update:modelValue="handleTypeChange" />
 
           <!-- Resource Selection Section -->
           <!-- Bible Verse Selector (daily reading types) -->
@@ -233,8 +233,8 @@
             <q-tab-panel name="main" class="q-pa-none">
               <!-- Dynamic Sections -->
               <draggable :list="contentSections.filter(section => !section.headerProperty)" @update="handleDragUpdate"
-                item-key="id" handle=".drag-handle" class="q-gutter-y-md" :animation="200" ghost-class="ghost-section"
-                drag-class="drag-section">
+                item-key="id" handle=".drag-handle" class="q-gutter-y-md" data-tour="entry-content" :animation="200"
+                ghost-class="ghost-section" drag-class="drag-section">
                 <template #item="{ element: section, index }">
                   <div class="section-container q-mb-md">
                     <div class="row items-center q-mb-sm section-header">
@@ -353,8 +353,8 @@
               </q-btn>
             </div>
             <div class="col-4">
-              <q-btn rounded unelevated color="primary" @click="saveEntry" class="full-width" :loading="saving"
-                style="height: 40px">
+              <q-btn rounded unelevated color="primary" @click="saveEntry" class="full-width" data-tour="entry-save"
+                :loading="saving" style="height: 40px">
                 <span v-if="!saving">
                   <q-icon name="save" class="q-mr-sm" /> Save
                 </span>
@@ -1019,6 +1019,7 @@ onMounted(() => {
       color: 'primary',
       loading: computed(() => saving.value),
       handler: saveEntry,
+      tourKey: 'entry-save',
     },
   ])
 })

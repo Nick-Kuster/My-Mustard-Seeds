@@ -5,9 +5,9 @@
         <q-card class="garden-card">
           <q-tabs v-model="activeTab" dense class="text-grey" active-color="primary" indicator-color="primary"
             align="justify" narrow-indicator>
-            <q-tab name="seeds" label="My Seeds" icon="eco" />
-            <q-tab name="prayers" label="Prayers" icon="front_hand" />
-            <q-tab name="testimony" label="My Testimony" icon="auto_stories" />
+            <q-tab name="seeds" label="My Seeds" icon="eco" data-tour="tab-seeds" />
+            <q-tab name="prayers" label="Prayers" icon="front_hand" data-tour="tab-prayers" />
+            <q-tab name="testimony" label="My Testimony" icon="auto_stories" data-tour="tab-testimony" />
           </q-tabs>
           <q-separator />
 

@@ -125,7 +125,21 @@
           </div>
         </q-card>
       </div>
+
+      <!-- Tutorial -->
+      <div class="col-12 content-card">
+        <q-card class="settings-card q-pa-lg parchment">
+          <div class="text-h6 q-mb-lg">Tutorial</div>
+          <div class="text-body2 text-grey-8 q-mb-md">
+            Take a guided tour of the app anytime — pick a quick overview or a deeper look at search and filters.
+          </div>
+          <q-btn outline color="primary" icon="school" label="Replay Tour" data-tour="replay-tour-btn"
+            @click="showTutorialDialog = true" />
+        </q-card>
+      </div>
     </div>
+
+    <TutorialStartDialog v-model="showTutorialDialog" />
 
     <!-- Delete tags confirmation -->
     <q-dialog v-model="showDeleteTagsDialog">
@@ -157,6 +171,7 @@ import { useUserPreferencesStore } from 'stores/userPreferences'
 import { useTagsStore } from 'stores/tags'
 import { JOURNAL_TYPES } from 'src/constants/journalTypes'
 import { buildImportTemplateText, importEntries } from 'src/utils/journalImport'
+import TutorialStartDialog from 'components/TutorialStartDialog.vue'
 
 const $q = useQuasar()
 const journalStore = useJournalStore()
@@ -164,6 +179,7 @@ const typeColorsStore = useJournalTypeColorsStore()
 const userPreferencesStore = useUserPreferencesStore()
 const tagsStore = useTagsStore()
 
+const showTutorialDialog = ref(false)
 const selectedTagIds = ref([])
 const showDeleteTagsDialog = ref(false)
 const deletingTags = ref(false)

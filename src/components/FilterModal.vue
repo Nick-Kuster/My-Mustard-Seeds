@@ -11,7 +11,7 @@
       <q-card-section class="scroll filter-body q-pt-sm q-px-none">
         <q-list separator>
           <!-- Saved Filters -->
-          <q-expansion-item v-if="savedFiltersStore.filters.length" label="Saved Filters"
+          <q-expansion-item v-if="savedFiltersStore.filters.length" label="Saved Filters" data-tour="filter-saved"
             :caption="`${savedFiltersStore.filters.length} saved`" icon="bookmark" default-opened>
             <q-list dense class="q-pb-sm">
               <q-item v-for="saved in savedFiltersStore.filters" :key="saved.id" clickable
@@ -47,7 +47,7 @@
           </q-expansion-item>
 
           <!-- Journal Types -->
-          <q-expansion-item v-if="availableFacets.types.length" label="Journal Types"
+          <q-expansion-item v-if="availableFacets.types.length" label="Journal Types" data-tour="filter-types"
             :caption="selectionCaption(selectedTypes)" icon="category">
             <div class="q-px-md q-pb-md row q-col-gutter-x-md items-center">
               <div v-for="type in availableFacets.types" :key="type" class="col-auto">
@@ -57,7 +57,7 @@
           </q-expansion-item>
 
           <!-- Tags -->
-          <q-expansion-item v-if="availableFacets.tags.length" label="Tags"
+          <q-expansion-item v-if="availableFacets.tags.length" label="Tags" data-tour="filter-tags"
             :caption="selectionCaption(selectedTags)" icon="sell">
             <div class="q-px-md q-pb-md row q-col-gutter-x-md items-center">
               <div v-for="tag in availableFacets.tags" :key="tag" class="col-auto">
@@ -77,7 +77,7 @@
           </q-expansion-item>
 
           <!-- Bible Verses -->
-          <q-expansion-item v-if="availableFacets.books.length" label="Bible Verses"
+          <q-expansion-item v-if="availableFacets.books.length" label="Bible Verses" data-tour="filter-verses"
             :caption="selectionCaption(selectedVerseRanges)" icon="auto_stories">
             <div class="q-px-md q-pb-md">
               <div class="row q-col-gutter-sm items-start">
@@ -129,7 +129,7 @@
 
           <!-- Resources, grouped by type; options narrow to the other selections -->
           <q-expansion-item v-if="resourceTypeSections.length || flatSelectedResources.length" label="Resources"
-            :caption="selectionCaption(flatSelectedResources)" icon="library_books">
+            data-tour="filter-resources" :caption="selectionCaption(flatSelectedResources)" icon="library_books">
             <div class="q-px-md q-pb-md">
               <q-select v-for="section in resourceTypeSections" :key="section.type"
                 :model-value="selectedResourcesByType[section.type] || []"
@@ -148,7 +148,7 @@
 
       <q-separator />
 
-      <q-card-section class="q-py-sm">
+      <q-card-section class="q-py-sm" data-tour="filter-save-row">
         <div class="row items-center q-gutter-sm">
           <q-input v-model="newFilterName" dense outlined :disable="!hasActiveFilters"
             placeholder="Save current selection as..." class="col" @keyup.enter="saveCurrentFilter" />
@@ -170,7 +170,7 @@
           <div class="col-auto">
             <q-btn flat color="grey" label="Clear All" @click="clearAllFilters" :disable="!hasActiveFilters"
               class="q-mr-sm" />
-            <q-btn color="primary" label="Apply Filters" @click="applyFilters" />
+            <q-btn color="primary" label="Apply Filters" data-tour="filter-apply-btn" @click="applyFilters" />
           </div>
         </div>
       </q-card-actions>

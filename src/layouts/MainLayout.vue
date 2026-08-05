@@ -29,6 +29,7 @@
               v-slot="{ navigate, isExactActive }">
               <q-btn
                 flat no-caps dense
+                :data-tour="link.tour"
                 :class="['header-nav-btn', { 'header-nav-btn--active': isExactActive }]"
                 @click="navigate"
               >
@@ -38,7 +39,8 @@
             </router-link>
           </div>
 
-          <q-btn flat dense round :icon="themeIcon" aria-label="Toggle theme" @click="toggleTheme">
+          <q-btn flat dense round :icon="themeIcon" data-tour="theme-toggle" aria-label="Toggle theme"
+            @click="toggleTheme">
             <q-tooltip>{{ themeLabel }} — click to change</q-tooltip>
           </q-btn>
           <q-btn flat dense round icon="logout" aria-label="Logout" @click="handleSignOut" />
@@ -54,29 +56,40 @@
 
     <BottomNavBar />
   </q-layout>
+
+  <TutorialStartDialog v-model="showWelcomeDialog" ask-name />
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { supabase } from 'src/boot/supabase'
 import { useThemeMode } from 'src/composables/useThemeMode'
+import { useProfileStore } from 'stores/profile'
+import { useTutorialStore } from 'stores/tutorial'
 import BottomNavBar from 'components/BottomNavBar.vue'
+import TutorialStartDialog from 'components/TutorialStartDialog.vue'
 
 const $q = useQuasar()
 const { themeIcon, themeLabel, initTheme, toggleTheme } = useThemeMode()
+const profileStore = useProfileStore()
+const tutorialStore = useTutorialStore()
 
-onMounted(initTheme)
+const showWelcomeDialog = ref(false)
 
 const navLinks = [
-  { to: '/', icon: 'home', label: 'Home' },
-  { to: '/entry/new', icon: 'agriculture', label: 'Plant a Seed' },
-  { to: '/search', icon: 'search', label: 'Search' },
-  { to: '/resources', icon: 'inventory_2', label: 'Resources' },
-  { to: '/settings', icon: 'settings', label: 'Settings' },
+  { to: '/', icon: 'home', label: 'Home', tour: 'nav-home' },
+  { to: '/entry/new', icon: 'agriculture', label: 'Plant a Seed', tour: 'nav-plant' },
+  { to: '/search', icon: 'search', label: 'Search', tour: 'nav-search' },
+  { to: '/resources', icon: 'inventory_2', label: 'Resources', tour: 'nav-resources' },
+  { to: '/settings', icon: 'settings', label: 'Settings', tour: 'nav-settings' },
 ]
 
 const handleSignOut = async () => {
+  // A tour still active mid-logout would otherwise leave its overlay
+  // dangling over whatever renders next (the login page).
+  if (tutorialStore.active) tutorialStore.stop()
+
   try {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
@@ -88,6 +101,22 @@ const handleSignOut = async () => {
     })
   }
 }
+
+onMounted(async () => {
+  initTheme()
+
+  try {
+    await profileStore.fetchProfile()
+    if (!profileStore.profile?.onboarded) {
+      showWelcomeDialog.value = true
+    } else if (profileStore.profile.first_name) {
+      $q.notify({ type: 'positive', message: `Welcome back, ${profileStore.profile.first_name}!` })
+    }
+  } catch {
+    // First-login prompt/greeting are a nice-to-have, not core app
+    // function — a failed profile fetch shouldn't block anything else.
+  }
+})
 </script>
 
 <style scoped>

@@ -181,3 +181,58 @@ body {
       var(--color-shadow-light) 0px 2px 4px -1px !important;
   }
 }
+
+// Guided tour (driver.js, see src/stores/tutorial.js) — maps its default
+// hardcoded-white popover onto our theme tokens so it matches light/dark
+// mode instead of standing out as an unstyled overlay. !important because
+// driver.css is only ever pulled in by the lazily-loaded tutorial store
+// chunk, so it gets injected into <head> well after this global
+// stylesheet — later source order would otherwise let driver.css's own
+// `color`/`background-color` (set explicitly, right after its `all:
+// unset`) win the cascade tie-break against these equally-specific rules,
+// which is what made the popover unreadable (e.g. light text in dark mode
+// landing on driver.css's own hardcoded white background).
+.driver-popover {
+  background-color: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  max-width: 340px;
+  box-shadow: 0 4px 16px var(--color-shadow-strong);
+}
+
+.driver-popover-title {
+  color: var(--color-text) !important;
+}
+
+.driver-popover-description {
+  color: var(--color-text-secondary) !important;
+}
+
+.driver-popover-progress-text {
+  color: var(--color-text-muted) !important;
+}
+
+.driver-popover-footer-btn {
+  background-color: var(--color-surface-alt) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border);
+}
+
+.driver-popover-footer-btn:hover,
+.driver-popover-footer-btn:focus {
+  background-color: var(--color-hover) !important;
+}
+
+.driver-popover-close-btn {
+  color: var(--color-text-muted) !important;
+}
+
+.driver-popover-close-btn:hover,
+.driver-popover-close-btn:focus {
+  color: var(--color-text) !important;
+}
+
+.driver-popover-arrow {
+  border-color: var(--color-surface) !important;
+}

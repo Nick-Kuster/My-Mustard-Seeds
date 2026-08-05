@@ -2,7 +2,7 @@
   <q-page class="q-pa-md q-mt-lg">
     <div class="row q-col-gutter-md justify-center">
       <div class="col-12 wide-content-card q-pa-lg parchment">
-        <div class="row items-center q-mb-md">
+        <div class="row items-center q-mb-md" data-tour="resources-heading">
           <div class="col text-h6 text-center">Manage Resources</div>
         </div>
 

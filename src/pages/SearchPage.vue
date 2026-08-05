@@ -7,13 +7,14 @@
         <div class="row items-center q-mb-md">
           <q-space />
           <div class="col-auto">
-            <q-btn flat color="primary" icon="filter_list" label="Filters" @click="showFilterModal = true">
+            <q-btn flat color="primary" icon="filter_list" label="Filters" data-tour="filters-btn"
+              @click="showFilterModal = true">
               <q-badge v-if="activeFilterChips.length > 0" color="secondary" floating>
                 {{ activeFilterChips.length }}
               </q-badge>
             </q-btn>
-            <q-btn flat round color="primary" icon="print" :disable="filteredEntries.length === 0"
-              @click="showPrintOptionsModal = true">
+            <q-btn flat round color="primary" icon="print" data-tour="print-btn"
+              :disable="filteredEntries.length === 0" @click="showPrintOptionsModal = true">
               <q-tooltip>Print / Export to PDF</q-tooltip>
             </q-btn>
           </div>
@@ -80,6 +81,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useJournalStore } from 'src/stores/journalData'
 import { useJournalTypeColorsStore } from 'src/stores/journalTypeColors'
+import { useTutorialStore } from 'src/stores/tutorial'
 import FilterModal from 'src/components/FilterModal.vue'
 import PrintOptionsModal from 'src/components/PrintOptionsModal.vue'
 
@@ -87,6 +89,7 @@ const router = useRouter()
 const route = useRoute()
 const journalStore = useJournalStore()
 const typeColorsStore = useJournalTypeColorsStore()
+const tutorialStore = useTutorialStore()
 
 const loading = ref(true)
 const showFilterModal = ref(false)
@@ -241,6 +244,21 @@ watch(() => route.query, () => {
 watch(filteredEntries, () => {
   currentPage.value = 1
 })
+
+// Lets a mid-tour step (see src/constants/tutorialSteps.js) open/close the
+// Filter modal without FilterModal.vue needing to know the tour exists.
+watch(
+  () => tutorialStore.pendingAction,
+  (action) => {
+    if (action === 'open-filter-modal') {
+      showFilterModal.value = true
+      tutorialStore.clearAction()
+    } else if (action === 'close-filter-modal') {
+      showFilterModal.value = false
+      tutorialStore.clearAction()
+    }
+  },
+)
 
 // Load data
 onMounted(async () => {

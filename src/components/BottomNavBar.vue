@@ -14,6 +14,7 @@
         :color="action.color"
         :loading="action.loading?.value ?? false"
         :disable="action.disabled?.value ?? false"
+        :data-tour="action.tourKey"
         class="bottom-nav-action-btn"
         @click="action.menu ? null : action.handler()"
       >
@@ -38,6 +39,7 @@
         <button
           type="button"
           class="bottom-nav-item"
+          data-tour="nav-home"
           :class="{ active: isExactActive }"
           @click="navigate"
         >
@@ -50,6 +52,7 @@
         <button
           type="button"
           class="bottom-nav-item"
+          data-tour="nav-search"
           :class="{ active: isActive }"
           @click="navigate"
         >
@@ -64,6 +67,7 @@
         <button
           type="button"
           class="bottom-nav-item"
+          data-tour="nav-resources"
           :class="{ active: isActive }"
           @click="navigate"
         >
@@ -76,6 +80,7 @@
         <button
           type="button"
           class="bottom-nav-item"
+          data-tour="nav-settings"
           :class="{ active: isActive }"
           @click="navigate"
         >
@@ -92,6 +97,7 @@
       color="primary"
       icon="agriculture"
       class="bottom-nav-fab"
+      data-tour="nav-plant"
       aria-label="Plant a New Seed"
       @click="router.push('/entry/new')"
     />
