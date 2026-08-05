@@ -154,7 +154,8 @@
               <div class="q-mb-xl">
                 <template v-if="entry?.decryptedContent?.sections">
                   <ContentSectionView v-for="(section, index) in entry.decryptedContent.sections"
-                    :key="section.id || index" :section="section" :verses="entry.verses" :tags="entry.tags" />
+                    :key="section.id || index" :section="section" :verses="entry.verses" :tags="entry.tags"
+                    :strongs="entry.strongs" />
                 </template>
               </div>
             </q-tab-panel>
@@ -179,6 +180,11 @@
                 <!-- Links -->
                 <div class="q-mb-lg">
                   <LinkSelector v-model="entry.links" :display-only="true" />
+                </div>
+
+                <!-- Strong's Words -->
+                <div class="q-mb-lg">
+                  <StrongsSelector v-model="entry.strongs" :display-only="true" />
                 </div>
               </div>
             </q-tab-panel>
@@ -222,6 +228,7 @@ import LinkedVerses from 'components/LinkedVerses.vue'
 import TagSelector from 'components/TagSelector.vue'
 import QuoteSelector from 'components/QuoteSelector.vue'
 import LinkSelector from 'components/LinkSelector.vue'
+import StrongsSelector from 'components/StrongsSelector.vue'
 import VerseDisplayModal from 'components/VerseDisplayModal.vue'
 import ContentSectionView from 'components/ContentSectionView.vue'
 import { createDisplayVerse } from 'src/utils/verseUtils'

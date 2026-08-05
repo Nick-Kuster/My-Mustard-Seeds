@@ -285,6 +285,7 @@ export const useJournalStore = defineStore('journalData', () => {
         resources: item.resources_data,
         quotes: item.quotes_data,
         links: item.links_data,
+        strongs: item.strongs_data,
       }))
 
       await decryptEntries()
@@ -320,6 +321,7 @@ export const useJournalStore = defineStore('journalData', () => {
       resources: data[0].resources_data,
       quotes: data[0].quotes_data,
       links: data[0].links_data,
+      strongs: data[0].strongs_data,
     }
 
     const encryptionKey = await getEncryptionKey(session.user.id)

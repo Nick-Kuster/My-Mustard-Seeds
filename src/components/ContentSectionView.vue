@@ -8,18 +8,20 @@
           <q-icon name="fiber_manual_record" size="6px" class="list-bullet" />
         </q-item-section>
         <q-item-section>
-          <InlineContent :text="item" :verses="verses" :tags="tags" @verse-click="onVerseClick"
-            @tag-click="onTagClick" />
+          <InlineContent :text="item" :verses="verses" :tags="tags" :strongs="strongs" @verse-click="onVerseClick"
+            @tag-click="onTagClick" @strongs-click="onStrongsClick" />
         </q-item-section>
       </q-item>
     </q-list>
     <div v-else-if="section.content" class="text-body1" style="white-space: pre-wrap">
-      <InlineContent :text="section.content" :verses="verses" :tags="tags" @verse-click="onVerseClick"
-        @tag-click="onTagClick" />
+      <InlineContent :text="section.content" :verses="verses" :tags="tags" :strongs="strongs"
+        @verse-click="onVerseClick" @tag-click="onTagClick" @strongs-click="onStrongsClick" />
     </div>
 
     <VerseDisplayModal v-model="showVerseDisplayModal" :reference="verseDisplay.display"
       :startVerse="verseDisplay.startVerse" :endVerse="verseDisplay.endVerse" />
+
+    <StrongsDisplayModal v-model="showStrongsDisplayModal" :entry="strongsDisplay" />
   </div>
 </template>
 
@@ -30,11 +32,13 @@ import { getListItems } from 'src/utils/sectionListUtils'
 import { createDisplayVerse } from 'src/utils/verseUtils'
 import InlineContent from 'components/InlineContent.vue'
 import VerseDisplayModal from 'components/VerseDisplayModal.vue'
+import StrongsDisplayModal from 'components/StrongsDisplayModal.vue'
 
 const props = defineProps({
   section: { type: Object, required: true },
   verses: { type: Array, default: () => [] },
   tags: { type: Array, default: () => [] },
+  strongs: { type: Array, default: () => [] },
 })
 
 const router = useRouter()
@@ -44,9 +48,17 @@ const listItems = computed(() => getListItems(props.section.content).filter((ite
 const showVerseDisplayModal = ref(false)
 const verseDisplay = ref({})
 
+const showStrongsDisplayModal = ref(false)
+const strongsDisplay = ref(null)
+
 const onVerseClick = (verse) => {
   verseDisplay.value = createDisplayVerse(verse)
   showVerseDisplayModal.value = true
+}
+
+const onStrongsClick = (entry) => {
+  strongsDisplay.value = entry
+  showStrongsDisplayModal.value = true
 }
 
 const onTagClick = (tag) => {

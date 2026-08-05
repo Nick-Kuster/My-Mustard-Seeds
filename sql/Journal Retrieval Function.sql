@@ -1,3 +1,7 @@
+-- CREATE OR REPLACE can't change a function's return-row shape (adding/
+-- removing a column) — must drop first whenever RETURNS TABLE changes.
+DROP FUNCTION IF EXISTS get_journal_entry_details(uuid, uuid);
+
 CREATE OR REPLACE FUNCTION get_journal_entry_details(p_entry_id UUID, p_user_id UUID)
 RETURNS TABLE (
     entry_data JSON,
@@ -5,7 +9,8 @@ RETURNS TABLE (
     tags_data JSON,
     resources_data JSON,
     quotes_data JSON,
-    links_data JSON
+    links_data JSON,
+    strongs_data JSON
 ) LANGUAGE plpgsql AS $$
 BEGIN
     RETURN QUERY
@@ -81,20 +86,38 @@ BEGIN
         )) as links_data
         FROM related_links rl
         WHERE rl.journal_id = p_entry_id
+    ),
+    strongs_json AS (
+        SELECT json_agg(json_build_object(
+            'id', js.id,
+            'strongs_number', js.strongs_number,
+            'language', se.language,
+            'lemma', se.lemma,
+            'transliteration', se.transliteration,
+            'pronunciation', se.pronunciation,
+            'derivation', se.derivation,
+            'strongs_def', se.strongs_def,
+            'kjv_def', se.kjv_def
+        )) as strongs_data
+        FROM journal_strongs js
+        JOIN strongs_entries se ON se.strongs_number = js.strongs_number
+        WHERE js.journal_id = p_entry_id
     )
-    
-    SELECT 
+
+    SELECT
         entry_json.entry_data,
         COALESCE(verses_json.verses_data, '[]'::json),
         COALESCE(tags_json.tags_data, '[]'::json),
         COALESCE(resources_json.resources_data, '[]'::json),
         COALESCE(quotes_json.quotes_data, '[]'::json),
-        COALESCE(links_json.links_data, '[]'::json)
+        COALESCE(links_json.links_data, '[]'::json),
+        COALESCE(strongs_json.strongs_data, '[]'::json)
     FROM entry_json
     LEFT JOIN verses_json ON true
     LEFT JOIN tags_json ON true
     LEFT JOIN resources_json ON true
     LEFT JOIN quotes_json ON true
-    LEFT JOIN links_json ON true;
+    LEFT JOIN links_json ON true
+    LEFT JOIN strongs_json ON true;
 END;
 $$;

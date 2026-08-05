@@ -69,14 +69,15 @@ const resolveVerseMatch = async (match, bibleData) => {
   }
 }
 
-// Detects `::verse`/`#tag` patterns as the user types a journal entry's
-// content and silently adds them to the entry's existing linkedVerses/
-// selectedTags — same arrays the picker UI already manages, so saveEntry()/
-// updateEntry() persist them with no changes of their own. Used by
-// NewEntryPage.vue and EditEntryPage.vue only; ContentSectionView.vue
-// renders the same triggers at view time via inlineReferenceUtils
-// directly, without this composable (no Supabase calls needed there).
-export const useInlineReferenceResolver = ({ linkedVerses, selectedTags, mainVerse }) => {
+// Detects `::verse`/`#tag`/`$strongsNumber` patterns as the user types a
+// journal entry's content and silently adds them to the entry's existing
+// linkedVerses/selectedTags/selectedStrongs — same arrays the picker UI
+// already manages, so saveEntry()/updateEntry() persist them with no
+// changes of their own. Used by NewEntryPage.vue and EditEntryPage.vue
+// only; ContentSectionView.vue renders the same triggers at view time via
+// inlineReferenceUtils directly, without this composable (no Supabase
+// calls needed there).
+export const useInlineReferenceResolver = ({ linkedVerses, selectedTags, selectedStrongs, mainVerse }) => {
   const $q = useQuasar()
   const bibleData = useBibleDataStore()
   const tagsStore = useTagsStore()
@@ -108,8 +109,29 @@ export const useInlineReferenceResolver = ({ linkedVerses, selectedTags, mainVer
 
   const isDuplicateTag = (tag) => selectedTags.value.some((t) => t.id === tag.id)
 
+  const isDuplicateStrongs = (entry) =>
+    selectedStrongs.value.some((s) => s.strongs_number === entry.strongs_number)
+
   const processMatch = async (match, state) => {
     if (state.resolvedKeys.has(match.raw) || state.failedKeys.has(match.raw)) return
+
+    if (match.type === 'strongs') {
+      const { data } = await supabase
+        .from('strongs_entries')
+        .select('*')
+        .eq('strongs_number', match.strongsNumber)
+        .maybeSingle()
+      if (!data) {
+        state.failedKeys.add(match.raw)
+        return
+      }
+      state.resolvedKeys.add(match.raw)
+      if (!isDuplicateStrongs(data)) {
+        selectedStrongs.value.push(data)
+        $q.notify({ type: 'info', message: `Linked ${data.strongs_number} (${data.lemma})`, timeout: 1500 })
+      }
+      return
+    }
 
     if (match.type === 'verse') {
       await bibleData.loadBooks()

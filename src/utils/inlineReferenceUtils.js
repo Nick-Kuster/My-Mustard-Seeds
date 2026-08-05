@@ -40,15 +40,21 @@ const nextVerseBoundaryIndex = (text, from) => {
 const MAX_BOUNDARIES = 6
 const MAX_CANDIDATE_LEN = 80
 
+// A Strong's number has no internal spaces/punctuation (unlike a book name
+// or multi-word tag), so unlike `::`/`#` it doesn't need a boundary-walk —
+// a single plain-boundary slice is enough to grab the whole candidate.
+const STRONGS_NUMBER_RE = /^[HG]\d+$/i
+
 /**
- * Scans free text for `::<verse reference>` and `#<tag>` occurrences.
- * Pure and dependency-free (besides the existing verse-reference parser) —
- * no Supabase/store calls, safe to run at render time as well as while
- * editing. Only validates *shape* (does it look like a reference/tag?),
- * not whether the book/tag actually exists — that's the resolver's job.
+ * Scans free text for `::<verse reference>`, `#<tag>`, and `$<strongs
+ * number>` occurrences. Pure and dependency-free (besides the existing
+ * verse-reference parser) — no Supabase/store calls, safe to run at
+ * render time as well as while editing. Only validates *shape* (does it
+ * look like a reference/tag/number?), not whether the book/tag/number
+ * actually exists — that's the resolver's job.
  *
  * @param {string} text
- * @returns {Array<{type: 'verse'|'tag', start: number, end: number, raw: string, verseRange?: object, tagName?: string}>}
+ * @returns {Array<{type: 'verse'|'tag'|'strongs', start: number, end: number, raw: string, verseRange?: object, tagName?: string, strongsNumber?: string}>}
  */
 export const findInlineTriggers = (text) => {
   if (!text) return []
@@ -65,6 +71,18 @@ export const findInlineTriggers = (text) => {
         matches.push({ type: 'tag', start: i, end, raw: text.slice(i, end), tagName })
       }
       i = end
+      continue
+    }
+
+    if (char === '$') {
+      const end = nextBoundaryIndex(text, i + 1)
+      const candidate = text.slice(i + 1, end).trim()
+      if (STRONGS_NUMBER_RE.test(candidate)) {
+        matches.push({ type: 'strongs', start: i, end, raw: text.slice(i, end), strongsNumber: candidate.toUpperCase() })
+        i = end
+      } else {
+        i += 1
+      }
       continue
     }
 

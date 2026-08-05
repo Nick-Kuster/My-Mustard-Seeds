@@ -319,6 +319,11 @@
                 <div class="q-mb-lg">
                   <LinkSelector v-model="selectedLinks" />
                 </div>
+
+                <!-- Strong's Words -->
+                <div class="q-mb-lg">
+                  <StrongsSelector v-model="selectedStrongs" />
+                </div>
               </div>
             </q-tab-panel>
           </q-tab-panels>
@@ -386,6 +391,7 @@ import TagSelector from 'src/components/TagSelector.vue'
 import QuoteSelector from 'src/components/QuoteSelector.vue'
 import VerseDisplayModal from 'components/VerseDisplayModal.vue'
 import LinkSelector from 'src/components/LinkSelector.vue'
+import StrongsSelector from 'src/components/StrongsSelector.vue'
 import { isSafeExternalUrl } from 'src/utils/urlUtils'
 import { useInlineReferenceResolver } from 'src/composables/useInlineReferenceResolver'
 
@@ -424,8 +430,9 @@ const linkedVerses = ref([])
 const selectedTags = ref([])
 const selectedQuotes = ref([])
 const selectedLinks = ref([])
+const selectedStrongs = ref([])
 
-const inlineResolver = useInlineReferenceResolver({ linkedVerses, selectedTags, mainVerse })
+const inlineResolver = useInlineReferenceResolver({ linkedVerses, selectedTags, selectedStrongs, mainVerse })
 
 // Selected Resources
 const selectedChurch = ref(null)
@@ -616,6 +623,16 @@ const loadEntry = async () => {
 
     if (linkData) {
       selectedLinks.value = linkData
+    }
+
+    // Load Strong's words
+    const { data: strongsRows } = await supabase
+      .from('journal_strongs')
+      .select('strongs_number, strongs_entries(*)')
+      .eq('journal_id', entry.id)
+
+    if (strongsRows) {
+      selectedStrongs.value = strongsRows.map(r => r.strongs_entries)
     }
 
     // Load resources based on entry type
@@ -1083,6 +1100,26 @@ const updateEntry = async () => {
         .insert(allLinks)
 
       if (linkError) throw linkError
+    }
+
+    // Update Strong's words
+    await supabase
+      .from('journal_strongs')
+      .delete()
+      .eq('journal_id', entryId)
+
+    if (selectedStrongs.value.length > 0) {
+      const strongsInserts = selectedStrongs.value.map(item => ({
+        journal_id: entryId,
+        strongs_number: item.strongs_number,
+        user_id: session.user.id
+      }))
+
+      const { error: strongsError } = await supabase
+        .from('journal_strongs')
+        .insert(strongsInserts)
+
+      if (strongsError) throw strongsError
     }
 
     // Refresh the store's cache with what was actually just saved — getEntry

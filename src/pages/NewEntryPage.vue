@@ -319,6 +319,11 @@
                 <div class="q-mb-lg">
                   <LinkSelector v-model="selectedLinks" />
                 </div>
+
+                <!-- Strong's Words -->
+                <div class="q-mb-lg">
+                  <StrongsSelector v-model="selectedStrongs" />
+                </div>
               </div>
             </q-tab-panel>
           </q-tab-panels>
@@ -388,6 +393,7 @@ import QuoteSelector from 'src/components/QuoteSelector.vue'
 import TypeSelector from 'components/TypeSelector.vue'
 import VerseDisplayModal from 'components/VerseDisplayModal.vue'
 import LinkSelector from 'src/components/LinkSelector.vue'
+import StrongsSelector from 'src/components/StrongsSelector.vue'
 import { isSafeExternalUrl } from 'src/utils/urlUtils'
 import { useInlineReferenceResolver } from 'src/composables/useInlineReferenceResolver'
 
@@ -435,8 +441,9 @@ const saving = ref(false)
 const linkedVerses = ref([])
 const selectedTags = ref([])
 const selectedQuotes = ref([])
+const selectedStrongs = ref([])
 
-const inlineResolver = useInlineReferenceResolver({ linkedVerses, selectedTags, mainVerse })
+const inlineResolver = useInlineReferenceResolver({ linkedVerses, selectedTags, selectedStrongs, mainVerse })
 
 const entryType = ref('Daily Bible Reading')
 
@@ -920,6 +927,21 @@ const saveEntry = async () => {
         console.error('Link insertion error:', linkError)
         throw new Error('Failed to save links: ' + linkError.message)
       }
+    }
+
+    // Handle Strong's words
+    if (selectedStrongs.value.length > 0) {
+      const strongsInserts = selectedStrongs.value.map(item => ({
+        journal_id: entry.id,
+        strongs_number: item.strongs_number,
+        user_id: session.user.id
+      }))
+
+      const { error: strongsError } = await supabase
+        .from('journal_strongs')
+        .insert(strongsInserts)
+
+      if (strongsError) throw new Error('Failed to save Strong\'s words: ' + strongsError.message)
     }
 
     $q.notify({

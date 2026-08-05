@@ -5,6 +5,8 @@
         @click.prevent="$emit('verse-click', segment.verse)">{{ segment.text }}</a>
       <a v-else-if="segment.type === 'tag'" href="#" class="inline-ref-link"
         @click.prevent="$emit('tag-click', segment.tag)">{{ segment.text }}</a>
+      <a v-else-if="segment.type === 'strongs'" href="#" class="inline-ref-link"
+        @click.prevent="$emit('strongs-click', segment.strongsEntry)">{{ segment.text }}</a>
       <template v-else>{{ segment.text }}</template>
     </template>
   </span>
@@ -24,9 +26,10 @@ const props = defineProps({
   text: { type: String, default: '' },
   verses: { type: Array, default: () => [] },
   tags: { type: Array, default: () => [] },
+  strongs: { type: Array, default: () => [] },
 })
 
-defineEmits(['verse-click', 'tag-click'])
+defineEmits(['verse-click', 'tag-click', 'strongs-click'])
 
 // verseMatchesRange does a strict `===` book check internally — pre-filter
 // case-insensitively, then pass it a range using the verse's own canonical
@@ -53,9 +56,12 @@ const segments = computed(() => {
     if (match.type === 'verse') {
       const verse = findMatchingVerse(props.verses, match.verseRange)
       result.push(verse ? { type: 'verse', text: match.raw, verse } : { type: 'text', text: match.raw })
-    } else {
+    } else if (match.type === 'tag') {
       const tag = props.tags.find((t) => t.name?.toLowerCase() === match.tagName.toLowerCase())
       result.push(tag ? { type: 'tag', text: match.raw, tag } : { type: 'text', text: match.raw })
+    } else {
+      const strongsEntry = props.strongs.find((s) => s.strongs_number === match.strongsNumber)
+      result.push(strongsEntry ? { type: 'strongs', text: match.raw, strongsEntry } : { type: 'text', text: match.raw })
     }
 
     cursor = match.end
