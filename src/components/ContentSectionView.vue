@@ -7,22 +7,58 @@
         <q-item-section avatar class="list-bullet-col">
           <q-icon name="fiber_manual_record" size="6px" class="list-bullet" />
         </q-item-section>
-        <q-item-section>{{ item }}</q-item-section>
+        <q-item-section>
+          <InlineContent :text="item" :verses="verses" :tags="tags" @verse-click="onVerseClick"
+            @tag-click="onTagClick" />
+        </q-item-section>
       </q-item>
     </q-list>
-    <div v-else-if="section.content" class="text-body1" style="white-space: pre-wrap">{{ section.content }}</div>
+    <div v-else-if="section.content" class="text-body1" style="white-space: pre-wrap">
+      <InlineContent :text="section.content" :verses="verses" :tags="tags" @verse-click="onVerseClick"
+        @tag-click="onTagClick" />
+    </div>
+
+    <VerseDisplayModal v-model="showVerseDisplayModal" :reference="verseDisplay.display"
+      :startVerse="verseDisplay.startVerse" :endVerse="verseDisplay.endVerse" />
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { getListItems } from 'src/utils/sectionListUtils'
+import { createDisplayVerse } from 'src/utils/verseUtils'
+import InlineContent from 'components/InlineContent.vue'
+import VerseDisplayModal from 'components/VerseDisplayModal.vue'
 
 const props = defineProps({
   section: { type: Object, required: true },
+  verses: { type: Array, default: () => [] },
+  tags: { type: Array, default: () => [] },
 })
 
+const router = useRouter()
+
 const listItems = computed(() => getListItems(props.section.content).filter((item) => item.trim()))
+
+const showVerseDisplayModal = ref(false)
+const verseDisplay = ref({})
+
+const onVerseClick = (verse) => {
+  verseDisplay.value = createDisplayVerse(verse)
+  showVerseDisplayModal.value = true
+}
+
+const onTagClick = (tag) => {
+  router.push({
+    path: '/search',
+    query: {
+      facets: JSON.stringify({
+        types: [], verses: [], books: [], resourceTypes: [], resources: [], tags: [tag.name], quotes: [], links: [],
+      }),
+    },
+  })
+}
 </script>
 
 <style scoped>

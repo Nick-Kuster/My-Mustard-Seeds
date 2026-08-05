@@ -274,16 +274,17 @@
                     <div v-show="!isCollapsed(section.id)">
                       <q-input v-if="section.fieldType !== 'list'" v-model="section.content" type="textarea"
                         :label="section.title || 'Your thoughts...'" autogrow class="custom-textarea"
-                        :disable="dragging" />
+                        :disable="dragging" @update:model-value="inlineResolver.onSectionContentChange(section)"
+                        @blur="inlineResolver.onSectionBlur(section)" />
 
                       <div v-else class="list-editor q-mb-sm">
                         <div v-for="(item, i) in getListItems(section.content)" :key="i"
-                          class="row items-center no-wrap q-mb-xs">
+                          class="row items-start no-wrap q-mb-xs list-item-row">
                           <q-icon name="fiber_manual_record" size="6px" class="q-mr-sm list-bullet" />
                           <q-input :ref="(el) => setListItemRef(section.id, i, el)" :model-value="item"
                             @update:model-value="section.content = setListItem(section.content, i, $event)" dense
-                            borderless placeholder="List item" class="col" :disable="dragging"
-                            @keydown.enter.prevent="handleListItemEnter(section, i)" />
+                            borderless type="textarea" autogrow placeholder="List item" class="col"
+                            :disable="dragging" @keydown.enter.prevent="handleListItemEnter(section, i)" />
                           <q-btn flat round dense icon="close" size="sm" :disable="dragging"
                             @click="section.content = removeListItem(section.content, i)" />
                         </div>
@@ -386,6 +387,7 @@ import QuoteSelector from 'src/components/QuoteSelector.vue'
 import VerseDisplayModal from 'components/VerseDisplayModal.vue'
 import LinkSelector from 'src/components/LinkSelector.vue'
 import { isSafeExternalUrl } from 'src/utils/urlUtils'
+import { useInlineReferenceResolver } from 'src/composables/useInlineReferenceResolver'
 
 const dragging = ref(false)
 const router = useRouter()
@@ -422,6 +424,8 @@ const linkedVerses = ref([])
 const selectedTags = ref([])
 const selectedQuotes = ref([])
 const selectedLinks = ref([])
+
+const inlineResolver = useInlineReferenceResolver({ linkedVerses, selectedTags, mainVerse })
 
 // Selected Resources
 const selectedChurch = ref(null)
@@ -863,6 +867,10 @@ const updateEntry = async () => {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error('No active session')
 
+    // Safety net for pasted text or anything a debounce tick didn't catch
+    // in time — see src/composables/useInlineReferenceResolver.js
+    await inlineResolver.resolveAllInlineReferences(contentSections.value)
+
     // Generate title if needed
     title.value = generateTitle()
 
@@ -878,7 +886,8 @@ const updateEntry = async () => {
       .from('journal_entries')
       .update({
         title: title.value,
-        content: encryptedContent
+        content: encryptedContent,
+        updated_at: new Date().toISOString()
       })
       .eq('id', entryId)
 
@@ -1333,5 +1342,21 @@ onUnmounted(() => {
 .list-bullet {
   color: var(--color-text-muted);
   flex-shrink: 0;
+}
+
+/* items-start (needed so a wrapped multi-line item's icon/close button sit
+   at the top instead of centering across the whole grown height) leaves
+   the bullet flush with the row's top edge — nudge it down to the text
+   baseline of the first line instead. */
+.list-item-row {
+  padding-top: 2px;
+}
+
+.list-item-row .list-bullet {
+  margin-top: 9px;
+}
+
+.list-item-row .q-btn {
+  margin-top: 2px;
 }
 </style>

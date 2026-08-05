@@ -22,7 +22,8 @@ BEGIN
                'title', je.title,
                'type', je.type,
                'content', je.content,
-               'created_at', je.created_at
+               'created_at', je.created_at,
+               'updated_at', je.updated_at
            ) as entry_data
        FROM journal_entries je
        WHERE je.user_id = p_user_id
@@ -122,6 +123,6 @@ BEGIN
    LEFT JOIN resources_json rj ON rj.entry_id = ej.entry_id
    LEFT JOIN quotes_json qj ON qj.entry_id = ej.entry_id
    LEFT JOIN links_json lj ON lj.entry_id = ej.entry_id
-   ORDER BY (ej.entry_data->>'created_at')::timestamp DESC;
+   ORDER BY (ej.entry_data->>'updated_at')::timestamp DESC;
 END;
 $$;

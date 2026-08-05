@@ -129,7 +129,7 @@
           </div>
           <div v-if="$q.screen.gt.sm" class="row q-col-gutter-sm justify-end q-mb-xl">
             <div class="col-auto">
-              <q-btn rounded unelevated color="secondary" icon="home" style="height: 40px" @click="router.push('/')" />
+              <q-btn rounded unelevated color="secondary" icon="arrow_back" style="height: 40px" @click="goBack" />
             </div>
             <div class="col-auto">
               <q-btn rounded unelevated color="primary" icon="edit" style="height: 40px"
@@ -154,7 +154,7 @@
               <div class="q-mb-xl">
                 <template v-if="entry?.decryptedContent?.sections">
                   <ContentSectionView v-for="(section, index) in entry.decryptedContent.sections"
-                    :key="section.id || index" :section="section" />
+                    :key="section.id || index" :section="section" :verses="entry.verses" :tags="entry.tags" />
                 </template>
               </div>
             </q-tab-panel>
@@ -381,6 +381,20 @@ const fetchEntry = async () => {
   }
 }
 
+// Entries are now reachable from Home, Search, and other entries' links,
+// so a plain Home button no longer reflects "where I came from". Falls
+// back to Home when there's no in-app history to go back to (a direct/
+// shared link, or a fresh reload) — history.state.back is set by Vue
+// Router's own history implementation to the previous route's path, or
+// null if this navigation had none.
+const goBack = () => {
+  if (window.history.state?.back) {
+    router.back()
+  } else {
+    router.push('/')
+  }
+}
+
 const confirmDelete = () => {
   showDeleteDialog.value = true
 }
@@ -467,11 +481,11 @@ const pageActionsStore = usePageActionsStore()
 onMounted(() => {
   pageActionsStore.setFooterActions([
     {
-      key: 'home',
-      label: 'Home',
-      icon: 'home',
+      key: 'back',
+      label: 'Back',
+      icon: 'arrow_back',
       color: 'secondary',
-      handler: () => router.push('/'),
+      handler: goBack,
     },
     {
       key: 'edit',

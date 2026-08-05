@@ -13,7 +13,7 @@
     >
       <q-item-section>
         <q-item-label class="text-wrap">{{ entry.title }}</q-item-label>
-        <q-item-label caption class="text-wrap">{{ formatDate(entry.created_at) }}</q-item-label>
+        <q-item-label caption class="text-wrap">{{ formatDate(entry.updated_at || entry.created_at) }}</q-item-label>
       </q-item-section>
       <q-item-section side>
         <q-icon name="chevron_right" />

@@ -15,7 +15,8 @@ BEGIN
             'title', je.title,
             'type', je.type,
             'content', je.content,
-            'created_at', je.created_at
+            'created_at', je.created_at,
+            'updated_at', je.updated_at
         ) as entry_data
         FROM journal_entries je
         WHERE je.id = p_entry_id AND je.user_id = p_user_id

@@ -54,7 +54,7 @@
             <q-item-section>
               <q-item-label>{{ entry.title }}</q-item-label>
               <q-item-label caption>
-                {{ formatDate(entry.created_at) }} • {{ entry.type }}
+                {{ formatDate(entry.updated_at || entry.created_at) }} • {{ entry.type }}
               </q-item-label>
             </q-item-section>
             <q-item-section side>

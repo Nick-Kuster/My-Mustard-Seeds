@@ -24,7 +24,7 @@
            (last 10 entries across all types) — no more separate toggle, this
            is the only view now. -->
       <div class="type-lanes-wrapper">
-        <div class="type-lanes">
+        <div class="type-lanes" ref="lanesEl" @scroll="onLanesScroll">
         <div v-for="group in typeGroups" :key="group.type" class="type-lane">
           <div class="type-lane-header" :class="{ 'type-lane-header--clickable': isDesktop }"
             :style="{ borderTopColor: typeColorsStore.getColor(group.type) }"
@@ -50,7 +50,7 @@
               >
                 <q-item-section>
                   <q-item-label class="text-wrap">{{ entry.title }}</q-item-label>
-                  <q-item-label caption class="text-wrap">{{ formatDate(entry.created_at) }}</q-item-label>
+                  <q-item-label caption class="text-wrap">{{ formatDate(entryDate(entry)) }}</q-item-label>
                 </q-item-section>
                 <q-item-section side>
                   <q-icon name="chevron_right" />
@@ -66,7 +66,7 @@
               >
                 <q-item-section>
                   <q-item-label class="text-wrap">{{ entry.title }}</q-item-label>
-                  <q-item-label caption class="text-wrap">{{ formatDate(entry.created_at) }}</q-item-label>
+                  <q-item-label caption class="text-wrap">{{ formatDate(entryDate(entry)) }}</q-item-label>
                 </q-item-section>
                 <q-item-section side>
                   <q-icon name="chevron_right" />
@@ -86,29 +86,45 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useJournalStore, getResourceTitle } from 'stores/journalData'
 import { useJournalTypeColorsStore } from 'stores/journalTypeColors'
 import { useUserPreferencesStore } from 'stores/userPreferences'
+import { useHomeViewStateStore } from 'stores/homeViewState'
 import { JOURNAL_TYPES } from 'src/constants/journalTypes'
 import { getResourceTypeDepth } from 'src/configs/resourceConfigs'
 import { getBibleBook } from 'src/constants/bibleBooks'
 import ResourceTreeSection from './ResourceTreeSection.vue'
 
+const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
 const journalStore = useJournalStore()
 const typeColorsStore = useJournalTypeColorsStore()
 const userPreferencesStore = useUserPreferencesStore()
+const homeViewState = useHomeViewStateStore()
 const sortOrder = ref('desc')
+const lanesEl = ref(null)
+
+// A ?type= query param survives a full page reload, unlike homeViewState
+// (in-memory only) — restore from it first, so an accidental refresh
+// while scrolled into e.g. "Sermon Notes" doesn't jump back to Recent.
+if (route.query.type) {
+  homeViewState.setActiveType(route.query.type)
+}
 
 const entries = computed(() => journalStore.entries || [])
 
+// Falls back to created_at for entries fetched before the updated_at
+// migration/backfill ran (see sql/Journal Entries Updated At Column.sql)
+// and for demo-tour entries, which have no updated_at column at all.
+const entryDate = (entry) => entry.updated_at || entry.created_at
+
 const sortedEntries = computed(() => {
   const factor = sortOrder.value === 'desc' ? -1 : 1
-  return [...entries.value].sort((a, b) => factor * (new Date(a.created_at) - new Date(b.created_at)))
+  return [...entries.value].sort((a, b) => factor * (new Date(entryDate(a)) - new Date(entryDate(b))))
 })
 
 // The verse an entry's Bible-reading reference is anchored to, if any
@@ -202,7 +218,7 @@ const typeGroups = computed(() => {
     if (!byType.has(entry.type)) byType.set(entry.type, [])
     byType.get(entry.type).push(entry)
   }
-  byType.forEach((list) => list.sort((a, b) => factor * (new Date(a.created_at) - new Date(b.created_at))))
+  byType.forEach((list) => list.sort((a, b) => factor * (new Date(entryDate(a)) - new Date(entryDate(b)))))
 
   const buildGroup = (type, label, icon) => {
     const list = byType.get(type)
@@ -238,10 +254,50 @@ const typeGroups = computed(() => {
 // a single swiped-to column. Only "Recent" starts open on desktop.
 const isDesktop = computed(() => $q.screen.gt.sm)
 const expandedTypes = reactive(new Set([RECENT_LANE_TYPE]))
+if (homeViewState.activeType && homeViewState.activeType !== RECENT_LANE_TYPE) {
+  expandedTypes.add(homeViewState.activeType)
+}
 const isExpanded = (type) => !isDesktop.value || expandedTypes.has(type)
+
+// Mirrors the active type into ?type= (dropped entirely for Recent, the
+// default) — same router.replace-into-query pattern IndexPage.vue already
+// uses for ?tab=, so it doesn't grow browser history on every swipe/toggle.
+const syncTypeToRoute = (type) => {
+  const next = type && type !== RECENT_LANE_TYPE ? type : undefined
+  if ((route.query.type || undefined) === next) return
+  const query = { ...route.query }
+  if (next) query.type = next
+  else delete query.type
+  router.replace({ query })
+}
+
 const toggleType = (type) => {
-  if (expandedTypes.has(type)) expandedTypes.delete(type)
-  else expandedTypes.add(type)
+  if (expandedTypes.has(type)) {
+    expandedTypes.delete(type)
+  } else {
+    expandedTypes.add(type)
+    homeViewState.setActiveType(type)
+    syncTypeToRoute(type)
+  }
+}
+
+// Mobile lanes are a horizontally swiped, one-at-a-time view — track
+// whichever lane is currently snapped into view as "the type the user is
+// on" the same way toggleType does for desktop's expand/collapse rows.
+let scrollDebounce = null
+const onLanesScroll = () => {
+  if (isDesktop.value || !lanesEl.value) return
+  clearTimeout(scrollDebounce)
+  scrollDebounce = setTimeout(() => {
+    const el = lanesEl.value
+    if (!el) return
+    const index = Math.round(el.scrollLeft / el.clientWidth)
+    const group = typeGroups.value[index]
+    if (group) {
+      homeViewState.setActiveType(group.type)
+      syncTypeToRoute(group.type)
+    }
+  }, 150)
 }
 
 const sortOrderLabel = computed(() => (sortOrder.value === 'desc' ? 'Newest first' : 'Oldest first'))
@@ -274,6 +330,15 @@ onMounted(async () => {
       type: 'negative',
       message: 'Error loading entries'
     })
+    return
+  }
+
+  await nextTick()
+  if (!isDesktop.value && lanesEl.value && homeViewState.activeType) {
+    const index = typeGroups.value.findIndex((g) => g.type === homeViewState.activeType)
+    if (index > 0) {
+      lanesEl.value.scrollLeft = index * lanesEl.value.clientWidth
+    }
   }
 })
 </script>
