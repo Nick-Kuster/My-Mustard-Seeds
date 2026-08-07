@@ -14,11 +14,17 @@
         <div class="app-toolbar-inner">
           <q-toolbar-title>
             <router-link to="/" class="text-white text-decoration-none header-link">
-              <q-avatar size="32px" class="header-logo-badge">
-                <img src="icons/favicon-32x32.png" alt="" class="header-logo" />
-              </q-avatar>
-              <span class="header-title-text">My Mustard Seeds</span>
-              <q-icon size="xs" class="q-ml-sm header-cross fa-solid fa-cross" />
+              <svg class="header-logo-mark" viewBox="0 0 64 66" aria-hidden="true" focusable="false">
+                <path d="M32 35 C19 31 17 18 26 10 C35 19 35 29 32 35 Z" fill="currentColor" opacity="0.92"/>
+                <path d="M32 35 C45 31 47 18 38 10 C29 19 29 29 32 35 Z" fill="currentColor" opacity="0.62"/>
+                <circle cx="32" cy="40" r="4.6" fill="#d4b499"/>
+                <path d="M32 47 V45.5" stroke="currentColor" stroke-width="1.6" opacity="0.5"/>
+                <path d="M32 47 C24 44.5 19 46 15 51" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.75"/>
+                <path d="M32 47 C40 44.5 45 46 49 51" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.75"/>
+                <path d="M32 52 C25 50 21 51 18 55" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" opacity="0.48"/>
+                <path d="M32 52 C39 50 43 51 46 55" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" opacity="0.48"/>
+              </svg>
+              <span class="header-title-text">My Mustard <em>Seeds</em></span>
             </router-link>
           </q-toolbar-title>
 
@@ -178,17 +184,26 @@ body.body--dark .app-header {
   align-items: center;
 }
 
-.header-logo-badge {
-  background: rgba(255, 253, 248, 0.95);
-  padding: 4px;
+.header-logo-mark {
+  width: 34px;
+  height: 35px;
+  flex: none;
+  color: #fffdf8;
   margin-right: 10px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
-.header-logo {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+.header-title-text {
+  font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+  font-size: 1.3rem;
+  letter-spacing: 0.01em;
+  color: #fffdf8;
+  white-space: nowrap;
+}
+
+.header-title-text em {
+  font-style: italic;
+  font-weight: 400;
+  color: #f6e4c0;
 }
 
 .header-nav {
@@ -207,16 +222,6 @@ body.body--dark .app-header {
 .header-nav-btn--active {
   color: #ffffff;
   background: rgba(255, 255, 255, 0.15);
-}
-
-.header-title-text {
-  font-weight: 800;
-  font-size: 1.2rem;
-  letter-spacing: 0.02em;
-}
-
-.header-cross {
-  opacity: 0.85;
 }
 
 .content-wrapper {
