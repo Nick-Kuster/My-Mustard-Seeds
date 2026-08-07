@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   EMPTY_RICH_DOC,
+  formatRichTextAsMarkdown,
   getSectionPlainText,
   getSectionSearchText,
   legacyStringToDoc,
@@ -30,7 +31,7 @@ describe('rich text content helpers', () => {
             { type: 'tagReference', attrs: { tagName: 'hope' } },
             {
               type: 'strongsReference',
-              attrs: { strongsNumber: 'G26', display: 'agape' },
+              attrs: { strongs_number: 'G26', display: 'agape' },
             },
             { type: 'imageReference', attrs: { alt: 'mustard seed photo' } },
           ],
@@ -46,5 +47,29 @@ describe('rich text content helpers', () => {
     expect(EMPTY_RICH_DOC).toEqual({ type: 'doc', content: [{ type: 'paragraph' }] })
     expect(getSectionSearchText(null)).toBe('')
     expect(getSectionSearchText('plain text')).toBe('plain text')
+  })
+
+  it('formats rich content as markdown for export', () => {
+    const doc = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: 'Love', marks: [{ type: 'bold' }] },
+            { type: 'text', text: ' ' },
+            { type: 'verseReference', attrs: { display: 'John 3:16' } },
+            { type: 'text', text: ' ' },
+            { type: 'tagReference', attrs: { tagName: 'hope' } },
+            { type: 'text', text: ' ' },
+            { type: 'strongsReference', attrs: { strongs_number: 'G25', display: 'agapao' } },
+            { type: 'text', text: ' ' },
+            { type: 'imageReference', attrs: { alt: 'mustard seed photo' } },
+          ],
+        },
+      ],
+    }
+
+    expect(formatRichTextAsMarkdown(doc)).toBe('**Love** John 3:16 #hope agapao ($G25) [Image attachment: mustard seed photo]')
   })
 })

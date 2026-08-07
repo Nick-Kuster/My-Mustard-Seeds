@@ -4,6 +4,7 @@ import { useBibleDataStore } from 'stores/bibleData'
 import { JOURNAL_TYPES } from 'src/constants/journalTypes'
 import { parseFullVerseReference } from 'src/utils/verseUtils'
 import { isSafeExternalUrl } from 'src/utils/urlUtils'
+import { legacyStringToDoc } from 'src/utils/richTextContent'
 
 const TYPE_IDS = JOURNAL_TYPES.map((t) => t.id)
 
@@ -12,11 +13,12 @@ const EXAMPLE_ENTRY = {
   title: 'Trusting God in Uncertainty',
   date: '2024-03-12',
   sections: [
-    { title: 'Summary', content: "Today's devotional was about resting in God's plan even when the outcome is unclear.", fieldType: 'longText' },
+    { title: 'Summary', content: "God's love in ::John 3:16 gives hope when the outcome is unclear. Remember #trust and study $G25 for agapao.", fieldType: 'longText' },
     { title: 'Key Points', content: 'Worry accomplishes nothing\nGod\'s timing is not our timing\nPrayer over anxiety', fieldType: 'list' },
   ],
   verses: [{ reference: 'Philippians 4:6-7', main: true }],
   tags: ['anxiety', 'trust'],
+  strongs: [{ strongsNumber: 'G25', note: 'agapao / love' }],
   quotes: [{ quote: 'Fear not, for I am with you.', source: 'Isaiah 41:10', page: null }],
   links: [{ name: 'Devotional source', url: 'https://example.com' }],
 }
@@ -40,8 +42,10 @@ Schema for each entry:
   "sections": [ { "title": "string", "content": "string", "fieldType": "longText" or "list" } ],
   "verses": [ { "reference": "e.g. 'John 3:16' or 'Genesis 1:1-2:3' or 'Psalm 23'", "main": true or false } ],
   "tags": ["string", ...],
+  "strongs": [ "G25", { "strongsNumber": "H7225", "note": "optional note for the AI/user only" } ],
   "quotes": [ { "quote": "string", "source": "string (optional)", "page": number (optional) } ],
-  "links": [ { "name": "string", "url": "string" } ]
+  "links": [ { "name": "string", "url": "string" } ],
+  "images": [ { "alt": "optional description of an image that should be manually attached later" } ]
 }
 
 Notes:
@@ -49,30 +53,73 @@ Notes:
 - Split each note into logically-titled "sections" (e.g. "Summary", "Key Points",
   "Application", "Prayer"). Use fieldType "list" for bullet-point content,
   "longText" for everything else.
+- Long-text sections import into the app's rich-text editor. Use blank lines for
+  separate paragraphs. You may include inline shortcuts in the text such as
+  #tag, ::John 3:16, or $G25.
+- Strong's words can be found in the app by typing English, Greek transliteration,
+  or Hebrew transliteration, but the structured "strongs" import field should use
+  exact Strong's numbers like "G25" or "H7225".
 - Mark at most one verse reference per entry as "main": true (the primary
   passage for that entry, if there is one).
 - Bible verse references must include the full book name.
+- Imported images cannot recreate encrypted uploaded image files. If a source
+  note contains an image, describe it in section text or include an "images"
+  note so it can be attached manually after import.
 
 Example output:
 ${JSON.stringify([EXAMPLE_ENTRY], null, 2)}
 `
 
 const isNonEmptyString = (val) => typeof val === 'string' && val.trim().length > 0
+const STRONGS_NUMBER_RE = /^[GH]\d+$/i
+
+const normalizeSectionContent = (content, fieldType) => {
+  if (fieldType === 'list') return isNonEmptyString(content) ? content : ''
+  return legacyStringToDoc(isNonEmptyString(content) ? content : '')
+}
 
 // The manual entry editor lets a "link" section type open its content directly
 // in a new tab (window.open) — only allow the plain text/list field types
 // through import so a crafted payload can't smuggle a javascript: URI into a
 // section that later gets opened that way.
 const sanitizeSections = (sections) =>
-  sections.map((s) => ({
-    title: isNonEmptyString(s?.title) ? s.title : '',
-    content: isNonEmptyString(s?.content) ? s.content : '',
-    fieldType: s?.fieldType === 'list' ? 'list' : 'longText',
-  }))
+  sections.map((s) => {
+    const fieldType = s?.fieldType === 'list' ? 'list' : 'longText'
+    return {
+      title: isNonEmptyString(s?.title) ? s.title : '',
+      content: normalizeSectionContent(s?.content, fieldType),
+      fieldType,
+    }
+  })
 
 // related_links entries are opened via window.open(url) straight from the
 // view page — same http(s)-only rule the manual link form enforces.
 const isSafeUrl = (url) => isNonEmptyString(url) && isSafeExternalUrl(url)
+
+const normalizeStrongsNumber = (item) => {
+  const raw = typeof item === 'string' ? item : item?.strongsNumber || item?.strongs_number
+  if (!isNonEmptyString(raw)) return null
+  const normalized = raw.trim().toUpperCase()
+  return STRONGS_NUMBER_RE.test(normalized) ? normalized : null
+}
+
+const resolveStrongsNumbers = async (items) => {
+  const warnings = []
+  const numbers = [...new Set(items.map(normalizeStrongsNumber).filter(Boolean))]
+  const invalidCount = items.length - numbers.length
+  if (invalidCount > 0) warnings.push('one or more Strong\'s items were skipped â€” use exact numbers like G25 or H7225')
+
+  const resolved = []
+  for (const number of numbers) {
+    const { data, error } = await supabase.from('strongs_entries').select('strongs_number').eq('strongs_number', number).single()
+    if (error || !data?.strongs_number) {
+      warnings.push(`Strong's item skipped â€” ${number} was not found`)
+    } else {
+      resolved.push(data.strongs_number)
+    }
+  }
+  return { resolved, warnings }
+}
 
 const resolveVerseNumber = async (bibleData, book, chapter, verse, isEnd) => {
   if (verse != null) return verse
@@ -214,6 +261,23 @@ const importOneEntry = async (raw, { userId, encryptionKey, bibleData, resolveTa
       linkItems.map((l) => ({ journal_id: entry.id, name: l.name || l.url, url: l.url })),
     )
     if (error) warnings.push(`some links could not be saved — ${error.message}`)
+  }
+
+  // Strong's words
+  const strongsItems = Array.isArray(raw.strongs) ? raw.strongs : []
+  if (strongsItems.length > 0) {
+    const { resolved, warnings: strongsWarnings } = await resolveStrongsNumbers(strongsItems)
+    warnings.push(...strongsWarnings)
+    if (resolved.length > 0) {
+      const { error } = await supabase.from('journal_strongs').insert(
+        resolved.map((strongsNumber) => ({ journal_id: entry.id, user_id: userId, strongs_number: strongsNumber })),
+      )
+      if (error) warnings.push(`some Strong's words could not be saved — ${error.message}`)
+    }
+  }
+
+  if (Array.isArray(raw.images) && raw.images.length > 0) {
+    warnings.push('image notes were not imported — encrypted image files must be attached in the editor')
   }
 
   return warnings

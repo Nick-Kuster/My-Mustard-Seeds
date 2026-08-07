@@ -7,7 +7,7 @@ import { useResourcesStore } from 'src/stores/resources'
 import { useSavedFiltersStore } from 'src/stores/savedFilters'
 import { useUserPreferencesStore } from 'src/stores/userPreferences'
 import { useProfileStore } from 'src/stores/profile'
-import { getSectionPlainText } from 'src/utils/richTextContent'
+import { formatRichTextAsMarkdown } from 'src/utils/richTextContent'
 import { getListItems } from 'src/utils/sectionListUtils'
 
 // Reuses every store's own fetch/decrypt method rather than re-querying
@@ -76,7 +76,7 @@ const formatEntrySections = (decryptedContent) => {
       const heading = section.title ? `### ${section.title}\n` : ''
       const body = section.fieldType === 'list'
         ? getListItems(section.content).filter((item) => item.trim()).map((item) => `- ${item}`).join('\n')
-        : getSectionPlainText(section.content)
+        : formatRichTextAsMarkdown(section.content)
       return `${heading}${body}`
     })
     .filter(Boolean)
@@ -117,7 +117,10 @@ const formatEntryMarkdown = (entry) => {
   }
 
   if (entry.strongs?.length) {
-    lines.push(`**Strong's:** ${entry.strongs.map((s) => `${s.strongs_number} (${s.lemma})`).join(', ')}`)
+    lines.push(`**Strong's:** ${entry.strongs.map((s) => {
+      const label = [s.strongs_number, s.transliteration || s.lemma].filter(Boolean).join(' ')
+      return s.definition ? `${label} - ${s.definition}` : label
+    }).join(', ')}`)
   }
 
   return lines.join('\n\n')
