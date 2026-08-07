@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { supabase } from '../boot/supabase'
 import { ref, computed } from 'vue'
 import { useEncryptionStore } from 'src/stores/encryption'
+import { useResourcesStore } from 'src/stores/resources'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
@@ -23,6 +24,7 @@ export const useAuthStore = defineStore('auth', () => {
         user.value = session?.user || null
         if (event === 'SIGNED_OUT') {
           useEncryptionStore().reset()
+          useResourcesStore().reset()
         }
       })
     }
@@ -69,6 +71,8 @@ export const useAuthStore = defineStore('auth', () => {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
     user.value = null
+    useEncryptionStore().reset()
+    useResourcesStore().reset()
   }
 
   const resetPassword = async (email) => {

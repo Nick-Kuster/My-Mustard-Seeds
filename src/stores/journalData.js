@@ -430,6 +430,19 @@ export const useJournalStore = defineStore('journalData', () => {
     searchTerm.value = term
   }
 
+  const updateEntryCollection = (journalId, updater) => {
+    const rawIndex = entries.value.findIndex((e) => e.id === journalId)
+    if (rawIndex !== -1) updater(entries.value[rawIndex], false)
+
+    const decryptedIndex = decryptedEntries.value.findIndex((e) => e.id === journalId)
+    if (decryptedIndex !== -1) updater(decryptedEntries.value[decryptedIndex], true)
+  }
+
+  const updateEveryCachedEntry = (updater) => {
+    entries.value.forEach((entry) => updater(entry, false))
+    decryptedEntries.value.forEach((entry) => updater(entry, true))
+  }
+
   // Add a quote to a journal entry
   const addQuote = async (journalId, quoteData) => {
     try {
@@ -455,13 +468,10 @@ export const useJournalStore = defineStore('journalData', () => {
       if (error) throw error
 
       // Update local state
-      const entryIndex = entries.value.findIndex((e) => e.id === journalId)
-      if (entryIndex !== -1) {
-        const entry = entries.value[entryIndex]
+      updateEntryCollection(journalId, (entry, isDecrypted) => {
         entry.quotes = entry.quotes || []
-        entry.quotes.push(data)
-        await decryptEntries() // Refresh decrypted entries
-      }
+        entry.quotes.push(isDecrypted ? { ...data, decryptedQuote: quoteData.quote } : data)
+      })
 
       return data
     } catch (error) {
@@ -495,8 +505,13 @@ export const useJournalStore = defineStore('journalData', () => {
 
       if (error) throw error
 
-      // Update local state
-      await fetchEntries() // Refresh all entries to ensure consistency
+      updateEveryCachedEntry((entry, isDecrypted) => {
+        if (!Array.isArray(entry.quotes)) return
+        const index = entry.quotes.findIndex((quote) => quote.id === quoteId)
+        if (index !== -1) {
+          entry.quotes[index] = isDecrypted ? { ...data, decryptedQuote: quoteData.quote } : data
+        }
+      })
 
       return data
     } catch (error) {
@@ -512,8 +527,11 @@ export const useJournalStore = defineStore('journalData', () => {
 
       if (error) throw error
 
-      // Update local state
-      await fetchEntries() // Refresh all entries to ensure consistency
+      updateEveryCachedEntry((entry) => {
+        if (Array.isArray(entry.quotes)) {
+          entry.quotes = entry.quotes.filter((quote) => quote.id !== quoteId)
+        }
+      })
     } catch (error) {
       console.error('Error deleting quote:', error)
       throw error
@@ -536,13 +554,10 @@ export const useJournalStore = defineStore('journalData', () => {
       if (error) throw error
 
       // Update local state
-      const entryIndex = entries.value.findIndex((e) => e.id === journalId)
-      if (entryIndex !== -1) {
-        const entry = entries.value[entryIndex]
+      updateEntryCollection(journalId, (entry) => {
         entry.links = entry.links || []
         entry.links.push(data)
-        await decryptEntries() // Refresh decrypted entries
-      }
+      })
 
       return data
     } catch (error) {
@@ -567,8 +582,11 @@ export const useJournalStore = defineStore('journalData', () => {
 
       if (error) throw error
 
-      // Update local state
-      await fetchEntries() // Refresh all entries to ensure consistency
+      updateEveryCachedEntry((entry) => {
+        if (!Array.isArray(entry.links)) return
+        const index = entry.links.findIndex((link) => link.id === linkId)
+        if (index !== -1) entry.links[index] = data
+      })
 
       return data
     } catch (error) {
@@ -584,8 +602,11 @@ export const useJournalStore = defineStore('journalData', () => {
 
       if (error) throw error
 
-      // Update local state
-      await fetchEntries() // Refresh all entries to ensure consistency
+      updateEveryCachedEntry((entry) => {
+        if (Array.isArray(entry.links)) {
+          entry.links = entry.links.filter((link) => link.id !== linkId)
+        }
+      })
     } catch (error) {
       console.error('Error deleting link:', error)
       throw error

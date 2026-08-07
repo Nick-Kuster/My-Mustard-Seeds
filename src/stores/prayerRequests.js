@@ -81,21 +81,25 @@ export const usePrayerRequestsStore = defineStore('prayerRequests', () => {
   // (not reset per-group), which still sorts correctly within any one
   // group's subset.
   const reorder = async (items) => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    if (!session) throw new Error('No active session')
+
+    const updatedAt = new Date().toISOString()
     const updates = items.map((item, index) => ({
       id: item.id,
+      user_id: session.user.id,
       position: index,
       group_id: item.group_id || null,
+      updated_at: updatedAt,
     }))
+    if (updates.length === 0) return
 
-    await Promise.all(
-      updates.map(async ({ id, position, group_id }) => {
-        const { error } = await supabase
-          .from('prayer_requests')
-          .update({ position, group_id, updated_at: new Date().toISOString() })
-          .eq('id', id)
-        if (error) throw error
-      }),
-    )
+    const { error } = await supabase
+      .from('prayer_requests')
+      .upsert(updates, { onConflict: 'id' })
+    if (error) throw error
 
     updates.forEach(({ id, position, group_id }) => {
       const req = requests.value.find((r) => r.id === id)

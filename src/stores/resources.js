@@ -7,10 +7,13 @@ import { demoModeActive } from 'src/utils/demoMode'
 
 // Cache keys
 const CACHE_KEYS = {
-  RESOURCES: 'cached_resources',
-  TIMESTAMP: 'resources_cache_timestamp',
+  PREFIX: 'resources_cache',
   TTL: 1000 * 60 * 60, // 1 hour in milliseconds
 }
+
+const resourceCacheKey = (userId) => `${CACHE_KEYS.PREFIX}:${userId}:resources`
+const timestampCacheKey = (userId) => `${CACHE_KEYS.PREFIX}:${userId}:timestamp`
+const childResourcesCacheKey = (userId, parentId) => `${CACHE_KEYS.PREFIX}:${userId}:child_resources:${parentId}`
 
 export const useResourcesStore = defineStore('resources', () => {
   const resources = ref([])
@@ -18,10 +21,10 @@ export const useResourcesStore = defineStore('resources', () => {
   const error = ref(null)
 
   // Initialize from cache
-  const initFromCache = () => {
+  const initFromCache = (userId) => {
     try {
-      const cachedData = localStorage.getItem(CACHE_KEYS.RESOURCES)
-      const timestamp = localStorage.getItem(CACHE_KEYS.TIMESTAMP)
+      const cachedData = localStorage.getItem(resourceCacheKey(userId))
+      const timestamp = localStorage.getItem(timestampCacheKey(userId))
 
       if (cachedData && timestamp) {
         const now = Date.now()
@@ -40,10 +43,12 @@ export const useResourcesStore = defineStore('resources', () => {
   }
 
   // Update cache
-  const updateCache = () => {
+  const updateCache = async () => {
     try {
-      localStorage.setItem(CACHE_KEYS.RESOURCES, JSON.stringify(resources.value))
-      localStorage.setItem(CACHE_KEYS.TIMESTAMP, Date.now().toString())
+      const session = (await supabase.auth.getSession()).data.session
+      if (!session) return
+      localStorage.setItem(resourceCacheKey(session.user.id), JSON.stringify(resources.value))
+      localStorage.setItem(timestampCacheKey(session.user.id), Date.now().toString())
     } catch (err) {
       console.error('Error updating cache:', err)
     }
@@ -78,8 +83,11 @@ export const useResourcesStore = defineStore('resources', () => {
 
   const getChildResources = async (parentId) => {
     try {
+      const session = (await supabase.auth.getSession()).data.session
+      if (!session) throw new Error('No active session')
+
       // First check local cache
-      const cachedRelations = localStorage.getItem(`child_resources_${parentId}`)
+      const cachedRelations = localStorage.getItem(childResourcesCacheKey(session.user.id, parentId))
       if (cachedRelations) {
         const { data, timestamp } = JSON.parse(cachedRelations)
         if (Date.now() - timestamp < CACHE_KEYS.TTL) {
@@ -100,14 +108,14 @@ export const useResourcesStore = defineStore('resources', () => {
         `,
         )
         .eq('parent_resource_id', parentId)
-        .eq('user_id', (await supabase.auth.getSession()).data.session.user.id)
+        .eq('user_id', session.user.id)
 
       if (error) throw error
 
       // Transform and cache the data
       const childResources = data.map((item) => item.child_resource)
       localStorage.setItem(
-        `child_resources_${parentId}`,
+        childResourcesCacheKey(session.user.id, parentId),
         JSON.stringify({
           data: childResources,
           timestamp: Date.now(),
@@ -131,16 +139,17 @@ export const useResourcesStore = defineStore('resources', () => {
     error.value = null
 
     try {
-      // Check cache first if not forcing refresh
-      if (!forceRefresh && initFromCache()) {
-        loading.value = false
-        return
-      }
-
       const {
         data: { session },
       } = await supabase.auth.getSession()
       if (!session) throw new Error('No active session')
+
+      // Check cache only after the current user is known, so one account
+      // can never read another account's local resource cache on a shared browser.
+      if (!forceRefresh && initFromCache(session.user.id)) {
+        loading.value = false
+        return
+      }
 
       const { data, error: supabaseError } = await supabase
         .from('resources')
@@ -150,7 +159,7 @@ export const useResourcesStore = defineStore('resources', () => {
 
       if (supabaseError) throw supabaseError
       resources.value = data
-      updateCache()
+      await updateCache()
     } catch (err) {
       console.error('Error loading resources:', err)
       error.value = err.message
@@ -182,7 +191,7 @@ export const useResourcesStore = defineStore('resources', () => {
       if (supabaseError) throw supabaseError
 
       resources.value.unshift(data)
-      updateCache()
+      await updateCache()
       return data
     } catch (err) {
       console.error('Error adding resource:', err)
@@ -264,8 +273,11 @@ export const useResourcesStore = defineStore('resources', () => {
 
       // Remove from local state and cache
       resources.value = resources.value.filter((r) => !idsToDelete.includes(r.id))
-      idsToDelete.forEach((deletedId) => localStorage.removeItem(`child_resources_${deletedId}`))
-      updateCache()
+      const session = (await supabase.auth.getSession()).data.session
+      idsToDelete.forEach((deletedId) => {
+        if (session) localStorage.removeItem(childResourcesCacheKey(session.user.id, deletedId))
+      })
+      await updateCache()
 
       return idsToDelete
     } catch (err) {
@@ -299,7 +311,7 @@ export const useResourcesStore = defineStore('resources', () => {
       const index = resources.value.findIndex((r) => r.id === id)
       if (index !== -1) {
         resources.value[index] = data
-        updateCache()
+        await updateCache()
       }
 
       return data
@@ -352,8 +364,8 @@ export const useResourcesStore = defineStore('resources', () => {
       resources.value.push(childResource)
 
       // Clear the parent's child resources cache
-      localStorage.removeItem(`child_resources_${parentId}`)
-      updateCache()
+      localStorage.removeItem(childResourcesCacheKey(session.user.id, parentId))
+      await updateCache()
 
       return childResource
     } catch (err) {
@@ -407,17 +419,23 @@ export const useResourcesStore = defineStore('resources', () => {
 
   const clearCache = () => {
     try {
-      localStorage.removeItem(CACHE_KEYS.RESOURCES)
-      localStorage.removeItem(CACHE_KEYS.TIMESTAMP)
-      // Clear all child resources caches
+      // Clear all resource caches. Cache keys are user-scoped, but clearing
+      // every resource cache is still useful on sign-out/account switches.
       for (const key of Object.keys(localStorage)) {
-        if (key.startsWith('child_resources_')) {
+        if (key.startsWith(`${CACHE_KEYS.PREFIX}:`)) {
           localStorage.removeItem(key)
         }
       }
     } catch (err) {
       console.error('Error clearing cache:', err)
     }
+  }
+
+  const reset = () => {
+    resources.value = []
+    loading.value = false
+    error.value = null
+    clearCache()
   }
 
   return {
@@ -444,6 +462,7 @@ export const useResourcesStore = defineStore('resources', () => {
     updateResource,
     addChildResource,
     clearCache,
+    reset,
   }
 })
 
