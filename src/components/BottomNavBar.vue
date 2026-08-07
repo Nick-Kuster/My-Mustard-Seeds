@@ -13,7 +13,7 @@
              which intercepts clicks meant for SIBLING q-btns in this same
              row (Cancel/Save opened this menu instead of running their
              own handler) rather than just this one button. -->
-        <q-btn-dropdown v-if="action.menu" unelevated no-caps :color="action.color" :data-tour="action.tourKey"
+        <q-btn-dropdown v-if="action.menu" rounded unelevated no-caps :color="action.color" :data-tour="action.tourKey"
           class="bottom-nav-action-btn" :icon="action.icon" :label="action.label" content-style="min-width: 160px">
           <q-list>
             <q-item v-for="item in action.menu" :key="item.key" clickable v-close-popup @click="item.handler()">
@@ -26,6 +26,7 @@
         </q-btn-dropdown>
         <q-btn
           v-else
+          rounded
           unelevated
           no-caps
           :color="action.color"

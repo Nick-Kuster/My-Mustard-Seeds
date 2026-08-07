@@ -1,6 +1,5 @@
 <template>
   <div class="rich-text-editor">
-    <div v-if="label" class="text-caption text-grey-7 q-mb-xs">{{ label }}</div>
     <div class="rich-text-scroll-area">
       <RichTextToolbar v-if="editor && !disable" :editor="editor" class="rich-text-toolbar-pinned" />
       <editor-content :editor="editor" class="rich-text-body" />
@@ -49,7 +48,6 @@ const DEBOUNCE_MS = 2500
 
 const props = defineProps({
   modelValue: { type: [String, Object], default: () => EMPTY_RICH_DOC },
-  label: { type: String, default: '' },
   disable: { type: Boolean, default: false },
   onVerseResolved: { type: Function, required: true },
   onTagResolved: { type: Function, required: true },
@@ -164,7 +162,7 @@ onBeforeUnmount(() => {
 }
 
 .rich-text-scroll-area {
-  max-height: 340px;
+  max-height: 1360px;
   overflow-y: auto;
 }
 
@@ -176,11 +174,17 @@ onBeforeUnmount(() => {
 }
 
 .rich-text-body {
-  min-height: 60px;
-  padding: 4px 0;
+  padding: 12px 0 4px;
 }
 
+/* min-height belongs on the actual contenteditable element, not this
+   wrapper — putting it here left a "dead zone" below the last line that
+   was visually part of the editor but wasn't real ProseMirror content, so
+   clicking there didn't focus anything. On .ProseMirror itself, that same
+   space IS the contenteditable box, so the browser's native click-to-
+   position behavior places the cursor at the nearest text for free. */
 .rich-text-body :deep(.ProseMirror) {
+  min-height: 240px;
   outline: none;
 }
 

@@ -89,7 +89,13 @@ export default defineConfig((/* ctx */) => {
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#framework
     framework: {
-      config: {},
+      // Quasar's own Notify default position is 'bottom', which sits right
+      // on top of this app's fixed bottom action bar (Save/Cancel/Add,
+      // Back/Edit/Delete, etc. — see BottomNavBar.vue) on mobile. 'top'
+      // never collides with it.
+      config: {
+        notify: { position: 'top' },
+      },
 
       // iconSet: 'material-icons', // Quasar icon set
       // lang: 'en-US', // Quasar language pack

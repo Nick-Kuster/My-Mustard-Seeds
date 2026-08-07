@@ -4,7 +4,7 @@
       <q-spinner color="primary" size="3em" />
     </div>
     <div v-else class="row q-col-gutter-md justify-center">
-      <div class="col-12 content-card q-ma-lg q-pa-lg parchment">
+      <div class="col-12 content-card entry-card q-ma-lg q-pa-lg parchment">
         <div class="row items-center q-mb-md">
           <div class="col">
             <div class="text-h6">Edit Seed</div>
@@ -36,7 +36,7 @@
                 :startVerse="mainVerse.startVerse" :endVerse="mainVerse.endVerse" />
             </div>
             <div v-else>
-              <q-btn unelevated color="primary" label="Select Passage" @click="showVerseModal = true" />
+              <q-btn rounded unelevated color="primary" label="Select Passage" @click="showVerseModal = true" />
             </div>
 
             <VerseSelectionModal v-model="showVerseModal" @select="onVerseSelect" />
@@ -56,7 +56,7 @@
               <q-btn flat dense color="primary" class="q-px-none" label="Change" @click="showPastorModal = true" />
             </div>
             <div v-else>
-              <q-btn unelevated color="primary" label="Select Sermon" @click="showPastorModal = true" />
+              <q-btn rounded unelevated color="primary" label="Select Sermon" @click="showPastorModal = true" />
             </div>
 
             <ResourceSelectionModal v-model="showPastorModal" :resource-type="RESOURCE_TYPES.CHURCH"
@@ -74,7 +74,7 @@
               <q-btn flat dense color="primary" class="q-px-none" label="Change" @click="showBookModal = true" />
             </div>
             <div v-else>
-              <q-btn unelevated color="primary" label="Select Book" @click="showBookModal = true" />
+              <q-btn rounded unelevated color="primary" label="Select Book" @click="showBookModal = true" />
             </div>
 
             <ResourceSelectionModal v-model="showBookModal" :resource-type="RESOURCE_TYPES.AUTHOR"
@@ -95,7 +95,7 @@
               <q-btn flat dense color="primary" class="q-px-none" label="Change" @click="showPodcastModal = true" />
             </div>
             <div v-else>
-              <q-btn unelevated color="primary" label="Select Podcast" @click="showPodcastModal = true" />
+              <q-btn rounded unelevated color="primary" label="Select Podcast" @click="showPodcastModal = true" />
             </div>
 
             <ResourceSelectionModal v-model="showPodcastModal" :resource-type="RESOURCE_TYPES.PODCAST"
@@ -111,7 +111,7 @@
               <q-btn flat dense color="primary" class="q-px-none" label="Change" @click="showArtistModal = true" />
             </div>
             <div v-else>
-              <q-btn unelevated color="primary" label="Select Artist" @click="showArtistModal = true" />
+              <q-btn rounded unelevated color="primary" label="Select Artist" @click="showArtistModal = true" />
             </div>
 
             <ResourceSelectionModal v-model="showArtistModal" :resource-type="RESOURCE_TYPES.SONG_ARTIST"
@@ -130,7 +130,7 @@
               <q-btn flat dense color="primary" class="q-px-none" label="Change" @click="showDevotionalModal = true" />
             </div>
             <div v-else>
-              <q-btn unelevated color="primary" label="Select Devotional" @click="showDevotionalModal = true" />
+              <q-btn rounded unelevated color="primary" label="Select Devotional" @click="showDevotionalModal = true" />
             </div>
 
             <ResourceSelectionModal v-model="showDevotionalModal" :resource-type="RESOURCE_TYPES.DEVOTIONAL"
@@ -150,7 +150,7 @@
               <q-btn flat dense color="primary" class="q-px-none" label="Change" @click="showGroupModal = true" />
             </div>
             <div v-else>
-              <q-btn unelevated color="primary" label="Select Group" @click="showGroupModal = true" />
+              <q-btn rounded unelevated color="primary" label="Select Group" @click="showGroupModal = true" />
             </div>
 
             <ResourceSelectionModal v-model="showGroupModal" :resource-type="RESOURCE_TYPES.GROUP"
@@ -171,7 +171,7 @@
               <q-btn flat dense color="primary" class="q-px-none" label="Change" @click="showShowModal = true" />
             </div>
             <div v-else>
-              <q-btn unelevated color="primary" label="Select Show" @click="showShowModal = true" />
+              <q-btn rounded unelevated color="primary" label="Select Show" @click="showShowModal = true" />
             </div>
 
             <ResourceSelectionModal v-model="showShowModal" :resource-type="RESOURCE_TYPES.SHOW"
@@ -274,7 +274,7 @@
                     <div v-show="!isCollapsed(section.id)">
                       <RichTextEditor v-if="section.fieldType !== 'list'" v-model="section.content"
                         :ref="(el) => setRichTextEditorRef(section.id, el)"
-                        :label="section.title || 'Your thoughts...'" :disable="dragging"
+                        :disable="dragging"
                         :on-verse-resolved="inlineResolver.pushResolvedVerse"
                         :on-tag-resolved="inlineResolver.pushResolvedTag"
                         :on-strongs-resolved="inlineResolver.pushResolvedStrongs" />
@@ -1276,6 +1276,18 @@ onUnmounted(() => {
 })
 </script>
 <style scoped>
+/* Fills the visible page instead of shrinking to content and leaving the
+   background image exposed below — a plain min-height, not a flex-stretch
+   layout, since making q-page/its row a flex-grow container caused real
+   regressions (page-level overflow, clicks not reaching the rich-text
+   editor, likely from interacting with QTabPanels' own transition layer).
+   180px is header + mobile bottom-nav + this page's own margins/padding,
+   roughly — being off by a bit just means a small gap or a touch of
+   scroll, not a broken page. */
+.entry-card {
+  min-height: calc(100vh - 180px);
+}
+
 /* Keep all your existing styles */
 .section-container {
   padding: 12px;

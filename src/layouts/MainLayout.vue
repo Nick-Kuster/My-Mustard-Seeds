@@ -102,6 +102,13 @@ const handleSignOut = async () => {
   }
 }
 
+// MainLayout mounts on every full page load/refresh (Vue Router doesn't
+// remount it for in-app navigation), so gating on sessionStorage rather
+// than just "did this component mount" keeps the greeting to once per
+// browser session — refreshing the page won't show it again, but a fresh
+// tab/session will.
+const WELCOME_TOAST_KEY = 'welcomeToastShown'
+
 onMounted(async () => {
   initTheme()
 
@@ -109,8 +116,9 @@ onMounted(async () => {
     await profileStore.fetchProfile()
     if (!profileStore.profile?.onboarded) {
       showWelcomeDialog.value = true
-    } else if (profileStore.profile.first_name) {
+    } else if (profileStore.profile.first_name && !sessionStorage.getItem(WELCOME_TOAST_KEY)) {
       $q.notify({ type: 'positive', message: `Welcome back, ${profileStore.profile.first_name}!` })
+      sessionStorage.setItem(WELCOME_TOAST_KEY, '1')
     }
   } catch {
     // First-login prompt/greeting are a nice-to-have, not core app
