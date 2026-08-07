@@ -7,12 +7,17 @@
  *   encryptData(data, bundle) -> "v2:..." AES-GCM ciphertext
  *   decryptData(payload, bundle) -> plaintext (reads both v2 and the legacy
  *                                   XOR format until migration finishes)
+ *
+ * encryptBytes/decryptBytes are the same idea for raw binary (image
+ * uploads) instead of JSON — no base64 detour, no legacy format to read.
  */
 import { useEncryptionStore } from 'src/stores/encryption'
 import {
   isV2,
   encryptJson,
   decryptJson,
+  aesEncryptRawBytes,
+  aesDecryptRawBytes,
   legacyKeyFromUserId,
   legacyDecrypt,
 } from 'src/utils/cryptoPrimitives'
@@ -50,4 +55,22 @@ const decryptData = async (encryptedData, keyBundle) => {
   }
 }
 
-export { getEncryptionKey, encryptData, decryptData }
+const encryptBytes = async (plainBytes, keyBundle) => {
+  try {
+    return await aesEncryptRawBytes(plainBytes, keyBundle.dek)
+  } catch (error) {
+    console.error('Encryption error:', error)
+    throw new Error('Failed to encrypt data')
+  }
+}
+
+const decryptBytes = async (cipherBytes, keyBundle) => {
+  try {
+    return await aesDecryptRawBytes(cipherBytes, keyBundle.dek)
+  } catch (error) {
+    console.error('Decryption error:', error)
+    throw new Error('Failed to decrypt data')
+  }
+}
+
+export { getEncryptionKey, encryptData, decryptData, encryptBytes, decryptBytes }

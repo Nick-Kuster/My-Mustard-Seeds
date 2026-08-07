@@ -3,6 +3,7 @@ import Highlight from '@tiptap/extension-highlight'
 import Color from '@tiptap/extension-color'
 import { TextStyle } from '@tiptap/extension-text-style'
 import GlyphReferenceNode from 'src/components/richText/GlyphReferenceNode'
+import ImageReferenceNode from 'src/components/richText/ImageReferenceNode'
 import VerseReferenceNode from 'src/components/richText/VerseReferenceNode'
 import { createTagReferenceNode } from 'src/components/richText/TagReferenceNode'
 import { createStrongsReferenceNode } from 'src/components/richText/StrongsReferenceNode'
@@ -41,6 +42,7 @@ export function useReferenceExtensions({
     TextStyle,
     Color,
     GlyphReferenceNode,
+    ImageReferenceNode,
     VerseReferenceNode.configure({ onClick: onVerseClick }),
     createTagReferenceNode({ onClick: onTagClick, onResolved: onTagResolved }),
     createStrongsReferenceNode({ onClick: onStrongsClick, onResolved: onStrongsResolved }),

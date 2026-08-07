@@ -41,22 +41,31 @@ const importDek = (rawBytes) =>
 
 // ---------- AES-GCM ----------
 
-const aesEncryptBytes = async (plainBytes, key) => {
+// Raw versions (Uint8Array in/out, no base64) — used directly for binary
+// payloads like image bytes, where base64's ~33% size inflation would be
+// pure waste on Storage bandwidth/cost. aesEncryptBytes/aesDecryptToBytes
+// below are thin base64-wrapping callers for the existing JSON-payload use.
+const aesEncryptRawBytes = async (plainBytes, key) => {
   const iv = window.crypto.getRandomValues(new Uint8Array(IV_LENGTH))
   const cipherBuffer = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plainBytes)
   const combined = new Uint8Array(iv.length + cipherBuffer.byteLength)
   combined.set(iv)
   combined.set(new Uint8Array(cipherBuffer), iv.length)
-  return bytesToBase64(combined)
+  return combined
 }
 
-const aesDecryptToBytes = async (base64Payload, key) => {
-  const combined = base64ToBytes(base64Payload)
-  const iv = combined.slice(0, IV_LENGTH)
-  const cipherBytes = combined.slice(IV_LENGTH)
+const aesDecryptRawBytes = async (combinedBytes, key) => {
+  const iv = combinedBytes.slice(0, IV_LENGTH)
+  const cipherBytes = combinedBytes.slice(IV_LENGTH)
   const plainBuffer = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipherBytes)
   return new Uint8Array(plainBuffer)
 }
+
+const aesEncryptBytes = async (plainBytes, key) =>
+  bytesToBase64(await aesEncryptRawBytes(plainBytes, key))
+
+const aesDecryptToBytes = async (base64Payload, key) =>
+  aesDecryptRawBytes(base64ToBytes(base64Payload), key)
 
 // ---------- v2 content encryption ----------
 
@@ -103,6 +112,8 @@ export {
   isV2,
   encryptJson,
   decryptJson,
+  aesEncryptRawBytes,
+  aesDecryptRawBytes,
   legacyKeyFromUserId,
   legacyDecrypt,
 }

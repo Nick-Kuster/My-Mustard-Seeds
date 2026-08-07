@@ -54,6 +54,16 @@
           <path d="M7 8h10" />
         </svg>
       </q-btn>
+      <q-btn flat dense round size="sm" :ripple="false" :loading="uploading"
+        @mousedown.prevent @click="fileInputRef?.click()">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <circle cx="8.5" cy="10" r="1.5" />
+          <path d="M21 16l-5.5-5.5a1.5 1.5 0 0 0-2.12 0L5 19" />
+        </svg>
+      </q-btn>
+      <input ref="fileInputRef" type="file" accept="image/*" class="rich-text-file-input" @change="onFileSelected" />
     </div>
 
     <ColorPickerDialog v-model="showHighlightDialog" title="Highlight color" :swatches="HIGHLIGHT_SWATCHES"
@@ -68,10 +78,12 @@
 
 <script setup>
 import { ref, onBeforeUnmount, onMounted } from 'vue'
+import { Notify } from 'quasar'
 import ColorPickerDialog from './ColorPickerDialog.vue'
 import GlyphPickerDialog from './GlyphPickerDialog.vue'
 import TextStyleDialog from './TextStyleDialog.vue'
 import ListOptionsDialog from './ListOptionsDialog.vue'
+import { useImageUpload } from 'src/composables/useImageUpload'
 
 const props = defineProps({
   editor: { type: Object, required: true },
@@ -105,6 +117,26 @@ const showTextColorDialog = ref(false)
 const showGlyphDialog = ref(false)
 const showTextStyleDialog = ref(false)
 const showListDialog = ref(false)
+
+const fileInputRef = ref(null)
+const { uploading, uploadImage } = useImageUpload()
+
+const onFileSelected = async (event) => {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+
+  try {
+    const { imagePath, mimeType } = await uploadImage(file)
+    props.editor
+      .chain()
+      .focus()
+      .insertContent({ type: 'imageReference', attrs: { imagePath, mimeType, alt: '' } })
+      .run()
+  } catch (err) {
+    Notify.create({ type: 'negative', message: err.message || 'Failed to upload image' })
+  }
+}
 
 const onHighlightSelect = (color) => {
   props.editor.chain().focus().setHighlight({ color }).run()
@@ -151,5 +183,9 @@ const isActive = (name, attrs) => {
    position: sticky via class passthrough onto this component's root. */
 .rich-text-toolbar {
   padding: 4px 0;
+}
+
+.rich-text-file-input {
+  display: none;
 }
 </style>

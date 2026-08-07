@@ -53,6 +53,23 @@ const wipeAllUserData = async (userId) => {
   useResourcesStore().clearCache()
 }
 
+// Encrypted image attachments live in Storage, not a table, so they aren't
+// covered by wipeAllUserData above or any FK cascade — every object this
+// user uploaded lives under the `${userId}/...` prefix (see
+// src/composables/useImageUpload.js), so listing that one "folder" is
+// enough to find and remove all of it without a metadata table to keep in
+// sync.
+const wipeAllUserStorage = async (userId) => {
+  const { data: files, error: listError } = await supabase.storage.from('journal-images').list(userId)
+  if (listError) throw listError
+
+  if (files?.length) {
+    const paths = files.map((file) => `${userId}/${file.name}`)
+    const { error: removeError } = await supabase.storage.from('journal-images').remove(paths)
+    if (removeError) throw removeError
+  }
+}
+
 export function useAccountDeletion() {
   const deleting = ref(false)
   // 'wiping-data' | 'deleting-account' | null
@@ -70,6 +87,7 @@ export function useAccountDeletion() {
 
       step.value = 'wiping-data'
       await wipeAllUserData(session.user.id)
+      await wipeAllUserStorage(session.user.id)
 
       step.value = 'deleting-account'
       const { error: functionError } = await supabase.functions.invoke('delete-account')

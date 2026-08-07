@@ -51,6 +51,10 @@ export const getSectionSearchText = (content) => {
       parts.push(`$${node.attrs?.strongsNumber || ''} ${node.attrs?.display || ''}`.trim())
       return
     }
+    if (node.type === 'imageReference') {
+      if (node.attrs?.alt) parts.push(node.attrs.alt)
+      return
+    }
     if (Array.isArray(node.content)) node.content.forEach(walk)
   }
   walk(content)

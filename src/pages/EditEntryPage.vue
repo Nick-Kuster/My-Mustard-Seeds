@@ -1167,7 +1167,12 @@ const updateEntry = async () => {
       message: 'Changes saved successfully!'
     })
 
-    router.push(`/entry/${entryId}`)
+    // The view page for this entry is already sitting right below Edit in
+    // history (that's how Edit was reached) — go back to it via the same
+    // goBack() used by Cancel, rather than pushing/replacing forward to a
+    // *second* entry for the same URL, which left a duplicate history
+    // entry and made Back a no-op-looking first click.
+    goBack()
   } catch (error) {
     console.error('Error updating entry:', error)
     $q.notify({
