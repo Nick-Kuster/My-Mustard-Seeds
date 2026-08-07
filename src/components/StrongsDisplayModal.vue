@@ -18,6 +18,11 @@
         <div v-if="entry.kjv_def" class="text-caption text-grey-8">KJV: {{ entry.kjv_def }}</div>
         <div v-if="entry.derivation" class="text-caption text-grey-8 q-mt-sm">{{ entry.derivation }}</div>
       </q-card-section>
+
+      <q-card-actions v-if="blueLetterBibleUrl" align="right">
+        <q-btn flat no-caps label="Open in Blue Letter Bible" icon="open_in_new" type="a" :href="blueLetterBibleUrl"
+          target="_blank" rel="noopener noreferrer" />
+      </q-card-actions>
     </q-card>
   </q-dialog>
 </template>
@@ -38,6 +43,20 @@ const emit = defineEmits(['update:modelValue'])
 const isOpen = computed({
   get: () => props.modelValue,
   set: (value) => emit('update:modelValue', value),
+})
+
+// BLB's lexicon URLs are keyed by the lowercased H/G strongs number, then a
+// fixed translation code and an underlying-text code that differs by
+// language — "wlc" (Westminster Leningrad Codex) for Hebrew entries, "tr"
+// (Textus Receptus) for Greek, distinguishable from the number's own H/G
+// prefix alone.
+const blueLetterBibleUrl = computed(() => {
+  const number = props.entry?.strongs_number
+  if (!number) return null
+
+  const lower = number.toLowerCase()
+  const textCode = lower.startsWith('h') ? 'wlc' : 'tr'
+  return `https://www.blueletterbible.org/lexicon/${lower}/nasb20/${textCode}/0-1/`
 })
 </script>
 

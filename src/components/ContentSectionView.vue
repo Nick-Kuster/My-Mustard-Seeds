@@ -13,9 +13,9 @@
         </q-item-section>
       </q-item>
     </q-list>
-    <div v-else-if="section.content" class="text-body1" style="white-space: pre-wrap">
-      <InlineContent :text="section.content" :verses="verses" :tags="tags" :strongs="strongs"
-        @verse-click="onVerseClick" @tag-click="onTagClick" @strongs-click="onStrongsClick" />
+    <div v-else-if="section.content" class="text-body1">
+      <RichTextViewer :content="section.content" @verse-click="onVerseClick" @tag-click="onTagClick"
+        @strongs-click="onStrongsClick" />
     </div>
 
     <VerseDisplayModal v-model="showVerseDisplayModal" :reference="verseDisplay.display"
@@ -29,8 +29,8 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { getListItems } from 'src/utils/sectionListUtils'
-import { createDisplayVerse } from 'src/utils/verseUtils'
 import InlineContent from 'components/InlineContent.vue'
+import RichTextViewer from 'components/richText/RichTextViewer.vue'
 import VerseDisplayModal from 'components/VerseDisplayModal.vue'
 import StrongsDisplayModal from 'components/StrongsDisplayModal.vue'
 
@@ -51,8 +51,11 @@ const verseDisplay = ref({})
 const showStrongsDisplayModal = ref(false)
 const strongsDisplay = ref(null)
 
+// Both InlineContent.vue (list items) and RichTextViewer.vue (longText
+// sections) already emit the { display, startVerse, endVerse } shape
+// VerseDisplayModal.vue wants directly — no transform needed here.
 const onVerseClick = (verse) => {
-  verseDisplay.value = createDisplayVerse(verse)
+  verseDisplay.value = verse
   showVerseDisplayModal.value = true
 }
 

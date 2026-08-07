@@ -272,10 +272,12 @@
                       </div>
                     </div>
                     <div v-show="!isCollapsed(section.id)">
-                      <q-input v-if="section.fieldType !== 'list'" v-model="section.content" type="textarea"
-                        :label="section.title || 'Your thoughts...'" autogrow class="custom-textarea"
-                        :disable="dragging" @update:model-value="inlineResolver.onSectionContentChange(section)"
-                        @blur="inlineResolver.onSectionBlur(section)" />
+                      <RichTextEditor v-if="section.fieldType !== 'list'" v-model="section.content"
+                        :ref="(el) => setRichTextEditorRef(section.id, el)"
+                        :label="section.title || 'Your thoughts...'" :disable="dragging"
+                        :on-verse-resolved="inlineResolver.pushResolvedVerse"
+                        :on-tag-resolved="inlineResolver.pushResolvedTag"
+                        :on-strongs-resolved="inlineResolver.pushResolvedStrongs" />
 
                       <div v-else class="list-editor q-mb-sm">
                         <div v-for="(item, i) in getListItems(section.content)" :key="i"
@@ -331,30 +333,26 @@
           <!-- Action Buttons (mobile: these live in the bottom nav bar instead, see pageActions store) -->
           <div v-if="$q.screen.gt.sm" class="row q-col-gutter-x-sm q-mt-lg">
             <div class="col-4">
-              <q-btn rounded unelevated color="info" no-caps class="full-width" style="height: 40px">
-                <q-icon name="add" class="q-mr-sm" />
-                Add Section
-                <q-menu anchor="top left" self="bottom left">
-                  <q-list style="min-width: 160px">
-                    <q-item clickable v-close-popup @click="addSectionAndFocus('longText')">
-                      <q-item-section avatar>
-                        <q-icon name="notes" />
-                      </q-item-section>
-                      <q-item-section>Text</q-item-section>
-                    </q-item>
-                    <q-item clickable v-close-popup @click="addSectionAndFocus('list')">
-                      <q-item-section avatar>
-                        <q-icon name="checklist" />
-                      </q-item-section>
-                      <q-item-section>List</q-item-section>
-                    </q-item>
-                  </q-list>
-                </q-menu>
-              </q-btn>
+              <q-btn-dropdown rounded unelevated color="info" no-caps class="full-width" style="height: 40px"
+                icon="add" label="Add Section" content-style="min-width: 160px">
+                <q-list>
+                  <q-item clickable v-close-popup @click="addSectionAndFocus('longText')">
+                    <q-item-section avatar>
+                      <q-icon name="notes" />
+                    </q-item-section>
+                    <q-item-section>Text</q-item-section>
+                  </q-item>
+                  <q-item clickable v-close-popup @click="addSectionAndFocus('list')">
+                    <q-item-section avatar>
+                      <q-icon name="checklist" />
+                    </q-item-section>
+                    <q-item-section>List</q-item-section>
+                  </q-item>
+                </q-list>
+              </q-btn-dropdown>
             </div>
             <div class="col-4">
-              <q-btn rounded unelevated color="negative" class="full-width" @click="router.push('/entry/' + entryId)"
-                style="height: 40px">
+              <q-btn rounded unelevated color="negative" class="full-width" @click="goBack" style="height: 40px">
                 <q-icon name="cancel" class="q-mr-sm" /> Cancel
               </q-btn>
             </div>
@@ -387,6 +385,7 @@ import { useJournalStore } from 'stores/journalData'
 import draggable from 'vuedraggable'
 import { getListItems, setListItem, addListItem, removeListItem, insertListItemAfter } from 'src/utils/sectionListUtils'
 import LinkedVerses from 'components/LinkedVerses.vue'
+import RichTextEditor from 'src/components/richText/RichTextEditor.vue'
 import TagSelector from 'src/components/TagSelector.vue'
 import QuoteSelector from 'src/components/QuoteSelector.vue'
 import VerseDisplayModal from 'components/VerseDisplayModal.vue'
@@ -394,6 +393,7 @@ import LinkSelector from 'src/components/LinkSelector.vue'
 import StrongsSelector from 'src/components/StrongsSelector.vue'
 import { isSafeExternalUrl } from 'src/utils/urlUtils'
 import { useInlineReferenceResolver } from 'src/composables/useInlineReferenceResolver'
+import { EMPTY_RICH_DOC } from 'src/utils/richTextContent'
 
 const dragging = ref(false)
 const router = useRouter()
@@ -404,6 +404,22 @@ const activeTab = ref('main')
 const loading = ref(true)
 const saving = ref(false)
 const entryId = route.params.id
+
+// Cancel was previously a hardcoded push to the view page — reachable
+// from Home/Search/another entry now, so a plain "Cancel" push always
+// landing on the view page created a dead-end loop: Cancel -> view page
+// -> its own Back button -> right back to this edit page. router.back()
+// returns to wherever editing was actually entered from instead. Falls
+// back to the view page (not Home) when there's no in-app history to go
+// back to (direct/shared link, fresh reload) — same history.state.back
+// check ViewEntryPage.vue's goBack already uses.
+const goBack = () => {
+  if (window.history.state?.back) {
+    router.back()
+  } else {
+    router.push('/entry/' + entryId)
+  }
+}
 
 // Modals
 const showVerseDisplayModal = ref(false)
@@ -451,11 +467,16 @@ const selectedShow = ref(null)
 const selectedSeason = ref(null)
 const selectedEpisode = ref(null)
 
-// Section Templates
+// Section Templates. A newly-added longText section (via "Add Section"
+// while editing) has no legacy data to preserve, so it starts in the new
+// rich-doc shape immediately rather than as '' — existing loaded sections
+// always pass explicit content through unchanged, string or object.
 const createSection = (title = '', content = '', fieldType = 'longText', headerProperty = false, id = null) => ({
   id: id ?? 'section-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
   title,
-  content: fieldType === 'date' ? getTodayDate() : content,
+  content: fieldType === 'date' ? getTodayDate()
+    : fieldType === 'longText' && !content ? EMPTY_RICH_DOC
+      : content,
   fieldType,
   headerProperty,
 })
@@ -720,6 +741,14 @@ const setListItemRef = (sectionId, index, el) => {
   if (el) listItemRefs[`${sectionId}-${index}`] = el
 }
 
+// RichTextEditor instances, keyed by section id — flushed at save time so
+// a pause-worthy verse reference typed right before Save isn't lost (see
+// updateEntry() below).
+const richTextEditorRefs = {}
+const setRichTextEditorRef = (sectionId, el) => {
+  if (el) richTextEditorRefs[sectionId] = el
+}
+
 const handleListItemEnter = async (section, index) => {
   section.content = insertListItemAfter(section.content, index)
   await nextTick()
@@ -884,8 +913,13 @@ const updateEntry = async () => {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error('No active session')
 
-    // Safety net for pasted text or anything a debounce tick didn't catch
-    // in time — see src/composables/useInlineReferenceResolver.js
+    // Flush each rich-text section's own pending verse resolution first
+    // (a debounce tick that hasn't fired yet), then the safety net below
+    // for pasted text or anything a debounce tick didn't catch in time —
+    // see RichTextEditor.vue and src/composables/useInlineReferenceResolver.js
+    await Promise.all(
+      Object.values(richTextEditorRefs).map((el) => el.flushPendingReferences())
+    )
     await inlineResolver.resolveAllInlineReferences(contentSections.value)
 
     // Generate title if needed
@@ -1219,7 +1253,7 @@ onMounted(() => {
       label: 'Cancel',
       icon: 'cancel',
       color: 'negative',
-      handler: () => router.push('/entry/' + entryId),
+      handler: goBack,
     },
     {
       key: 'save',

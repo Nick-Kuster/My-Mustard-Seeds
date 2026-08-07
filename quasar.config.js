@@ -64,6 +64,16 @@ export default defineConfig((/* ctx */) => {
               lintCommand: 'eslint -c ./eslint.config.js "./src*/**/*.{js,mjs,cjs,vue}"',
               useFlatConfig: true,
             },
+            // The in-browser overlay is a fixed, full-width panel pinned to
+            // the bottom of the viewport with pointer-events enabled — it
+            // stays in the DOM and keeps intercepting/misrouting clicks on
+            // anything underneath it (confirmed via elementFromPoint:
+            // clicking directly on the rich-text toolbar's buttons hit
+            // <vite-plugin-checker-error-overlay> instead, not the button),
+            // even when it isn't visibly showing an error. Lint errors still
+            // print to the terminal (see the `[ESLint] Found ...` lines in
+            // the dev server output), so the overlay isn't needed.
+            overlay: false,
           },
           { server: false },
         ],

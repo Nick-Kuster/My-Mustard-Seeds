@@ -18,9 +18,18 @@
   "dependencies": {
     "@quasar/extras": "^1.16.4",
     "@supabase/supabase-js": "^2.47.10",
+    "@tiptap/extension-color": "^3.29.2",
+    "@tiptap/extension-highlight": "^3.29.2",
+    "@tiptap/extension-mention": "^3.29.2",
+    "@tiptap/extension-text-style": "^3.29.2",
+    "@tiptap/pm": "^3.29.2",
+    "@tiptap/starter-kit": "^3.29.2",
+    "@tiptap/suggestion": "^3.29.2",
+    "@tiptap/vue-3": "^3.29.2",
     "driver.js": "^1.8.0",
     "pinia": "^2.3.0",
     "quasar": "^2.16.0",
+    "tippy.js": "^6.3.7",
     "vue": "^3.4.18",
     "vue-router": "^4.0.0",
     "vuedraggable": "^4.1.0"

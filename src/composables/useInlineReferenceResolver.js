@@ -4,8 +4,6 @@ import { useBibleDataStore } from 'stores/bibleData'
 import { useTagsStore } from 'stores/tags'
 import { findInlineTriggers } from 'src/utils/inlineReferenceUtils'
 
-const DEBOUNCE_MS = 550
-
 // A bare chapter number resolves to that chapter's first verse (as the
 // start) or last verse (as the end) — same convention VerseSelectionModal
 // uses for a typed bare-chapter reference.
@@ -36,8 +34,11 @@ const buildVerseDisplay = (book, verseRange, startVerseNum, endVerseNum) => {
 
 // Resolves a scanned { verseRange } candidate to real verse IDs, or null if
 // the book/chapter/verse doesn't actually exist — same two-query pattern
-// VerseSelectionModal.vue and journalImport.js already use.
-const resolveVerseMatch = async (match, bibleData) => {
+// VerseSelectionModal.vue and journalImport.js already use. Exported so
+// RichTextEditor.vue's own pause-triggered verse resolution (see
+// richTextInlineScan.js) can reuse it directly rather than duplicating
+// the lookup.
+export const resolveVerseMatch = async (match, bibleData) => {
   const book = bibleData.books.find((b) => b.book.toLowerCase() === match.verseRange.book.toLowerCase())
   if (!book) return null
 
@@ -69,14 +70,22 @@ const resolveVerseMatch = async (match, bibleData) => {
   }
 }
 
-// Detects `::verse`/`#tag`/`$strongsNumber` patterns as the user types a
-// journal entry's content and silently adds them to the entry's existing
+// Detects `::verse`/`#tag`/`$strongsNumber` patterns in a section's plain-
+// string content and silently adds them to the entry's existing
 // linkedVerses/selectedTags/selectedStrongs — same arrays the picker UI
 // already manages, so saveEntry()/updateEntry() persist them with no
-// changes of their own. Used by NewEntryPage.vue and EditEntryPage.vue
-// only; ContentSectionView.vue renders the same triggers at view time via
-// inlineReferenceUtils directly, without this composable (no Supabase
-// calls needed there).
+// changes of their own.
+//
+// Since the rich-text migration, this composable's live debounced
+// scanning only applies to `list`-type sections (still plain strings —
+// see sectionListUtils.js) and any not-yet-migrated legacy `longText`
+// content; a `longText` section's own RichTextEditor.vue instance handles
+// its own pause-triggered verse resolution and Mention-driven tag/strongs
+// type-ahead internally, reusing resolveVerseMatch (above) and this
+// composable's pushResolved* helpers (below) rather than this file's
+// regex scan. resolveAllInlineReferences (the save-time safety net) is
+// the one function still called uniformly across all sections; it
+// filters out object-shaped (rich-doc) content itself.
 export const useInlineReferenceResolver = ({ linkedVerses, selectedTags, selectedStrongs, mainVerse }) => {
   const $q = useQuasar()
   const bibleData = useBibleDataStore()
@@ -112,6 +121,34 @@ export const useInlineReferenceResolver = ({ linkedVerses, selectedTags, selecte
   const isDuplicateStrongs = (entry) =>
     selectedStrongs.value.some((s) => s.strongs_number === entry.strongs_number)
 
+  // Pushes an already-resolved item into the shared buffer with dedup +
+  // toast — shared by this composable's own regex scan (below, for
+  // list-type/legacy sections) AND RichTextEditor.vue's Mention-driven
+  // tag/strongs type-ahead and pause-triggered verse resolution, so
+  // dedup/toast behavior lives in exactly one place regardless of which
+  // trigger path resolved the match.
+  const pushResolvedVerse = (resolved) => {
+    if (isDuplicateVerse(resolved)) return
+    linkedVerses.value.push(resolved)
+    $q.notify({ type: 'info', message: `Linked ${resolved.display}`, timeout: 1500 })
+  }
+
+  const pushResolvedTag = (tag, created = false) => {
+    if (isDuplicateTag(tag)) return
+    selectedTags.value.push(tag)
+    $q.notify({
+      type: 'info',
+      message: created ? `Created and linked tag "${tag.name}"` : `Tagged #${tag.name}`,
+      timeout: 1500,
+    })
+  }
+
+  const pushResolvedStrongs = (entry) => {
+    if (isDuplicateStrongs(entry)) return
+    selectedStrongs.value.push(entry)
+    $q.notify({ type: 'info', message: `Linked ${entry.strongs_number} (${entry.lemma})`, timeout: 1500 })
+  }
+
   const processMatch = async (match, state) => {
     if (state.resolvedKeys.has(match.raw) || state.failedKeys.has(match.raw)) return
 
@@ -126,10 +163,7 @@ export const useInlineReferenceResolver = ({ linkedVerses, selectedTags, selecte
         return
       }
       state.resolvedKeys.add(match.raw)
-      if (!isDuplicateStrongs(data)) {
-        selectedStrongs.value.push(data)
-        $q.notify({ type: 'info', message: `Linked ${data.strongs_number} (${data.lemma})`, timeout: 1500 })
-      }
+      pushResolvedStrongs(data)
       return
     }
 
@@ -141,10 +175,7 @@ export const useInlineReferenceResolver = ({ linkedVerses, selectedTags, selecte
         return
       }
       state.resolvedKeys.add(match.raw)
-      if (!isDuplicateVerse(resolved)) {
-        linkedVerses.value.push(resolved)
-        $q.notify({ type: 'info', message: `Linked ${resolved.display}`, timeout: 1500 })
-      }
+      pushResolvedVerse(resolved)
       return
     }
 
@@ -162,14 +193,7 @@ export const useInlineReferenceResolver = ({ linkedVerses, selectedTags, selecte
       }
     }
     state.resolvedKeys.add(match.raw)
-    if (!isDuplicateTag(tag)) {
-      selectedTags.value.push(tag)
-      $q.notify({
-        type: 'info',
-        message: created ? `Created and linked tag "${tag.name}"` : `Tagged #${tag.name}`,
-        timeout: 1500,
-      })
-    }
+    pushResolvedTag(tag, created)
   }
 
   const processSection = async (section) => {
@@ -180,31 +204,19 @@ export const useInlineReferenceResolver = ({ linkedVerses, selectedTags, selecte
     }
   }
 
-  const onSectionContentChange = (section) => {
-    const state = getSectionState(section.id)
-    if (state.timer) clearTimeout(state.timer)
-    state.timer = setTimeout(() => {
-      state.timer = null
-      processSection(section)
-    }, DEBOUNCE_MS)
-  }
-
-  const onSectionBlur = (section) => {
-    const state = getSectionState(section.id)
-    if (state.timer) {
-      clearTimeout(state.timer)
-      state.timer = null
-    }
-    processSection(section)
-  }
-
   // Safety net for saveEntry()/updateEntry() — catches pasted text and
-  // anything a debounce tick didn't get to in time. Runs uniformly across
-  // every section including list-type ones (their content is the same
-  // newline-joined string format, and '\n' is already a hard boundary).
+  // anything a debounce tick didn't get to in time, for `list`-type
+  // sections and any not-yet-migrated legacy `longText` content. Rich-doc
+  // (object-shaped) `longText` sections are explicitly skipped here —
+  // findInlineTriggers expects a string, and those sections' own
+  // RichTextEditor.vue instance already flushed its own pending
+  // resolution via flushPendingReferences() before this runs (see
+  // NewEntryPage.vue/EditEntryPage.vue's saveEntry()/updateEntry()).
   const resolveAllInlineReferences = async (contentSections) => {
-    await Promise.all((contentSections || []).map((section) => processSection(section)))
+    await Promise.all((contentSections || [])
+      .filter((section) => typeof section.content === 'string')
+      .map((section) => processSection(section)))
   }
 
-  return { onSectionContentChange, onSectionBlur, resolveAllInlineReferences }
+  return { resolveAllInlineReferences, pushResolvedVerse, pushResolvedTag, pushResolvedStrongs }
 }

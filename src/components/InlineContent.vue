@@ -15,7 +15,7 @@
 <script setup>
 import { computed } from 'vue'
 import { findInlineTriggers } from 'src/utils/inlineReferenceUtils'
-import { verseMatchesRange } from 'src/utils/verseUtils'
+import { verseMatchesRange, createDisplayVerse } from 'src/utils/verseUtils'
 
 // Turns the same `::verse`/`#tag` occurrences useInlineReferenceResolver.js
 // resolves while editing into clickable segments when viewing — correlated
@@ -55,7 +55,12 @@ const segments = computed(() => {
 
     if (match.type === 'verse') {
       const verse = findMatchingVerse(props.verses, match.verseRange)
-      result.push(verse ? { type: 'verse', text: match.raw, verse } : { type: 'text', text: match.raw })
+      // Pre-transform into the { display, startVerse, endVerse } shape
+      // VerseDisplayModal.vue actually wants — RichTextViewer.vue's
+      // verseReference nodes emit that same shape directly (it's already
+      // resolveVerseMatch's return shape), so ContentSectionView.vue's
+      // single onVerseClick handler can stay format-agnostic.
+      result.push(verse ? { type: 'verse', text: match.raw, verse: createDisplayVerse(verse) } : { type: 'text', text: match.raw })
     } else if (match.type === 'tag') {
       const tag = props.tags.find((t) => t.name?.toLowerCase() === match.tagName.toLowerCase())
       result.push(tag ? { type: 'tag', text: match.raw, tag } : { type: 'text', text: match.raw })

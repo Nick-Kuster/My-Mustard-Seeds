@@ -6,22 +6,16 @@
       class="bottom-nav-actions"
       :style="{ gridTemplateColumns: `repeat(${contextualActions.length}, 1fr)` }"
     >
-      <q-btn
-        v-for="action in contextualActions"
-        :key="action.key"
-        unelevated
-        no-caps
-        :color="action.color"
-        :loading="action.loading?.value ?? false"
-        :disable="action.disabled?.value ?? false"
-        :data-tour="action.tourKey"
-        class="bottom-nav-action-btn"
-        @click="action.menu ? null : action.handler()"
-      >
-        <q-icon :name="action.icon" size="18px" class="q-mr-xs" />
-        {{ action.label }}
-        <q-menu v-if="action.menu" anchor="top middle" self="bottom middle">
-          <q-list style="min-width: 160px">
+      <template v-for="action in contextualActions" :key="action.key">
+        <!-- q-btn-dropdown, not a plain q-btn + nested q-menu: a q-menu
+             nested inside a q-btn with no @click of its own relies on
+             Quasar's implicit "auto-open child q-menu on click" behavior,
+             which intercepts clicks meant for SIBLING q-btns in this same
+             row (Cancel/Save opened this menu instead of running their
+             own handler) rather than just this one button. -->
+        <q-btn-dropdown v-if="action.menu" unelevated no-caps :color="action.color" :data-tour="action.tourKey"
+          class="bottom-nav-action-btn" :icon="action.icon" :label="action.label" content-style="min-width: 160px">
+          <q-list>
             <q-item v-for="item in action.menu" :key="item.key" clickable v-close-popup @click="item.handler()">
               <q-item-section avatar>
                 <q-icon :name="item.icon" />
@@ -29,8 +23,22 @@
               <q-item-section>{{ item.label }}</q-item-section>
             </q-item>
           </q-list>
-        </q-menu>
-      </q-btn>
+        </q-btn-dropdown>
+        <q-btn
+          v-else
+          unelevated
+          no-caps
+          :color="action.color"
+          :loading="action.loading?.value ?? false"
+          :disable="action.disabled?.value ?? false"
+          :data-tour="action.tourKey"
+          class="bottom-nav-action-btn"
+          @click="action.handler()"
+        >
+          <q-icon :name="action.icon" size="18px" class="q-mr-xs" />
+          {{ action.label }}
+        </q-btn>
+      </template>
     </div>
 
     <!-- Default mode: primary app navigation -->

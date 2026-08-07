@@ -4,6 +4,7 @@ import { supabase } from 'src/boot/supabase'
 import { getEncryptionKey, encryptData, decryptData } from 'src/utils/encryption'
 import { formatVerseReference, verseMatchesRange } from 'src/utils/verseUtils'
 import { getResourceConfig } from 'src/configs/resourceConfigs'
+import { getSectionSearchText } from 'src/utils/richTextContent'
 
 // Entries carry resources as { id, type, metadata } — display titles live in metadata
 export const getResourceTitle = (resource) => {
@@ -22,11 +23,15 @@ export const getVerseDisplay = (verse) => {
   }
 }
 
+// section.content is a plain string for legacy/list sections, or a
+// TipTap rich-doc object for a migrated longText section (see the rich
+// text migration) — getSectionSearchText handles both shapes; calling
+// .toLowerCase() directly on an object here would throw.
 const sectionsMatchSearch = (sections, search) => {
   return sections.some((section) => {
     if (
       section?.title?.toLowerCase().includes(search) ||
-      section?.content?.toLowerCase().includes(search)
+      getSectionSearchText(section?.content).toLowerCase().includes(search)
     ) {
       return true
     }

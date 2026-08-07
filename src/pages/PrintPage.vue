@@ -53,7 +53,7 @@
               <ul v-if="section.fieldType === 'list'" class="section-list">
                 <li v-for="(item, i) in listItems(section.content)" :key="i">{{ item }}</li>
               </ul>
-              <p v-else-if="section?.content" class="section-content">{{ section.content }}</p>
+              <p v-else-if="section?.content" class="section-content">{{ getSectionPlainText(section.content) }}</p>
             </section>
           </template>
         </template>
@@ -85,6 +85,7 @@ import { useRouter } from 'vue-router'
 import { useJournalStore, getVerseDisplay } from 'src/stores/journalData'
 import { useUserPreferencesStore } from 'src/stores/userPreferences'
 import { getListItems } from 'src/utils/sectionListUtils'
+import { getSectionPlainText } from 'src/utils/richTextContent'
 
 const router = useRouter()
 const journalStore = useJournalStore()

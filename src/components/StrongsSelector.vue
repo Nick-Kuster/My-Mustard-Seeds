@@ -12,7 +12,7 @@
     <div v-if="items.length > 0" class="q-gutter-y-sm">
       <div v-for="(item, index) in items" :key="item.strongs_number" class="strongs-item">
         <div class="row items-start">
-          <div class="col">
+          <div class="col strongs-item-content" role="button" @click="viewingItem = item">
             <div class="text-weight-medium">
               {{ item.lemma }}
               <span v-if="item.transliteration" class="text-grey-8">({{ item.transliteration }})</span>
@@ -24,7 +24,7 @@
           </div>
           <div class="col-auto">
             <q-btn v-if="!displayOnly" flat round dense color="negative" icon="delete" size="sm"
-              @click="removeItem(index)" />
+              @click.stop="removeItem(index)" />
           </div>
         </div>
       </div>
@@ -32,12 +32,14 @@
 
     <StrongsSelectionModal v-model="showModal" :exclude-numbers="items.map((i) => i.strongs_number)"
       @select="onSelect" />
+    <StrongsDisplayModal :model-value="!!viewingItem" :entry="viewingItem" @update:model-value="viewingItem = null" />
   </div>
 </template>
 
 <script setup>
 import { ref, watch } from 'vue'
 import StrongsSelectionModal from './StrongsSelectionModal.vue'
+import StrongsDisplayModal from './StrongsDisplayModal.vue'
 
 const props = defineProps({
   modelValue: {
@@ -54,6 +56,7 @@ const emit = defineEmits(['update:modelValue'])
 
 const showModal = ref(false)
 const items = ref(props.modelValue || [])
+const viewingItem = ref(null)
 
 watch(() => props.modelValue, (newValue) => {
   items.value = [...(newValue || [])]
@@ -93,5 +96,13 @@ const removeItem = (index) => {
   border-radius: 4px;
   background: var(--color-surface-muted);
   border-left: 3px solid #ffc107;
+}
+
+.strongs-item-content {
+  cursor: pointer;
+}
+
+.strongs-item-content:hover {
+  opacity: 0.8;
 }
 </style>

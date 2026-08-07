@@ -137,9 +137,35 @@
             @click="showTutorialDialog = true" />
         </q-card>
       </div>
+
+      <!-- Data Export -->
+      <div class="col-12 content-card">
+        <q-card class="settings-card q-pa-lg parchment">
+          <div class="text-h6 q-mb-lg">Data Export</div>
+          <div class="text-body2 text-grey-8 q-mb-md">
+            Download everything you've saved — journal entries, prayer requests, testimony, tags,
+            resources, and saved filters — as a JSON file and a readable markdown document.
+          </div>
+          <q-btn outline color="primary" icon="download" label="Export My Data"
+            :loading="accountExport.exporting.value" @click="handleExportData" />
+        </q-card>
+      </div>
+
+      <!-- Danger Zone -->
+      <div class="col-12 content-card">
+        <q-card class="settings-card q-pa-lg parchment">
+          <div class="text-h6 text-negative q-mb-lg">Danger Zone</div>
+          <div class="text-body2 text-grey-8 q-mb-md">
+            Permanently delete your account and all of your data. This cannot be undone.
+          </div>
+          <q-btn outline color="negative" icon="delete_forever" label="Delete Account"
+            @click="showDeleteAccountDialog = true" />
+        </q-card>
+      </div>
     </div>
 
     <TutorialStartDialog v-model="showTutorialDialog" />
+    <DeleteAccountDialog v-model="showDeleteAccountDialog" />
 
     <!-- Delete tags confirmation -->
     <q-dialog v-model="showDeleteTagsDialog">
@@ -171,15 +197,19 @@ import { useUserPreferencesStore } from 'stores/userPreferences'
 import { useTagsStore } from 'stores/tags'
 import { JOURNAL_TYPES } from 'src/constants/journalTypes'
 import { buildImportTemplateText, importEntries } from 'src/utils/journalImport'
+import { useAccountExport } from 'src/composables/useAccountExport'
 import TutorialStartDialog from 'components/TutorialStartDialog.vue'
+import DeleteAccountDialog from 'components/DeleteAccountDialog.vue'
 
 const $q = useQuasar()
 const journalStore = useJournalStore()
 const typeColorsStore = useJournalTypeColorsStore()
 const userPreferencesStore = useUserPreferencesStore()
 const tagsStore = useTagsStore()
+const accountExport = useAccountExport()
 
 const showTutorialDialog = ref(false)
+const showDeleteAccountDialog = ref(false)
 const selectedTagIds = ref([])
 const showDeleteTagsDialog = ref(false)
 const deletingTags = ref(false)
@@ -257,6 +287,15 @@ const copyTemplate = async () => {
     $q.notify({ type: 'positive', message: 'Template copied to clipboard' })
   } catch {
     $q.notify({ type: 'negative', message: 'Could not access the clipboard' })
+  }
+}
+
+const handleExportData = async () => {
+  try {
+    await accountExport.exportAllData()
+    $q.notify({ type: 'positive', message: 'Export downloaded' })
+  } catch {
+    $q.notify({ type: 'negative', message: 'Failed to export your data' })
   }
 }
 
