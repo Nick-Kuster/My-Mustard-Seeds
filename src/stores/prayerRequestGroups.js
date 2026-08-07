@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { supabase } from 'src/boot/supabase'
+import { demoModeActive } from 'src/utils/demoMode'
 
 // Real, persisted prayer request groups (see sql/Prayer Request Groups
 // Table.sql for why this replaced the old freeform group_name text column:
@@ -12,6 +13,9 @@ export const usePrayerRequestGroupsStore = defineStore('prayerRequestGroups', ()
   const loading = ref(false)
 
   const fetchGroups = async () => {
+    // See usePrayerRequestsStore().fetchRequests()'s identical guard — the
+    // demo swap in src/stores/tutorial.js populates `groups` directly.
+    if (demoModeActive.value) return
     loading.value = true
     try {
       const {

@@ -101,7 +101,7 @@
           </div>
 
           <!-- Sermon Specific Select -->
-          <div v-else-if="entryType === 'Sermon'" class="q-mb-lg">
+          <div v-else-if="entryType === 'Sermon'" class="q-mb-lg" data-tour="entry-resource-fields">
             <div v-if="selectedPastor">
               <div class="q-mb-md">
                 <div class="text-body1"><strong>Sermon:</strong> {{ selectedSermon.metadata.title }}</div>
@@ -224,7 +224,7 @@
           <q-tabs v-model="activeTab" dense class="text-grey q-mb-md" active-color="primary" indicator-color="primary"
             align="justify" narrow-indicator>
             <q-tab name="main" label="Main Content" />
-            <q-tab name="additional" label="Additional Content" />
+            <q-tab name="additional" label="Additional Content" data-tour="entry-additional-tab" />
           </q-tabs>
 
           <q-tab-panels v-model="activeTab" animated class="bg-transparent" @touchstart="handleTouchStart"
@@ -303,27 +303,27 @@
             <q-tab-panel name="additional" class="q-pt-md q-pl-md">
               <div class="fit">
                 <!-- Linked Verses -->
-                <div class="q-mb-lg">
+                <div class="q-mb-lg" data-tour="entry-linked-verses">
                   <LinkedVerses v-model="linkedVerses" />
                 </div>
 
                 <!-- Tags -->
-                <div class="q-mb-lg">
+                <div class="q-mb-lg" data-tour="entry-tags">
                   <TagSelector v-model="selectedTags" />
                 </div>
 
                 <!-- Quotes -->
-                <div class="q-mb-lg">
+                <div class="q-mb-lg" data-tour="entry-quotes">
                   <QuoteSelector v-model="selectedQuotes" />
                 </div>
 
                 <!-- Links -->
-                <div class="q-mb-lg">
+                <div class="q-mb-lg" data-tour="entry-links">
                   <LinkSelector v-model="selectedLinks" />
                 </div>
 
                 <!-- Strong's Words -->
-                <div class="q-mb-lg">
+                <div class="q-mb-lg" data-tour="entry-strongs">
                   <StrongsSelector v-model="selectedStrongs" />
                 </div>
               </div>
@@ -374,13 +374,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { supabase } from 'src/boot/supabase'
 import { getEncryptionKey, encryptData } from 'src/utils/encryption'
 import { RESOURCE_TYPES } from 'stores/resources'
 import { usePageActionsStore } from 'stores/pageActions'
+import { useTutorialStore } from 'src/stores/tutorial'
 import VerseSelectionModal from 'components/VerseSelectionModal.vue'
 import ResourceSelectionModal from 'components/ResourceSelectionModal.vue'
 import { useJournalStore } from 'stores/journalData'
@@ -1028,6 +1029,20 @@ const handleTouchEnd = () => {
 onMounted(() => {
   contentSections.value = [createSection()]
 })
+
+// Lets a mid-tour step (see src/constants/tutorialSteps.js) switch into the
+// Additional Content tab without this component needing to know the tour
+// exists — same pattern as SearchPage.vue's Filter modal watcher.
+const tutorialStore = useTutorialStore()
+watch(
+  () => tutorialStore.pendingAction,
+  (action) => {
+    if (action === 'open-entry-additional-tab') {
+      activeTab.value = 'additional'
+      tutorialStore.clearAction()
+    }
+  },
+)
 
 const pageActionsStore = usePageActionsStore()
 

@@ -12,7 +12,7 @@
           Choose what to include when printing these entries. Saved for next time.
         </div>
 
-        <div class="q-gutter-sm">
+        <div class="q-gutter-sm" data-tour="print-options-toggles">
           <q-checkbox v-model="options.content" label="Entry content" dense />
           <q-checkbox v-model="options.verses" label="Bible verses" dense />
           <q-checkbox v-model="options.tags" label="Tags" dense />

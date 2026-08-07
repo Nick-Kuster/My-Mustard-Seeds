@@ -1,20 +1,30 @@
 // Pure data — no framework/router imports here on purpose. See
 // src/stores/tutorial.js for how a raw step here becomes a driver.js
 // DriveStep (selector lookup, cross-page navigation, and the
-// open/close-filter-modal side effects below all live there).
+// open/close-filter-modal-style side effects below all live there).
 //
 // `selector` is a CSS selector matching a `data-tour="..."` attribute
 // added to the real element elsewhere in the app. `page` is the route the
 // element lives on — when it differs from the previous step's `page`, the
 // tour navigates there before highlighting it. `onAdvance` is an optional
 // side-effect key the composable understands (opening/closing the filter
-// modal); everything else about triggering it is the composable's job, not
-// this file's.
+// modal, switching a tab, entering a component's "manage" mode, etc.) —
+// each target component watches tutorialStore.pendingAction for its own
+// key, same pattern as SearchPage.vue's filter-modal watcher; everything
+// about triggering it is the composable's/component's job, not this
+// file's.
 //
 // Steps whose elements are conditionally rendered (facets/saved filters
-// only exist once there's data to derive them from) rely on the
+// only exist once there's data to derive them from; entry-resource-fields
+// only exists once a specific journal type is picked) rely on the
 // composable setting `skipMissingElement: true` — on a brand-new demo
 // account those steps just get skipped rather than getting the tour stuck.
+//
+// QUICK_TOUR_STEPS stays a short highlights reel for real first-time
+// users and is built ONLY from the shared building blocks below (no
+// Full-Tour-only step arrays mixed in). All the deeper, demo-oriented
+// expansion lives in the *-only consts further down and is spliced into
+// FULL_TOUR_STEPS alone.
 
 const welcomeStep = {
   page: '/',
@@ -138,13 +148,244 @@ export const QUICK_TOUR_STEPS = [
   quickWrapUpStep,
 ]
 
+// ============================================================
+// Full-Tour-only step groups — every one of these is genuinely untoured
+// today. See sql/Demo Prayer Requests Table.sql and
+// sql/Demo Resources Table.sql for the sample content that makes the
+// Prayers/Testimony/Resources sections below look populated during a
+// "Show with sample data" run instead of empty.
+// ============================================================
+
+const homeLanesStep = {
+  selector: '[data-tour="type-lanes"]',
+  page: '/',
+  title: 'Browse by type',
+  description:
+    'Each journal type gets its own lane — swipe between them on your phone, or expand any lane right here on desktop. Entries with linked resources organize into a collapsible tree inside it.',
+}
+
+const entryResourceFieldsStep = {
+  selector: '[data-tour="entry-resource-fields"]',
+  page: '/entry/new',
+  title: 'Fields adjust to the type',
+  description:
+    'Pick Sermon Notes and you get a Church → Pastor → Series → Sermon picker; pick Book and you get an Author → Book → Chapter picker instead — every type has its own fields.',
+}
+
+const richTextToolbarSteps = [
+  {
+    selector: '[data-tour="rich-text-toolbar"]',
+    page: '/entry/new',
+    title: 'A full formatting toolbar',
+    description:
+      'Headings, blockquotes, bullet and numbered lists (with indent/outdent), highlight and text color — all in one compact bar.',
+  },
+  {
+    selector: '[data-tour="rich-text-glyph-btn"]',
+    page: '/entry/new',
+    title: 'Christian symbols',
+    description: 'Insert a cross, church, crown, lamb, and more — right inline with your text.',
+  },
+  {
+    selector: '[data-tour="rich-text-image-btn"]',
+    page: '/entry/new',
+    title: 'Attach a photo',
+    description:
+      'Upload an image straight into an entry. It\'s automatically resized and encrypted before it ever leaves your device — even we can\'t see it.',
+  },
+  {
+    selector: '[data-tour="entry-content"]',
+    page: '/entry/new',
+    title: 'Type to link',
+    description:
+      'Type :: followed by a reference (like ::John 3:16) to link a verse, # to tag as you write, or $ to look up a Strong\'s Hebrew or Greek word — all with live suggestions, no separate dialog needed.',
+  },
+]
+
+const entryAdditionalContentSteps = [
+  {
+    selector: '[data-tour="entry-additional-tab"]',
+    page: '/entry/new',
+    title: 'Additional Content',
+    description: 'Verses, tags, quotes, links, and Strong\'s words all live here, separate from your main writing.',
+    onAdvance: 'open-entry-additional-tab',
+  },
+  {
+    selector: '[data-tour="entry-linked-verses"]',
+    page: '/entry/new',
+    title: 'Linked Verses',
+    description: 'Attach extra Bible references beyond your entry\'s main passage.',
+  },
+  {
+    selector: '[data-tour="entry-tags"]',
+    page: '/entry/new',
+    title: 'Tags',
+    description: 'Organize entries with searchable tags — create a new one on the fly or reuse an existing one.',
+  },
+  {
+    selector: '[data-tour="entry-quotes"]',
+    page: '/entry/new',
+    title: 'Quotes',
+    description: 'Save a quote with its source and page number, right alongside your notes.',
+  },
+  {
+    selector: '[data-tour="entry-links"]',
+    page: '/entry/new',
+    title: 'Links',
+    description: 'Attach a named URL — a sermon recording, an article, anything worth revisiting.',
+  },
+  {
+    selector: '[data-tour="entry-strongs"]',
+    page: '/entry/new',
+    title: 'Strong\'s Words',
+    description: 'Attach specific Hebrew or Greek words from the Strong\'s dictionary — the same lookup as the $ inline trigger.',
+  },
+]
+
+const prayersDeepDiveSteps = [
+  {
+    selector: '[data-tour="prayers-manage-btn"]',
+    page: '/',
+    title: 'Organize your prayers',
+    description: 'Switch into Manage mode to add, group, and reorder — List view stays a quick, read-only glance.',
+    onAdvance: 'open-prayers-manage',
+  },
+  {
+    selector: '[data-tour="prayer-groups-area"]',
+    page: '/',
+    title: 'Group your prayers',
+    description:
+      'Create a group — Family, Church, whatever fits — then add prayers directly under it, or use Miscellaneous for anything that doesn\'t need one.',
+    skipMissingElement: true,
+  },
+  {
+    selector: '[data-tour="prayer-quick-add"]',
+    page: '/',
+    title: 'Quick add',
+    description: 'Add a prayer inline, right where you\'re already looking — no separate dialog.',
+    skipMissingElement: true,
+  },
+  {
+    selector: '[data-tour="prayer-mark-answered"]',
+    page: '/',
+    title: 'Mark answered',
+    description: 'Record how God answered, right when it happens.',
+    skipMissingElement: true,
+  },
+  {
+    selector: '[data-tour="prayer-answered-section"]',
+    page: '/',
+    title: 'A running record',
+    description: 'Answered prayers collapse into their own section, struck-through — a quiet record of what God has done.',
+    skipMissingElement: true,
+  },
+]
+
+const testimonyDeepDiveSteps = [
+  {
+    selector: '[data-tour="testimony-guide"]',
+    page: '/',
+    title: 'Not sure where to start?',
+    description: 'This guide breaks a testimony into Before / How / Now — a simple shape if you\'ve never written one down.',
+  },
+  {
+    selector: '[data-tour="testimony-content"]',
+    page: '/',
+    title: 'One evolving story',
+    description: 'Unlike journal entries, there\'s just one testimony — edit it any time your story grows.',
+    skipMissingElement: true,
+  },
+]
+
+const resourcesDeepDiveSteps = [
+  {
+    selector: '[data-tour="resources-search"]',
+    page: '/resources',
+    title: 'Find anything fast',
+    description: 'Search across every resource regardless of depth — a search for a sermon shows you which pastor and church it\'s under.',
+  },
+  {
+    selector: '[data-tour="resources-add-btn"]',
+    page: '/resources',
+    title: 'Add a new resource',
+    description: 'Start a new Church, Author, Podcast, or any other top-level resource here.',
+    skipMissingElement: true,
+  },
+  {
+    selector: '[data-tour="resources-item-menu"]',
+    page: '/resources',
+    title: 'Manage any resource',
+    description:
+      'View the entries that reference it, add a child underneath it (like a Pastor under a Church), edit its details, or delete it — with a choice to keep or cascade-delete its children.',
+    skipMissingElement: true,
+  },
+]
+
+const searchBoxStep = {
+  selector: '[data-tour="search-box"]',
+  page: '/search',
+  title: 'Search everything you\'ve written',
+  description: 'Free-text search across every entry, combined with whatever filters you have active.',
+}
+
+const printOptionsSteps = [
+  {
+    selector: '[data-tour="print-options-toggles"]',
+    page: '/search',
+    title: 'Choose what\'s included',
+    description: 'Toggle entry content, verses, tags, quotes, and links independently — your choice is remembered for next time.',
+    onAdvance: 'close-print-options',
+  },
+]
+
+const settingsDeepDiveSteps = [
+  {
+    selector: '[data-tour="settings-tags"]',
+    page: '/settings',
+    title: 'Manage tags',
+    description: 'See every tag you\'ve created — select several and delete them all at once, removing them from every entry that used them.',
+  },
+  {
+    selector: '[data-tour="settings-import"]',
+    page: '/settings',
+    title: 'Bring in old notes with AI',
+    description:
+      'Copy the template, hand it to ChatGPT (or any AI) along with old notes or even photos of handwritten pages, then paste the structured response back in — it reviews and imports in bulk, flagging anything it skipped.',
+  },
+  {
+    selector: '[data-tour="settings-data-export"]',
+    page: '/settings',
+    title: 'Export everything',
+    description: 'Download your entire account — entries, prayers, testimony, tags, resources, saved filters — as both a JSON file and a readable document.',
+  },
+  {
+    selector: '[data-tour="settings-danger-zone"]',
+    page: '/settings',
+    title: 'Delete your account',
+    description: 'Permanently removes your data and login. Requires typing your email to confirm, and reminds you to export first.',
+  },
+]
+
 export const FULL_TOUR_STEPS = [
   welcomeStep,
-  ...introSteps,
-  ...entryCreationSteps,
-  ...homeReturnSteps,
+  introSteps[0],
+  homeLanesStep,
+  introSteps[1],
+  entryCreationSteps[0],
+  entryResourceFieldsStep,
+  entryCreationSteps[1],
+  ...richTextToolbarSteps,
+  ...entryAdditionalContentSteps,
+  entryCreationSteps[2],
+  homeReturnSteps[0],
+  ...prayersDeepDiveSteps,
+  homeReturnSteps[1],
+  ...testimonyDeepDiveSteps,
+  homeReturnSteps[2],
   ...resourcesSteps,
+  ...resourcesDeepDiveSteps,
   searchNavStep,
+  searchBoxStep,
   { ...filtersIntroStep, onAdvance: 'open-filter-modal' },
   {
     selector: '[data-tour="filter-types"]',
@@ -203,13 +444,16 @@ export const FULL_TOUR_STEPS = [
     title: 'Print / Export to PDF',
     description: 'Export whatever\'s currently filtered to a print-ready document, with control over exactly what\'s included.',
     waitForElement: 1000,
+    onAdvance: 'open-print-options',
   },
+  ...printOptionsSteps,
   {
     selector: '[data-tour="nav-settings"]',
     page: '/search',
     title: 'Settings',
     description: 'One more stop — Settings is also where you can manage tags and replay this tour.',
   },
+  ...settingsDeepDiveSteps,
   {
     selector: '[data-tour="replay-tour-btn"]',
     page: '/settings',

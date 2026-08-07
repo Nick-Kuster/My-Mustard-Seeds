@@ -6,7 +6,11 @@ import 'driver.js/dist/driver.css'
 import { QUICK_TOUR_STEPS, FULL_TOUR_STEPS } from 'src/constants/tutorialSteps'
 import { useJournalStore } from 'src/stores/journalData'
 import { useSavedFiltersStore } from 'src/stores/savedFilters'
-import { useDemoDataStore } from 'src/stores/demoData'
+import { usePrayerRequestsStore } from 'src/stores/prayerRequests'
+import { usePrayerRequestGroupsStore } from 'src/stores/prayerRequestGroups'
+import { useTestimonyStore } from 'src/stores/testimony'
+import { useResourcesStore } from 'src/stores/resources'
+import { useDemoDataStore, DEMO_TESTIMONY } from 'src/stores/demoData'
 import { demoModeActive } from 'src/utils/demoMode'
 
 // Coordinates the guided product tour AND owns the driver.js instance.
@@ -30,6 +34,10 @@ export const useTutorialStore = defineStore('tutorial', () => {
   const route = useRoute()
   const journalStore = useJournalStore()
   const savedFiltersStore = useSavedFiltersStore()
+  const prayerRequestsStore = usePrayerRequestsStore()
+  const prayerRequestGroupsStore = usePrayerRequestGroupsStore()
+  const testimonyStore = useTestimonyStore()
+  const resourcesStore = useResourcesStore()
   const demoDataStore = useDemoDataStore()
 
   const active = ref(false)
@@ -51,10 +59,23 @@ export const useTutorialStore = defineStore('tutorial', () => {
       entries: journalStore.decryptedEntries,
       savedFilters: savedFiltersStore.filters,
       selectedFacets: journalStore.selectedFacets,
+      prayerRequests: prayerRequestsStore.requests,
+      prayerGroups: prayerRequestGroupsStore.groups,
+      testimonyContent: testimonyStore.content,
+      testimonyLoaded: testimonyStore.loaded,
+      resources: resourcesStore.resources,
     }
     journalStore.decryptedEntries = demoDataStore.demoEntries
     savedFiltersStore.filters = demoDataStore.demoSavedFilters
     journalStore.clearFacets()
+    prayerRequestsStore.requests = demoDataStore.demoPrayerRequests
+    prayerRequestGroupsStore.groups = demoDataStore.demoPrayerGroups
+    // loaded=true stops TestimonyEditor.vue's onMounted call to
+    // testimonyStore.load() from immediately overwriting this with the
+    // real (or blank) testimony — see useTestimonyStore's own guard.
+    testimonyStore.content = DEMO_TESTIMONY
+    testimonyStore.loaded = true
+    resourcesStore.resources = demoDataStore.demoResources
     // Blocks every table write app-wide for the duration of the demo (see
     // src/boot/supabase.js) — a presenter clicking a real Save/Delete
     // button during a demo shouldn't be able to write to the real account.
@@ -66,6 +87,11 @@ export const useTutorialStore = defineStore('tutorial', () => {
     journalStore.decryptedEntries = realDataSnapshot.entries
     savedFiltersStore.filters = realDataSnapshot.savedFilters
     journalStore.selectedFacets = realDataSnapshot.selectedFacets
+    prayerRequestsStore.requests = realDataSnapshot.prayerRequests
+    prayerRequestGroupsStore.groups = realDataSnapshot.prayerGroups
+    testimonyStore.content = realDataSnapshot.testimonyContent
+    testimonyStore.loaded = realDataSnapshot.testimonyLoaded
+    resourcesStore.resources = realDataSnapshot.resources
     realDataSnapshot = null
     demoModeActive.value = false
   }

@@ -35,7 +35,8 @@
         </div>
 
         <!-- Search box -->
-        <q-input v-model="searchQuery" placeholder="Search entries..." dense clearable class="q-mb-lg">
+        <q-input v-model="searchQuery" placeholder="Search entries..." dense clearable class="q-mb-lg"
+          data-tour="search-box">
           <template v-slot:prepend>
             <q-icon name="search" />
           </template>
@@ -255,6 +256,12 @@ watch(
       tutorialStore.clearAction()
     } else if (action === 'close-filter-modal') {
       showFilterModal.value = false
+      tutorialStore.clearAction()
+    } else if (action === 'open-print-options') {
+      showPrintOptionsModal.value = true
+      tutorialStore.clearAction()
+    } else if (action === 'close-print-options') {
+      showPrintOptionsModal.value = false
       tutorialStore.clearAction()
     }
   },

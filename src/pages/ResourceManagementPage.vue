@@ -7,7 +7,7 @@
         </div>
 
         <q-input v-model="searchTerm" placeholder="Search resources..." dense clearable outlined
-          class="q-mb-md">
+          class="q-mb-md" data-tour="resources-search">
           <template v-slot:prepend>
             <q-icon name="search" />
           </template>
@@ -90,7 +90,8 @@
                   </q-item-label>
                 </q-item-section>
                 <q-item-section v-if="section.isRootType" side>
-                  <q-btn flat round dense icon="add" color="positive" @click.stop="openAddRoot(section.type)">
+                  <q-btn flat round dense icon="add" color="positive" data-tour="resources-add-btn"
+                    @click.stop="openAddRoot(section.type)">
                     <q-tooltip>Add {{ typeLabel(section.type) }}</q-tooltip>
                   </q-btn>
                 </q-item-section>
@@ -116,7 +117,7 @@
                 </q-item-section>
                 <q-item-section side>
                   <q-btn flat round dense icon="more_vert" :loading="viewingNotesId === row.resource.id"
-                    aria-label="Resource actions" @click.stop>
+                    aria-label="Resource actions" data-tour="resources-item-menu" @click.stop>
                     <q-menu anchor="bottom right" self="top right">
                       <q-list style="min-width: 220px">
                         <q-item clickable v-close-popup @click="viewNotes(row.resource)">

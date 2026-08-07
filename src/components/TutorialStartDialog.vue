@@ -59,7 +59,7 @@ const isOpen = computed({
 })
 
 const firstName = ref('')
-const useDemoData = ref(false)
+const useDemoData = ref(true)
 const saving = ref(false)
 
 const choose = async (track) => {

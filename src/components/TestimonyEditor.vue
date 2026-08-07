@@ -5,7 +5,8 @@
     </div>
     <template v-else>
       <q-expansion-item :model-value="showGuide" @update:model-value="showGuide = $event" icon="help_outline"
-        label="What is a testimony?" header-class="text-weight-bold" class="rounded-borders bg-white q-mb-lg guide">
+        label="What is a testimony?" header-class="text-weight-bold" class="rounded-borders bg-white q-mb-lg guide"
+        data-tour="testimony-guide">
         <q-card-section class="text-body2 text-grey-9">
           <p>
             A testimony is simply the story of how God has worked in your life — not a
@@ -36,7 +37,7 @@
       </template>
 
       <template v-else>
-        <div class="testimony-display q-mb-md">{{ store.content }}</div>
+        <div class="testimony-display q-mb-md" data-tour="testimony-content">{{ store.content }}</div>
         <div class="row justify-end">
           <q-btn outline color="primary" icon="edit" label="Edit" @click="startEditing" />
         </div>

@@ -36,7 +36,7 @@
 
       <!-- Tags -->
       <div class="col-12 content-card">
-        <q-card class="settings-card q-pa-lg parchment">
+        <q-card class="settings-card q-pa-lg parchment" data-tour="settings-tags">
           <div class="text-h6 q-mb-lg">Tags</div>
 
           <q-expansion-item label="Manage Tags" header-class="text-subtitle1 text-weight-medium"
@@ -77,7 +77,7 @@
 
       <!-- Import -->
       <div class="col-12 content-card">
-        <q-card class="settings-card q-pa-lg parchment">
+        <q-card class="settings-card q-pa-lg parchment" data-tour="settings-import">
           <div class="text-h6 q-mb-lg">Import</div>
 
           <div class="text-subtitle1 text-weight-medium q-mb-sm">Import from ChatGPT</div>
@@ -140,7 +140,7 @@
 
       <!-- Data Export -->
       <div class="col-12 content-card">
-        <q-card class="settings-card q-pa-lg parchment">
+        <q-card class="settings-card q-pa-lg parchment" data-tour="settings-data-export">
           <div class="text-h6 q-mb-lg">Data Export</div>
           <div class="text-body2 text-grey-8 q-mb-md">
             Download everything you've saved — journal entries, prayer requests, testimony, tags,
@@ -153,7 +153,7 @@
 
       <!-- Danger Zone -->
       <div class="col-12 content-card">
-        <q-card class="settings-card q-pa-lg parchment">
+        <q-card class="settings-card q-pa-lg parchment" data-tour="settings-danger-zone">
           <div class="text-h6 text-negative q-mb-lg">Danger Zone</div>
           <div class="text-body2 text-grey-8 q-mb-md">
             Permanently delete your account and all of your data. This cannot be undone.

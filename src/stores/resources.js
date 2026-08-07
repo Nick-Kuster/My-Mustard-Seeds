@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 import { supabase } from 'src/boot/supabase'
 import { RESOURCE_TYPES } from 'src/constants/resourceTypes'
 import { getResourceConfig } from 'src/configs/resourceConfigs'
+import { demoModeActive } from 'src/utils/demoMode'
 
 // Cache keys
 const CACHE_KEYS = {
@@ -122,6 +123,10 @@ export const useResourcesStore = defineStore('resources', () => {
 
   // Actions
   const loadResources = async (forceRefresh = false) => {
+    // src/stores/tutorial.js swaps `resources` for demo content directly
+    // during a "Show with sample data" run — a real fetch here would
+    // silently overwrite that swap with the real account's data.
+    if (demoModeActive.value) return
     loading.value = true
     error.value = null
 
@@ -363,6 +368,12 @@ export const useResourcesStore = defineStore('resources', () => {
   // All parent/child resource relationships for the current user, for
   // building a full tree client-side in one query rather than per-node
   const getAllRelationships = async () => {
+    // Demo resources are seeded flat, with no relationships (see
+    // sql/Demo Resources Table.sql) — a real query here would return the
+    // real account's relationships instead, layering real structure onto
+    // fake top-level rows.
+    if (demoModeActive.value) return []
+
     const {
       data: { session },
     } = await supabase.auth.getSession()

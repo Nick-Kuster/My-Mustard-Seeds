@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { supabase } from 'src/boot/supabase'
 import { getEncryptionKey, encryptData, decryptData } from 'src/utils/encryption'
+import { demoModeActive } from 'src/utils/demoMode'
 
 // Prayer requests, encrypted client-side the same way journal entries are
 // (see src/utils/encryption.js) since this is personal content.
@@ -10,6 +11,11 @@ export const usePrayerRequestsStore = defineStore('prayerRequests', () => {
   const loading = ref(false)
 
   const fetchRequests = async () => {
+    // src/stores/tutorial.js swaps `requests` for demo content directly
+    // during a "Show with sample data" run — a real fetch here (e.g. from
+    // this component re-mounting mid-tour) would silently overwrite that
+    // swap with the real account's data.
+    if (demoModeActive.value) return
     loading.value = true
     try {
       const {

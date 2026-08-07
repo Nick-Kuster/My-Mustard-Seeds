@@ -24,7 +24,7 @@
            (last 10 entries across all types) — no more separate toggle, this
            is the only view now. -->
       <div class="type-lanes-wrapper">
-        <div class="type-lanes" ref="lanesEl" @scroll="onLanesScroll">
+        <div class="type-lanes" ref="lanesEl" data-tour="type-lanes" @scroll="onLanesScroll">
         <div v-for="group in typeGroups" :key="group.type" class="type-lane">
           <div class="type-lane-header" :class="{ 'type-lane-header--clickable': isDesktop }"
             :style="{ borderTopColor: typeColorsStore.getColor(group.type) }"

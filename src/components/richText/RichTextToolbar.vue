@@ -1,6 +1,6 @@
 <template>
   <div class="rich-text-toolbar-wrap">
-    <div class="row items-center q-gutter-xs rich-text-toolbar">
+    <div class="row items-center q-gutter-xs rich-text-toolbar" data-tour="rich-text-toolbar">
       <q-btn flat dense round size="sm" :ripple="false" icon="title"
         :color="isActive('heading') ? 'primary' : undefined"
         @mousedown.prevent @click="showTextStyleDialog = true" />
@@ -47,14 +47,15 @@
           <rect x="4" y="19" width="16" height="3" fill="currentColor" />
         </svg>
       </q-btn>
-      <q-btn flat dense round size="sm" :ripple="false" @mousedown.prevent @click="showGlyphDialog = true">
+      <q-btn flat dense round size="sm" :ripple="false" data-tour="rich-text-glyph-btn"
+        @mousedown.prevent @click="showGlyphDialog = true">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 3v18" />
           <path d="M7 8h10" />
         </svg>
       </q-btn>
-      <q-btn flat dense round size="sm" :ripple="false" :loading="uploading"
+      <q-btn flat dense round size="sm" :ripple="false" :loading="uploading" data-tour="rich-text-image-btn"
         @mousedown.prevent @click="fileInputRef?.click()">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">

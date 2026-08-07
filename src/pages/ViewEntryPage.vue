@@ -141,9 +141,9 @@
           </div>
           <!-- Tabs Section -->
           <q-tabs v-model="activeTab" dense class="text-grey q-mb-md" active-color="primary" indicator-color="primary"
-            align="justify" narrow-indicator>
+            align="justify" narrow-indicator data-tour="view-tabs">
             <q-tab name="main" label="Main Content" />
-            <q-tab name="additional" label="Additional Content" />
+            <q-tab name="additional" label="Additional Content" data-tour="view-additional-tab" />
           </q-tabs>
 
 
@@ -161,7 +161,7 @@
             </q-tab-panel>
             <!-- Additional Content Tab -->
             <q-tab-panel name="additional" class="q-pa-md">
-              <div>
+              <div data-tour="view-additional-content">
                 <!-- Linked Verses -->
                 <div class="q-mb-lg">
                   <LinkedVerses v-model="linkedVerses" :display-only="true" />
@@ -224,6 +224,7 @@ import { useQuasar } from 'quasar'
 import { supabase } from 'src/boot/supabase'
 import { useJournalStore } from 'src/stores/journalData'
 import { usePageActionsStore } from 'stores/pageActions'
+import { useTutorialStore } from 'src/stores/tutorial'
 import LinkedVerses from 'components/LinkedVerses.vue'
 import TagSelector from 'components/TagSelector.vue'
 import QuoteSelector from 'components/QuoteSelector.vue'
@@ -522,6 +523,20 @@ watch(() => route.params.id, (newId, oldId) => {
     fetchEntry()
   }
 })
+
+// Lets a mid-tour step (see src/constants/tutorialSteps.js) switch into the
+// Additional Content tab without this component needing to know the tour
+// exists — same pattern as SearchPage.vue's Filter modal watcher.
+const tutorialStore = useTutorialStore()
+watch(
+  () => tutorialStore.pendingAction,
+  (action) => {
+    if (action === 'open-view-additional-tab') {
+      activeTab.value = 'additional'
+      tutorialStore.clearAction()
+    }
+  },
+)
 </script>
 
 <style scoped>

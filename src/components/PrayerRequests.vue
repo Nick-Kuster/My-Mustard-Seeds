@@ -22,7 +22,7 @@
         <div class="text-subtitle2 text-weight-bold text-grey-8">
           Active ({{ active.length }})
         </div>
-        <q-btn flat dense no-caps icon="edit" label="Edit" @click="viewMode = 'manage'" />
+        <q-btn flat dense no-caps icon="edit" label="Edit" data-tour="prayers-manage-btn" @click="viewMode = 'manage'" />
       </div>
 
       <div v-if="active.length === 0" class="text-center text-grey q-pa-lg">
@@ -61,7 +61,7 @@
         that doesn't need one.
       </div>
 
-      <div class="row justify-end items-center q-gutter-sm q-mb-lg">
+      <div class="row justify-end items-center q-gutter-sm q-mb-lg" data-tour="prayer-groups-area">
         <q-btn v-if="!addingGroup" outline dense no-caps color="primary" icon="create_new_folder" label="New Group"
           size="sm" @click="startAddGroup" />
         <template v-else>
@@ -181,7 +181,8 @@
                   </q-item-section>
                   <q-item-section side>
                     <div class="row no-wrap q-gutter-xs">
-                      <q-btn flat round dense icon="check_circle" color="positive" @click="openAnswer(request)">
+                      <q-btn flat round dense icon="check_circle" color="positive" data-tour="prayer-mark-answered"
+                        @click="openAnswer(request)">
                         <q-tooltip>Mark answered</q-tooltip>
                       </q-btn>
                       <q-btn flat round dense icon="delete" color="negative" @click="openDelete(request)">
@@ -198,7 +199,7 @@
               </template>
             </draggable>
 
-            <div class="quick-add-row row items-center no-wrap q-mt-xs">
+            <div class="quick-add-row row items-center no-wrap q-mt-xs" data-tour="prayer-quick-add">
               <q-input v-model="quickAddText[MISC_KEY]" dense borderless placeholder="Add to Miscellaneous..."
                 class="col" @keyup.enter="quickAdd(miscSection)" />
               <q-btn flat round dense icon="add" color="primary"
@@ -209,7 +210,8 @@
       </div>
 
       <q-expansion-item v-if="answered.length > 0" label="Answered" :caption="`${answered.length} answered`"
-        header-class="text-weight-bold" class="rounded-borders bg-white answered-section">
+        header-class="text-weight-bold" class="rounded-borders bg-white answered-section"
+        data-tour="prayer-answered-section">
         <q-list separator>
           <q-item v-for="request in answered" :key="request.id">
             <q-item-section>
@@ -296,15 +298,17 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import draggable from 'vuedraggable'
 import { usePrayerRequestsStore } from 'stores/prayerRequests'
 import { usePrayerRequestGroupsStore } from 'stores/prayerRequestGroups'
+import { useTutorialStore } from 'src/stores/tutorial'
 
 const $q = useQuasar()
 const store = usePrayerRequestsStore()
 const groupsStore = usePrayerRequestGroupsStore()
+const tutorialStore = useTutorialStore()
 
 const loading = ref(true)
 
@@ -608,6 +612,19 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+// Lets a mid-tour step (see src/constants/tutorialSteps.js) switch into
+// Manage mode without this component needing to know the tour exists —
+// same pattern as SearchPage.vue's Filter modal watcher.
+watch(
+  () => tutorialStore.pendingAction,
+  (action) => {
+    if (action === 'open-prayers-manage') {
+      viewMode.value = 'manage'
+      tutorialStore.clearAction()
+    }
+  },
+)
 </script>
 
 <style scoped>
