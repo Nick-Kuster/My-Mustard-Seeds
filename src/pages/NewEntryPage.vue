@@ -232,6 +232,7 @@
             <!-- Main Content Tab -->
             <q-tab-panel name="main" class="q-pa-none">
               <!-- Dynamic Sections -->
+              <ReferenceShortcutsHint />
               <draggable :list="contentSections.filter(section => !section.headerProperty)" @update="handleDragUpdate"
                 item-key="id" handle=".drag-handle" class="q-gutter-y-md" data-tour="entry-content" :animation="200"
                 ghost-class="ghost-section" drag-class="drag-section">
@@ -374,7 +375,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick, watch, defineAsyncComponent } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { supabase } from 'src/boot/supabase'
@@ -389,16 +390,17 @@ import draggable from 'vuedraggable'
 import { getListItems, setListItem, addListItem, removeListItem, insertListItemAfter } from 'src/utils/sectionListUtils'
 import LinkedVerses from 'components/LinkedVerses.vue'
 import RichTextEditor from 'src/components/richText/RichTextEditor.vue'
-import TagSelector from 'src/components/TagSelector.vue'
-import QuoteSelector from 'src/components/QuoteSelector.vue'
+import ReferenceShortcutsHint from 'components/ReferenceShortcutsHint.vue'
 import TypeSelector from 'components/TypeSelector.vue'
 import VerseDisplayModal from 'components/VerseDisplayModal.vue'
-import LinkSelector from 'src/components/LinkSelector.vue'
-import StrongsSelector from 'src/components/StrongsSelector.vue'
-import { isSafeExternalUrl } from 'src/utils/urlUtils'
+import { openSafeExternalUrl } from 'src/utils/urlUtils'
 import { useInlineReferenceResolver } from 'src/composables/useInlineReferenceResolver'
 import { EMPTY_RICH_DOC } from 'src/utils/richTextContent'
 
+const TagSelector = defineAsyncComponent(() => import('src/components/TagSelector.vue'))
+const QuoteSelector = defineAsyncComponent(() => import('src/components/QuoteSelector.vue'))
+const LinkSelector = defineAsyncComponent(() => import('src/components/LinkSelector.vue'))
+const StrongsSelector = defineAsyncComponent(() => import('src/components/StrongsSelector.vue'))
 
 const dragging = ref(false)
 const router = useRouter()
@@ -602,11 +604,9 @@ const handleListItemEnter = async (section, index) => {
 }
 
 const openSectionLink = (url) => {
-  if (!isSafeExternalUrl(url)) {
+  if (!openSafeExternalUrl(url)) {
     $q.notify({ type: 'negative', message: 'This link is not a valid http(s) URL and was not opened' })
-    return
   }
-  window.open(url, '_blank')
 }
 
 // Collapse state is purely an editing convenience, not saved with the entry
@@ -1049,24 +1049,18 @@ const pageActionsStore = usePageActionsStore()
 onMounted(() => {
   pageActionsStore.setFooterActions([
     {
-      key: 'add-section',
-      label: 'Add',
-      icon: 'add',
+      key: 'add-text-section',
+      label: 'Section',
+      icon: 'notes',
       color: 'info',
-      menu: [
-        {
-          key: 'add-text',
-          label: 'Text',
-          icon: 'notes',
-          handler: () => addSectionAndFocus('longText'),
-        },
-        {
-          key: 'add-list',
-          label: 'List',
-          icon: 'checklist',
-          handler: () => addSectionAndFocus('list'),
-        },
-      ],
+      handler: () => addSectionAndFocus('longText'),
+    },
+    {
+      key: 'add-list-section',
+      label: 'List',
+      icon: 'checklist',
+      color: 'info',
+      handler: () => addSectionAndFocus('list'),
     },
     {
       key: 'cancel',

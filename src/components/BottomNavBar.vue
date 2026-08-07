@@ -7,38 +7,17 @@
       :style="{ gridTemplateColumns: `repeat(${contextualActions.length}, 1fr)` }"
     >
       <template v-for="action in contextualActions" :key="action.key">
-        <!-- q-btn-dropdown, not a plain q-btn + nested q-menu: a q-menu
-             nested inside a q-btn with no @click of its own relies on
-             Quasar's implicit "auto-open child q-menu on click" behavior,
-             which intercepts clicks meant for SIBLING q-btns in this same
-             row (Cancel/Save opened this menu instead of running their
-             own handler) rather than just this one button. -->
-        <q-btn-dropdown v-if="action.menu" rounded unelevated no-caps :color="action.color" :data-tour="action.tourKey"
-          class="bottom-nav-action-btn" :icon="action.icon" :label="action.label" content-style="min-width: 160px">
-          <q-list>
-            <q-item v-for="item in action.menu" :key="item.key" clickable v-close-popup @click="item.handler()">
-              <q-item-section avatar>
-                <q-icon :name="item.icon" />
-              </q-item-section>
-              <q-item-section>{{ item.label }}</q-item-section>
-            </q-item>
-          </q-list>
-        </q-btn-dropdown>
-        <q-btn
-          v-else
-          rounded
-          unelevated
-          no-caps
-          :color="action.color"
-          :loading="action.loading?.value ?? false"
-          :disable="action.disabled?.value ?? false"
+        <button
+          type="button"
+          :class="['bottom-nav-action-btn', `text-${action.color}`]"
+          :disabled="action.disabled?.value ?? false"
           :data-tour="action.tourKey"
-          class="bottom-nav-action-btn"
           @click="action.handler()"
         >
-          <q-icon :name="action.icon" size="18px" class="q-mr-xs" />
-          {{ action.label }}
-        </q-btn>
+          <q-spinner v-if="action.loading?.value ?? false" size="22px" />
+          <q-icon v-else :name="action.icon" size="22px" />
+          <span>{{ action.label }}</span>
+        </button>
       </template>
     </div>
 
@@ -181,18 +160,32 @@ const { footerActions: contextualActions } = storeToRefs(usePageActionsStore())
 .bottom-nav-actions {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  padding: 8px;
+  align-items: stretch;
 }
 
 .bottom-nav-action-btn {
-  height: 44px;
-  font-size: 0.8rem;
-  font-weight: 700;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  height: 56px;
+  min-height: 56px;
+  padding: 6px 2px;
+  border: 0;
+  background: transparent;
+  font-size: 0.66rem;
+  font-weight: 600;
+  cursor: pointer;
 }
 
-.bottom-nav-action-btn :deep(.q-btn__content) {
-  flex-wrap: nowrap;
-  white-space: nowrap;
+.bottom-nav-action-btn span {
+  line-height: 1;
+}
+
+.bottom-nav-action-btn:disabled {
+  cursor: default;
+  opacity: 0.55;
 }
 </style>

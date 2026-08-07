@@ -38,7 +38,7 @@
 import { ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import LinkSelectionModal from './LinkSelectionModal.vue'
-import { isSafeExternalUrl } from 'src/utils/urlUtils'
+import { openSafeExternalUrl } from 'src/utils/urlUtils'
 
 const $q = useQuasar()
 
@@ -101,11 +101,9 @@ const removeLink = (index) => {
 }
 
 const openLink = (url) => {
-  if (!isSafeExternalUrl(url)) {
+  if (!openSafeExternalUrl(url)) {
     $q.notify({ type: 'negative', message: 'This link is not a valid http(s) URL and was not opened' })
-    return
   }
-  window.open(url, '_blank')
 }
 </script>
 

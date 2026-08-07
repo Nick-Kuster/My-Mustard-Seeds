@@ -47,6 +47,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from 'src/stores/auth'
 import { useAccountExport } from 'src/composables/useAccountExport'
@@ -59,6 +60,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 const $q = useQuasar()
+const router = useRouter()
 const authStore = useAuthStore()
 const exportComposable = useAccountExport()
 const deletion = useAccountDeletion()
@@ -92,6 +94,7 @@ const handleExport = async () => {
 const handleDelete = async () => {
   try {
     await deletion.deleteAccount()
+    router.push('/login')
   } catch {
     // deletion.error already holds a message for display in the dialog
   }

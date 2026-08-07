@@ -37,6 +37,9 @@ export function useEncryptedImage(imagePathRef, mimeTypeRef) {
         data: { session },
       } = await supabase.auth.getSession()
       if (!session) throw new Error('No active session')
+      if (!imagePath.startsWith(`${session.user.id}/`)) {
+        throw new Error('Invalid image path')
+      }
 
       const keyBundle = await getEncryptionKey(session.user.id)
       const { data, error } = await supabase.storage.from(BUCKET).download(imagePath)

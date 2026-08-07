@@ -5,3 +5,9 @@
 const HTTP_URL_PATTERN = /^https?:\/\//i
 
 export const isSafeExternalUrl = (url) => typeof url === 'string' && HTTP_URL_PATTERN.test(url.trim())
+
+export const openSafeExternalUrl = (url) => {
+  if (!isSafeExternalUrl(url)) return false
+  globalThis.open?.(url.trim(), '_blank', 'noopener,noreferrer')
+  return true
+}

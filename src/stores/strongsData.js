@@ -3,6 +3,16 @@ import { ref } from 'vue'
 import { supabase } from 'src/boot/supabase'
 
 const STRONGS_NUMBER_RE = /^[HG]\d+$/i
+const SEARCH_TERM_RE = /^[\p{L}\p{M}\p{N}\s'-]+$/u
+const MAX_SEARCH_LENGTH = 48
+
+export const normalizeStrongsSearchTerm = (query) => {
+  const trimmed = (query || '').trim().replace(/\s+/g, ' ')
+  if (!trimmed || trimmed.length > MAX_SEARCH_LENGTH) return null
+  if (STRONGS_NUMBER_RE.test(trimmed)) return trimmed
+  if (!SEARCH_TERM_RE.test(trimmed)) return null
+  return trimmed
+}
 
 // ~14,300 rows — unlike bibleData.js's small bible_books table, this is
 // never preloaded client-side. Mirrors VerseSelectionModal.vue's
@@ -11,7 +21,7 @@ export const useStrongsDataStore = defineStore('strongsData', () => {
   const searching = ref(false)
 
   const search = async (query, { language = null, limit = 25 } = {}) => {
-    const trimmed = (query || '').trim()
+    const trimmed = normalizeStrongsSearchTerm(query)
     if (!trimmed) return []
 
     searching.value = true

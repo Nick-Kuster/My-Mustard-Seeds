@@ -218,7 +218,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { supabase } from 'src/boot/supabase'
@@ -226,15 +226,15 @@ import { useJournalStore } from 'src/stores/journalData'
 import { usePageActionsStore } from 'stores/pageActions'
 import { useTutorialStore } from 'src/stores/tutorial'
 import LinkedVerses from 'components/LinkedVerses.vue'
-import TagSelector from 'components/TagSelector.vue'
-import QuoteSelector from 'components/QuoteSelector.vue'
-import LinkSelector from 'components/LinkSelector.vue'
-import StrongsSelector from 'components/StrongsSelector.vue'
 import VerseDisplayModal from 'components/VerseDisplayModal.vue'
 import ContentSectionView from 'components/ContentSectionView.vue'
 import { createDisplayVerse } from 'src/utils/verseUtils'
 import { useResourcesStore } from 'src/stores/resources'
 
+const TagSelector = defineAsyncComponent(() => import('components/TagSelector.vue'))
+const QuoteSelector = defineAsyncComponent(() => import('components/QuoteSelector.vue'))
+const LinkSelector = defineAsyncComponent(() => import('components/LinkSelector.vue'))
+const StrongsSelector = defineAsyncComponent(() => import('components/StrongsSelector.vue'))
 
 const router = useRouter()
 const route = useRoute()

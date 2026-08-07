@@ -76,11 +76,13 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from 'src/stores/auth'
 import { useQuasar } from 'quasar'
 
 const auth = useAuthStore()
 const $q = useQuasar()
+const router = useRouter()
 const loading = ref(false)
 const tab = ref('login')
 const email = ref('')
@@ -105,6 +107,7 @@ const handleEmailLogin = async () => {
   try {
     loading.value = true
     await auth.signInWithEmail(email.value, password.value)
+    router.push('/')
   } catch (error) {
     $q.notify({
       type: 'negative',
@@ -144,9 +147,15 @@ const handleResetPassword = async () => {
 const handleEmailSignup = async () => {
   try {
     loading.value = true
-    const { error } = await auth.signUpWithEmail(email.value, password.value)
+    await auth.signUpWithEmail(email.value, password.value)
 
-    if (error?.message === 'already-registered') {
+    $q.notify({
+      type: 'positive',
+      message: 'Registration successful! Please check your email to verify your account.'
+    })
+  } catch (error) {
+    console.error('Signup error:', error)
+    if (error.message === 'already-registered') {
       $q.notify({
         type: 'warning',
         message: 'This email is already registered. Try logging in with Google or password.'
@@ -155,14 +164,6 @@ const handleEmailSignup = async () => {
       return
     }
 
-    if (error) throw error
-
-    $q.notify({
-      type: 'positive',
-      message: 'Registration successful! Please check your email to verify your account.'
-    })
-  } catch (error) {
-    console.error('Signup error:', error)
     $q.notify({
       type: 'negative',
       message: error.message || 'An error occurred during signup'

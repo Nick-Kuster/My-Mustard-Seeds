@@ -5,7 +5,7 @@ import { demoModeActive } from 'src/utils/demoMode'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
 
 // Short-circuits every table write while a "Show with sample data" demo
 // run is active (see src/stores/tutorial.js), at this one choke point
@@ -43,9 +43,8 @@ const createBlockedBuilder = () => {
   return proxy
 }
 
-const originalFrom = supabase.from.bind(supabase)
-supabase.from = (table) => {
-  const builder = originalFrom(table)
+const createGuardedBuilder = (table) => {
+  const builder = supabaseClient.from(table)
   MUTATING_METHODS.forEach((method) => {
     const original = builder[method].bind(builder)
     builder[method] = (...args) => {
@@ -58,6 +57,15 @@ supabase.from = (table) => {
   })
   return builder
 }
+
+export const supabase = new Proxy(supabaseClient, {
+  get(target, prop, receiver) {
+    if (prop === 'from') return createGuardedBuilder
+
+    const value = Reflect.get(target, prop, receiver)
+    return typeof value === 'function' ? value.bind(target) : value
+  },
+})
 
 export default boot(async ({ app }) => {
   app.config.globalProperties.$supabase = supabase

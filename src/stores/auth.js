@@ -1,10 +1,12 @@
 import { defineStore } from 'pinia'
 import { supabase } from '../boot/supabase'
 import { ref, computed } from 'vue'
+import { useEncryptionStore } from 'src/stores/encryption'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
   const loading = ref(true)
+  let authListenerRegistered = false
 
   const isAuthenticated = computed(() => !!user.value)
 
@@ -15,9 +17,15 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = session?.user || null
     loading.value = false
 
-    supabase.auth.onAuthStateChange((_event, session) => {
-      user.value = session?.user || null
-    })
+    if (!authListenerRegistered) {
+      authListenerRegistered = true
+      supabase.auth.onAuthStateChange((event, session) => {
+        user.value = session?.user || null
+        if (event === 'SIGNED_OUT') {
+          useEncryptionStore().reset()
+        }
+      })
+    }
   }
 
   const signInWithGoogle = async () => {
@@ -64,32 +72,9 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const resetPassword = async (email) => {
-    // First check if user exists and what provider they use
-    const {
-      data: { users },
-      error: userError,
-    } = await supabase.auth.admin.listUsers({
-      filter: { email },
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback`,
     })
-
-    if (userError) throw userError
-
-    const user = users?.[0]
-    if (!user) {
-      throw new Error('No account found with this email')
-    }
-
-    // Check if user uses password auth or OAuth
-    const identities = user.identities || []
-    const hasPasswordAuth = identities.some((id) => !id.provider || id.provider === 'email')
-
-    if (!hasPasswordAuth) {
-      throw new Error(
-        'This account uses Google sign-in. Please use the "Continue with Google" button.',
-      )
-    }
-
-    const { error } = await supabase.auth.resetPasswordForEmail(email)
     if (error) throw error
   }
 

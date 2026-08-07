@@ -50,14 +50,11 @@ const verses = ref([])
 
 const fetchVerses = async () => {
   if (!props.startVerse || !props.endVerse) {
-    console.log('Missing verse IDs:', { startVerse: props.startVerse, endVerse: props.endVerse })
     return
   }
 
   loading.value = true
   try {
-    console.log('Fetching verses with IDs:', { startVerse: props.startVerse, endVerse: props.endVerse })
-
     const { data, error } = await supabase
       .from('bible_verses')
       .select('verse, content')
@@ -66,7 +63,6 @@ const fetchVerses = async () => {
       .order('verse_number')
 
     if (error) throw error
-    console.log('Fetched verse:', data)
     verses.value = data || []
   } catch (error) {
     console.error('Error fetching verses:', error)

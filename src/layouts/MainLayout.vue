@@ -62,16 +62,19 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import { supabase } from 'src/boot/supabase'
 import { useThemeMode } from 'src/composables/useThemeMode'
+import { useAuthStore } from 'src/stores/auth'
 import { useProfileStore } from 'stores/profile'
 import { useTutorialStore } from 'stores/tutorial'
 import BottomNavBar from 'components/BottomNavBar.vue'
 import TutorialStartDialog from 'components/TutorialStartDialog.vue'
 
 const $q = useQuasar()
+const router = useRouter()
 const { themeIcon, themeLabel, initTheme, toggleTheme } = useThemeMode()
+const authStore = useAuthStore()
 const profileStore = useProfileStore()
 const tutorialStore = useTutorialStore()
 
@@ -91,8 +94,8 @@ const handleSignOut = async () => {
   if (tutorialStore.active) tutorialStore.stop()
 
   try {
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
+    await authStore.signOut()
+    router.push('/login')
   } catch (error) {
     $q.notify({
       type: 'negative',

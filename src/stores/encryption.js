@@ -29,7 +29,6 @@ export const useEncryptionStore = defineStore('encryption', () => {
   const isReady = computed(() => !!dek.value)
 
   let initPromise = null
-  let authListenerRegistered = false
 
   const initialize = () => {
     if (!initPromise) {
@@ -50,16 +49,6 @@ export const useEncryptionStore = defineStore('encryption', () => {
       return null
     }
     userId.value = session.user.id
-
-    // Drop the in-memory key on sign-out
-    if (!authListenerRegistered) {
-      authListenerRegistered = true
-      supabase.auth.onAuthStateChange((event) => {
-        if (event === 'SIGNED_OUT') {
-          reset()
-        }
-      })
-    }
 
     let { data: profile, error } = await supabase
       .from('user_profiles')
