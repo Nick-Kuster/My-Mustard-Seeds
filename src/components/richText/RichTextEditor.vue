@@ -18,7 +18,7 @@ import { useReferenceExtensions } from 'src/composables/useReferenceExtensions'
 import { legacyStringToDoc, EMPTY_RICH_DOC } from 'src/utils/richTextContent'
 import { scanEditorForTriggers } from 'src/utils/richTextInlineScan'
 import { useBibleDataStore } from 'stores/bibleData'
-import { resolveVerseMatch } from 'src/composables/useInlineReferenceResolver'
+import { resolveVerseMatch, resolveVerseQuoteMatch } from 'src/composables/useInlineReferenceResolver'
 import RichTextToolbar from './RichTextToolbar.vue'
 import VerseDisplayModal from 'components/VerseDisplayModal.vue'
 import StrongsDisplayModal from 'components/StrongsDisplayModal.vue'
@@ -97,16 +97,40 @@ const resolvedKeys = new Set()
 const failedKeys = new Set()
 let debounceTimer = null
 
+// One paragraph per quoted verse, its own text prefixed with the
+// (bold) verse number — mirrors VerseDisplayModal.vue's layout. Each
+// word becomes its own text node so a Strong's-tagged word can carry
+// the strongsWord mark while its untagged neighbors (mostly
+// punctuation) don't; ProseMirror only merges adjacent text nodes that
+// share the exact same marks, so this never fuses two different words
+// together.
+const buildVerseQuoteContent = (resolved) => ({
+  type: 'blockquote',
+  content: resolved.verses.map((v) => ({
+    type: 'paragraph',
+    content: [
+      { type: 'text', text: `${v.verse} `, marks: [{ type: 'bold' }] },
+      ...v.words.map((w) => ({
+        type: 'text',
+        text: w.text,
+        ...(w.strongsEntry ? { marks: [{ type: 'strongsWord', attrs: w.strongsEntry }] } : {}),
+      })),
+    ],
+  })),
+})
+
 const resolveVerseMatches = async () => {
   const ed = editor.value
   if (!ed) return
 
-  const matches = scanEditorForTriggers(ed.state).filter((m) => m.type === 'verse')
+  const matches = scanEditorForTriggers(ed.state).filter((m) => m.type === 'verse' || m.type === 'verseQuote')
   for (const match of matches) {
     if (resolvedKeys.has(match.raw) || failedKeys.has(match.raw)) continue
 
     await bibleData.loadBooks()
-    const resolved = await resolveVerseMatch(match, bibleData)
+    const resolved = match.type === 'verseQuote'
+      ? await resolveVerseQuoteMatch(match, bibleData)
+      : await resolveVerseMatch(match, bibleData)
     if (!resolved) {
       failedKeys.add(match.raw)
       continue
@@ -119,10 +143,17 @@ const resolveVerseMatches = async () => {
     if (ed.state.doc.textBetween(match.from, match.to) !== match.raw) continue
 
     resolvedKeys.add(match.raw)
-    ed.chain().insertContentAt({ from: match.from, to: match.to }, [
-      { type: 'verseReference', attrs: resolved },
-      { type: 'text', text: ' ' },
-    ]).run()
+    if (match.type === 'verseQuote') {
+      ed.chain().insertContentAt({ from: match.from, to: match.to }, [
+        buildVerseQuoteContent(resolved),
+        { type: 'paragraph' },
+      ]).run()
+    } else {
+      ed.chain().insertContentAt({ from: match.from, to: match.to }, [
+        { type: 'verseReference', attrs: resolved },
+        { type: 'text', text: ' ' },
+      ]).run()
+    }
 
     props.onVerseResolved(resolved)
   }
@@ -235,5 +266,15 @@ onBeforeUnmount(() => {
 
 .rich-text-body :deep(blockquote p) {
   margin: 0;
+}
+
+.rich-text-body :deep(.inline-strongs-word) {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.rich-text-body :deep(.inline-strongs-word:hover) {
+  opacity: 0.8;
 }
 </style>

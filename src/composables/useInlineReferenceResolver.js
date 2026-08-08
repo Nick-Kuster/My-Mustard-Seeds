@@ -70,6 +70,51 @@ export const resolveVerseMatch = async (match, bibleData) => {
   }
 }
 
+// `@<verse reference>` — same resolution as `::` (resolveVerseMatch), plus
+// the actual per-word text so the caller can print the verse into the
+// document as a blockquote instead of a small reference chip. Mirrors
+// VerseDisplayModal.vue's fetchVerses() exactly (same query, same
+// group-by-verse, same batched strongs_entries lookup) so a quoted verse
+// and the one you'd see by clicking a `::` link render identically.
+export const resolveVerseQuoteMatch = async (match, bibleData) => {
+  const resolved = await resolveVerseMatch(match, bibleData)
+  if (!resolved) return null
+
+  const { data: wordRows, error: wordsError } = await supabase
+    .from('bible_verse_words')
+    .select('verse, position, word_text, strongs_number')
+    .gte('verse_number', resolved.startVerse)
+    .lte('verse_number', resolved.endVerse)
+    .order('verse_number')
+    .order('position')
+  if (wordsError) throw wordsError
+
+  const byVerse = new Map()
+  for (const row of wordRows || []) {
+    if (!byVerse.has(row.verse)) byVerse.set(row.verse, [])
+    byVerse.get(row.verse).push({ text: row.word_text, strongsNumber: row.strongs_number })
+  }
+
+  const neededNumbers = [...new Set((wordRows || []).map((row) => row.strongs_number).filter(Boolean))]
+  let entriesByNumber = new Map()
+  if (neededNumbers.length > 0) {
+    const { data: entries, error: entriesError } = await supabase
+      .from('strongs_entries')
+      .select('*')
+      .in('strongs_number', neededNumbers)
+    if (entriesError) throw entriesError
+    entriesByNumber = new Map((entries || []).map((entry) => [entry.strongs_number, entry]))
+  }
+
+  return {
+    ...resolved,
+    verses: [...byVerse.entries()].map(([verse, words]) => ({
+      verse,
+      words: words.map((w) => ({ ...w, strongsEntry: w.strongsNumber ? entriesByNumber.get(w.strongsNumber) || null : null })),
+    })),
+  }
+}
+
 // Detects `::verse`/`#tag`/`$strongsNumber` patterns in a section's plain-
 // string content and silently adds them to the entry's existing
 // linkedVerses/selectedTags/selectedStrongs — same arrays the picker UI
@@ -167,7 +212,11 @@ export const useInlineReferenceResolver = ({ linkedVerses, selectedTags, selecte
       return
     }
 
-    if (match.type === 'verse') {
+    // `@` (verseQuote) only prints the full verse as a blockquote inside
+    // RichTextEditor.vue's own rich-doc resolution path — a list-type
+    // section is a flat string with nowhere to put that, so here it's
+    // just treated the same as `::` (verse) and only linked.
+    if (match.type === 'verse' || match.type === 'verseQuote') {
       await bibleData.loadBooks()
       const resolved = await resolveVerseMatch(match, bibleData)
       if (!resolved) {

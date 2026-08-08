@@ -45,16 +45,48 @@ const MAX_CANDIDATE_LEN = 80
 // a single plain-boundary slice is enough to grab the whole candidate.
 const STRONGS_NUMBER_RE = /^[HG]\d+$/i
 
+// Shared by the `::` (verse link) and `@` (verse quote) branches — both
+// need the same "walk forward across boundaries until parseFullVerseReference
+// resolves, or give up" logic, just with a different trigger length and
+// result `type`. triggerLen is 2 for `::`, 1 for `@`.
+const scanVerseReference = (text, i, triggerLen, type) => {
+  const triggerStart = i + triggerLen
+  let cursor = triggerStart
+  let boundaryCount = 0
+
+  while (boundaryCount < MAX_BOUNDARIES && cursor - triggerStart < MAX_CANDIDATE_LEN) {
+    const nextBoundary = nextVerseBoundaryIndex(text, cursor)
+    const candidate = text.slice(triggerStart, nextBoundary).trim()
+
+    // A new trigger started inside the candidate — abandon this one
+    // rather than swallowing it into a longer, wrong match.
+    if (candidate.includes('::') || candidate.includes('@') || candidate.includes('#')) break
+
+    const parsed = parseFullVerseReference(candidate)
+    if (parsed) {
+      return { type, start: i, end: nextBoundary, raw: text.slice(i, nextBoundary), verseRange: parsed }
+    }
+
+    if (nextBoundary >= text.length || text[nextBoundary] === '\n') break
+
+    boundaryCount += 1
+    cursor = nextBoundary + 1
+  }
+
+  return null
+}
+
 /**
- * Scans free text for `::<verse reference>`, `#<tag>`, and `$<strongs
- * number>` occurrences. Pure and dependency-free (besides the existing
+ * Scans free text for `::<verse reference>` (link), `@<verse reference>`
+ * (quote the full verse text), `#<tag>`, and `$<strongs number>`
+ * occurrences. Pure and dependency-free (besides the existing
  * verse-reference parser) — no Supabase/store calls, safe to run at
  * render time as well as while editing. Only validates *shape* (does it
  * look like a reference/tag/number?), not whether the book/tag/number
  * actually exists — that's the resolver's job.
  *
  * @param {string} text
- * @returns {Array<{type: 'verse'|'tag'|'strongs', start: number, end: number, raw: string, verseRange?: object, tagName?: string, strongsNumber?: string}>}
+ * @returns {Array<{type: 'verse'|'verseQuote'|'tag'|'strongs', start: number, end: number, raw: string, verseRange?: object, tagName?: string, strongsNumber?: string}>}
  */
 export const findInlineTriggers = (text) => {
   if (!text) return []
@@ -87,36 +119,23 @@ export const findInlineTriggers = (text) => {
     }
 
     if (char === ':' && text[i + 1] === ':') {
-      const triggerStart = i + 2
-      let cursor = triggerStart
-      let boundaryCount = 0
-      let resolved = null
-
-      while (boundaryCount < MAX_BOUNDARIES && cursor - triggerStart < MAX_CANDIDATE_LEN) {
-        const nextBoundary = nextVerseBoundaryIndex(text, cursor)
-        const candidate = text.slice(triggerStart, nextBoundary).trim()
-
-        // A new trigger started inside the candidate — abandon this one
-        // rather than swallowing it into a longer, wrong match.
-        if (candidate.includes('::') || candidate.includes('#')) break
-
-        const parsed = parseFullVerseReference(candidate)
-        if (parsed) {
-          resolved = { end: nextBoundary, verseRange: parsed, raw: text.slice(i, nextBoundary) }
-          break
-        }
-
-        if (nextBoundary >= text.length || text[nextBoundary] === '\n') break
-
-        boundaryCount += 1
-        cursor = nextBoundary + 1
-      }
-
+      const resolved = scanVerseReference(text, i, 2, 'verse')
       if (resolved) {
-        matches.push({ type: 'verse', start: i, end: resolved.end, raw: resolved.raw, verseRange: resolved.verseRange })
+        matches.push(resolved)
         i = resolved.end
       } else {
         i += 2
+      }
+      continue
+    }
+
+    if (char === '@') {
+      const resolved = scanVerseReference(text, i, 1, 'verseQuote')
+      if (resolved) {
+        matches.push(resolved)
+        i = resolved.end
+      } else {
+        i += 1
       }
       continue
     }

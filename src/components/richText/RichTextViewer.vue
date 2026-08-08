@@ -94,4 +94,14 @@ watch(() => props.content, (value) => {
 .rich-text-viewer :deep(blockquote p) {
   margin: 0;
 }
+
+.rich-text-viewer :deep(.inline-strongs-word) {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.rich-text-viewer :deep(.inline-strongs-word:hover) {
+  opacity: 0.8;
+}
 </style>
