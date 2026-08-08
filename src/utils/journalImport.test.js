@@ -5,13 +5,17 @@ const mocks = vi.hoisted(() => {
     journal_entries: [],
     journal_verses: [],
     journal_tags: [],
+    journal_resources: [],
     journal_quotes: [],
     related_links: [],
     journal_strongs: [],
+    resources: [],
+    resource_resources: [],
     tags: [],
   }
 
   const existingTags = [{ id: 'tag-existing', name: 'trust' }]
+  const existingResources = []
 
   const makeBuilder = (table) => {
     const filters = {}
@@ -30,6 +34,9 @@ const mocks = vi.hoisted(() => {
       single: vi.fn(async () => {
         if (table === 'journal_entries') {
           return { data: { id: 'entry-1', ...builder.payload }, error: null }
+        }
+        if (table === 'resources') {
+          return { data: { id: `resource-${inserted.resources.length}`, ...builder.payload }, error: null }
         }
         if (table === 'tags') {
           const tag = { id: `tag-${builder.payload.name}`, ...builder.payload }
@@ -73,6 +80,30 @@ const mocks = vi.hoisted(() => {
       }
     }
 
+    if (table === 'resources') {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(async () => ({ data: existingResources, error: null })),
+        })),
+        insert: vi.fn((payload) => {
+          inserted.resources.push(payload)
+          return {
+            select: vi.fn(() => ({
+              single: vi.fn(async () => ({ data: { id: `resource-${inserted.resources.length}`, ...payload }, error: null })),
+            })),
+          }
+        }),
+      }
+    }
+
+    if (table === 'resource_resources') {
+      const builder = makeBuilder(table)
+      builder.select = vi.fn(() => ({
+        eq: vi.fn(async () => ({ data: [], error: null })),
+      }))
+      return builder
+    }
+
     if (['journal_verses', 'journal_tags', 'journal_quotes', 'related_links', 'journal_strongs'].includes(table)) {
       return {
         insert: vi.fn(async (payload) => {
@@ -87,6 +118,7 @@ const mocks = vi.hoisted(() => {
 
   return {
     inserted,
+    existingResources,
     from,
     getSession: vi.fn(async () => ({ data: { session: { user: { id: 'user-1' } } } })),
     loadBooks: vi.fn(async () => {}),
@@ -124,6 +156,7 @@ describe('importEntries', () => {
     mocks.getVerses.mockClear()
     mocks.getEncryptionKey.mockClear()
     mocks.encryptData.mockClear()
+    mocks.existingResources.splice(0)
     Object.values(mocks.inserted).forEach((items) => items.splice(0))
   })
 
@@ -147,6 +180,12 @@ describe('importEntries', () => {
         { name: 'Unsafe', url: 'javascript:alert(1)' },
       ],
       images: [{ alt: 'photo of handwritten notes' }],
+      resources: [
+        { type: 'Church', metadata: { name: 'Mosaic' }, primary: false },
+        { type: 'Pastor', metadata: { name: 'Adam Barton' }, primary: true },
+        { type: 'SermonSeries', metadata: { title: 'Heaven Invades Earth', year: '2026' }, primary: false },
+        { type: 'Sermon', metadata: { title: 'Heaven Invades Your Identity', date: '2026-07-30' }, primary: false },
+      ],
     }])
 
     const summary = await importEntries(input)
@@ -211,6 +250,72 @@ describe('importEntries', () => {
     ])
     expect(mocks.inserted.journal_strongs[0]).toEqual([
       { journal_id: 'entry-1', user_id: 'user-1', strongs_number: 'G25' },
+    ])
+    expect(mocks.inserted.resources).toEqual([
+      { user_id: 'user-1', type: 'Church', metadata: { name: 'Mosaic' } },
+      { user_id: 'user-1', type: 'Pastor', metadata: { name: 'Adam Barton' } },
+      { user_id: 'user-1', type: 'SermonSeries', metadata: { title: 'Heaven Invades Earth', year: '2026' } },
+      { user_id: 'user-1', type: 'Sermon', metadata: { title: 'Heaven Invades Your Identity', date: '2026-07-30' } },
+    ])
+    expect(mocks.inserted.resource_resources).toEqual([
+      { parent_resource_id: 'resource-1', child_resource_id: 'resource-2', user_id: 'user-1', relationship_type: 'pastor' },
+      { parent_resource_id: 'resource-2', child_resource_id: 'resource-3', user_id: 'user-1', relationship_type: 'sermonseries' },
+      { parent_resource_id: 'resource-3', child_resource_id: 'resource-4', user_id: 'user-1', relationship_type: 'sermon' },
+    ])
+    expect(mocks.inserted.journal_resources[0]).toEqual([
+      { journal_id: 'entry-1', resource_id: 'resource-1', primary_resource: false, user_id: 'user-1' },
+      { journal_id: 'entry-1', resource_id: 'resource-2', primary_resource: true, user_id: 'user-1' },
+      { journal_id: 'entry-1', resource_id: 'resource-3', primary_resource: false, user_id: 'user-1' },
+      { journal_id: 'entry-1', resource_id: 'resource-4', primary_resource: false, user_id: 'user-1' },
+    ])
+  })
+
+  it('includes existing resources in the LLM template', async () => {
+    const { buildImportTemplateText } = await import('./journalImport')
+    const template = buildImportTemplateText({
+      resources: [
+        { id: 'church-1', type: 'Church', metadata: { name: 'Mosaic', location: 'Evansville' } },
+        { id: 'pastor-1', type: 'Pastor', metadata: { name: 'Adam Barton' } },
+      ],
+      resourceRelationships: [
+        { parent_resource_id: 'church-1', child_resource_id: 'pastor-1' },
+      ],
+    })
+
+    expect(template).toContain('Existing resources already in the app')
+    expect(template).toContain('"type": "Church"')
+    expect(template).toContain('"name": "Mosaic"')
+    expect(template).toContain('"parent": "Mosaic"')
+    expect(template).toContain('"child": "Adam Barton"')
+  })
+
+  it('reuses existing resources when optional metadata differs', async () => {
+    mocks.existingResources.push(
+      { id: 'existing-church', user_id: 'user-1', type: 'Church', metadata: { name: 'Mosaic', location: 'Evansville' } },
+      { id: 'existing-pastor', user_id: 'user-1', type: 'Pastor', metadata: { name: 'Adam Barton' } },
+    )
+
+    const { importEntries } = await import('./journalImport')
+    const input = JSON.stringify([{
+      type: 'Sermon',
+      title: 'Existing resource sermon',
+      sections: [],
+      resources: [
+        { type: 'Church', metadata: { name: 'Mosaic' }, primary: false },
+        { type: 'Pastor', metadata: { name: 'Adam Barton' }, primary: true },
+      ],
+    }])
+
+    const summary = await importEntries(input)
+
+    expect(summary.failed).toEqual([])
+    expect(mocks.inserted.resources).toEqual([])
+    expect(mocks.inserted.resource_resources).toEqual([
+      { parent_resource_id: 'existing-church', child_resource_id: 'existing-pastor', user_id: 'user-1', relationship_type: 'pastor' },
+    ])
+    expect(mocks.inserted.journal_resources[0]).toEqual([
+      { journal_id: 'entry-1', resource_id: 'existing-church', primary_resource: false, user_id: 'user-1' },
+      { journal_id: 'entry-1', resource_id: 'existing-pastor', primary_resource: true, user_id: 'user-1' },
     ])
   })
 })

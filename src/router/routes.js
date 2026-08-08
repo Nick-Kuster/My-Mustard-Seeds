@@ -63,6 +63,28 @@ const routes = [
     ],
   },
   {
+    path: '/privacy',
+    component: () => import('layouts/BlankLayout.vue'),
+    children: [
+      {
+        path: '',
+        component: () => import('pages/PrivacyPolicyPage.vue'),
+        meta: { requiresAuth: false },
+      },
+    ],
+  },
+  {
+    path: '/terms',
+    component: () => import('layouts/BlankLayout.vue'),
+    children: [
+      {
+        path: '',
+        component: () => import('pages/TermsOfServicePage.vue'),
+        meta: { requiresAuth: false },
+      },
+    ],
+  },
+  {
     path: '/:catchAll(.*)*',
     component: () => import('pages/ErrorNotFound.vue'),
   },

@@ -91,14 +91,16 @@
           <q-btn outline color="primary" icon="content_copy" label="Copy Template" class="q-mb-lg"
             @click="copyTemplate" />
 
-          <q-input v-model="importText" type="textarea" outlined autogrow
-            placeholder="Paste output here" :input-style="{ minHeight: '160px' }" class="q-mb-md" />
+          <q-input v-model="importText" type="textarea" outlined
+            placeholder="Paste output here" :input-style="{ height: '180px', resize: 'none', overflowY: 'auto' }"
+            class="q-mb-md import-json-input" />
 
           <q-btn unelevated color="primary" label="Import" :loading="importing" :disable="!importText.trim()"
             @click="runImport" />
 
           <div v-if="results" class="q-mt-lg">
-            <q-banner :class="results.failed.length ? 'bg-orange-1' : 'bg-green-1'" rounded>
+            <q-banner :class="results.failed.length ? 'import-result-banner--warning' : 'import-result-banner--success'"
+              class="import-result-banner" rounded>
               <div class="text-weight-medium">
                 Imported {{ results.succeeded.length }} of {{ results.succeeded.length + results.failed.length }}
                 {{ (results.succeeded.length + results.failed.length) === 1 ? 'entry' : 'entries' }}.
@@ -131,7 +133,7 @@
         <q-card class="settings-card q-pa-lg parchment">
           <div class="text-h6 q-mb-lg">Tutorial</div>
           <div class="text-body2 text-grey-8 q-mb-md">
-            Take a guided tour of the app anytime — pick a quick overview or a deeper look at search and filters.
+            Take a guided tour of the app anytime.
           </div>
           <q-btn outline color="primary" icon="school" label="Replay Tour" data-tour="replay-tour-btn"
             @click="showTutorialDialog = true" />
@@ -195,6 +197,7 @@ import { useJournalStore } from 'stores/journalData'
 import { useJournalTypeColorsStore } from 'stores/journalTypeColors'
 import { useUserPreferencesStore } from 'stores/userPreferences'
 import { useTagsStore } from 'stores/tags'
+import { useResourcesStore } from 'stores/resources'
 import { JOURNAL_TYPES } from 'src/constants/journalTypes'
 import { buildImportTemplateText, importEntries } from 'src/utils/journalImport'
 import { useAccountExport } from 'src/composables/useAccountExport'
@@ -206,6 +209,7 @@ const journalStore = useJournalStore()
 const typeColorsStore = useJournalTypeColorsStore()
 const userPreferencesStore = useUserPreferencesStore()
 const tagsStore = useTagsStore()
+const resourcesStore = useResourcesStore()
 const accountExport = useAccountExport()
 
 const showTutorialDialog = ref(false)
@@ -283,7 +287,12 @@ onMounted(async () => {
 
 const copyTemplate = async () => {
   try {
-    await navigator.clipboard.writeText(buildImportTemplateText())
+    await resourcesStore.loadResources(true)
+    const resourceRelationships = await resourcesStore.getAllRelationships()
+    await navigator.clipboard.writeText(buildImportTemplateText({
+      resources: resourcesStore.resources,
+      resourceRelationships,
+    }))
     $q.notify({ type: 'positive', message: 'Template copied to clipboard' })
   } catch {
     $q.notify({ type: 'negative', message: 'Could not access the clipboard' })
@@ -340,5 +349,37 @@ const runImport = async () => {
 
 .ghost-type-row {
   opacity: 0.4;
+}
+
+.import-json-input :deep(textarea) {
+  resize: none;
+}
+
+.import-result-banner {
+  color: #243228;
+}
+
+.import-result-banner--success {
+  background: #dce9dd;
+  border: 1px solid rgba(76, 111, 82, 0.26);
+}
+
+.import-result-banner--warning {
+  background: #f5e3c4;
+  border: 1px solid rgba(153, 104, 36, 0.24);
+}
+
+body.body--dark .import-result-banner {
+  color: #f3f7f1;
+}
+
+body.body--dark .import-result-banner--success {
+  background: #385a40;
+  border-color: rgba(178, 216, 181, 0.22);
+}
+
+body.body--dark .import-result-banner--warning {
+  background: #684b22;
+  border-color: rgba(245, 210, 151, 0.24);
 }
 </style>

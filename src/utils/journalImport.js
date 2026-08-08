@@ -2,11 +2,14 @@ import { supabase } from 'src/boot/supabase'
 import { getEncryptionKey, encryptData } from 'src/utils/encryption'
 import { useBibleDataStore } from 'stores/bibleData'
 import { JOURNAL_TYPES } from 'src/constants/journalTypes'
+import { RESOURCE_TYPES } from 'src/constants/resourceTypes'
+import { getAllowedChildTypes, getResourceConfig } from 'src/configs/resourceConfigs'
 import { parseFullVerseReference } from 'src/utils/verseUtils'
 import { isSafeExternalUrl } from 'src/utils/urlUtils'
 import { legacyStringToDoc } from 'src/utils/richTextContent'
 
 const TYPE_IDS = JOURNAL_TYPES.map((t) => t.id)
+const RESOURCE_TYPE_IDS = Object.values(RESOURCE_TYPES)
 
 const EXAMPLE_ENTRY = {
   type: 'Devotional',
@@ -18,12 +21,58 @@ const EXAMPLE_ENTRY = {
   ],
   verses: [{ reference: 'Philippians 4:6-7', main: true }],
   tags: ['anxiety', 'trust'],
+  resources: [
+    { type: 'Devotional', metadata: { name: 'New Morning Mercies', author: 'Paul David Tripp' }, primary: true },
+  ],
   strongs: [{ strongsNumber: 'G25', note: 'agapao / love' }],
   quotes: [{ quote: 'Fear not, for I am with you.', source: 'Isaiah 41:10', page: null }],
   links: [{ name: 'Devotional source', url: 'https://example.com' }],
 }
 
-export const buildImportTemplateText = () => `INSTRUCTIONS FOR CHATGPT (or any other AI assistant):
+const getResourceDisplayTitle = (resource) => {
+  try {
+    return getResourceConfig(resource.type).getDisplayTitle(resource)
+  } catch {
+    return resource.type
+  }
+}
+
+const buildExistingResourceCatalogText = ({ resources = [], resourceRelationships = [] } = {}) => {
+  if (!resources.length) {
+    return `Existing resources already in the app:
+There are no existing resources in this account yet. Create resources from the
+source notes when they are clearly named.`
+  }
+
+  const resourceSummaries = resources.map((resource) => ({
+    type: resource.type,
+    title: getResourceDisplayTitle(resource),
+    metadata: resource.metadata,
+  }))
+
+  const titleById = new Map(resources.map((resource) => [resource.id, getResourceDisplayTitle(resource)]))
+  const relationshipSummaries = resourceRelationships
+    .map((relationship) => {
+      const parentTitle = titleById.get(relationship.parent_resource_id)
+      const childTitle = titleById.get(relationship.child_resource_id)
+      if (!parentTitle || !childTitle) return null
+      return { parent: parentTitle, child: childTitle }
+    })
+    .filter(Boolean)
+
+  return `Existing resources already in the app:
+Use these exact type + metadata values when a note refers to the same resource.
+Do not create near-duplicates with alternate spellings, shortened names, or
+missing fields if a matching resource is listed here.
+
+Existing resource catalog:
+${JSON.stringify(resourceSummaries, null, 2)}
+
+Existing resource relationships:
+${relationshipSummaries.length ? JSON.stringify(relationshipSummaries, null, 2) : '[]'}`
+}
+
+export const buildImportTemplateText = (context = {}) => `INSTRUCTIONS FOR CHATGPT (or any other AI assistant):
 You will be given a batch of disparate personal notes (sermon notes, devotional
 reflections, journal entries, prayer records, etc.) — as text, or as photos of
 handwritten or printed pages. If given photos, read/transcribe them first, then
@@ -34,6 +83,21 @@ This isn't ChatGPT-specific — hand this template and your notes to any AI
 assistant that can read images and produce text output, and paste whatever
 JSON it gives back into the import box.
 
+${buildExistingResourceCatalogText(context)}
+
+Strict JSON requirements:
+- The final answer must be valid JSON that can be parsed by JSON.parse.
+- Use double quotes around every object key and string value.
+- Inside title, content, quote, source, tag, link, and image text, do not use
+  literal double quote characters. Convert quoted phrases to apostrophes/single
+  quotes or remove the quote marks entirely. Good: "He said 'yes' before
+  leaving." Bad: "He said "yes" before leaving."
+- If you absolutely must keep double quotes inside note text, escape the inner
+  quotes with a backslash. Example content value: "He said \\"yes\\" before leaving."
+- Encode line breaks inside strings as \\n. Do not output raw multi-line strings.
+- Do not use comments, trailing commas, smart quotes, markdown fences, or any
+  text before or after the JSON array.
+
 Schema for each entry:
 {
   "type": one of ${JSON.stringify(TYPE_IDS)},   // REQUIRED
@@ -42,6 +106,7 @@ Schema for each entry:
   "sections": [ { "title": "string", "content": "string", "fieldType": "longText" or "list" } ],
   "verses": [ { "reference": "e.g. 'John 3:16' or 'Genesis 1:1-2:3' or 'Psalm 23'", "main": true or false } ],
   "tags": ["string", ...],
+  "resources": [ { "type": "resource type", "metadata": { "field": "value" }, "primary": true or false } ],
   "strongs": [ "G25", { "strongsNumber": "H7225", "note": "optional note for the AI/user only" } ],
   "quotes": [ { "quote": "string", "source": "string (optional)", "page": number (optional) } ],
   "links": [ { "name": "string", "url": "string" } ],
@@ -62,9 +127,37 @@ Notes:
 - Mark at most one verse reference per entry as "main": true (the primary
   passage for that entry, if there is one).
 - Bible verse references must include the full book name.
+- Preserve resources named in the notes. Put them in the "resources" array, not
+  only in section text. Use these exact resource types and metadata fields:
+  Church { "name", "location" }, Pastor { "name" }, SermonSeries { "title", "year" },
+  Sermon { "title", "date" }, Author { "name" }, Book { "title" },
+  Chapter { "title", "number" }, Podcast { "title", "host" },
+  PodcastEpisode { "title", "episodeNumber", "date" }, SongArtist { "name" },
+  Devotional { "name", "author" }, Group { "name", "leader", "church" },
+  Show { "name" }, Season { "seasonNumber" }, Episode { "name", "episodeNumber" }.
+- Put hierarchical resources in parent-to-child order so the app can build the
+  resource tree. Sermon example: Church, Pastor, SermonSeries, Sermon. Book
+  example: Author, Book, Chapter. Podcast example: Podcast, PodcastEpisode.
+- Mark the most useful browsing resource as "primary": true. For sermons, mark
+  the Pastor primary; for books, mark the Author primary; for podcasts, mark
+  the Podcast primary; for devotionals, mark the Devotional primary.
+- Build each entry "title" from the selected resources using the same structure
+  the app uses. Sermon with a series: "{Pastor Name} - {Series Title}: {Sermon Title}".
+  Sermon without a series: "{Pastor Name}: {Sermon Title}". If only a pastor is
+  known, use "{Pastor Name}"; if only a church is known, use "{Church Name}".
+  Book with a chapter: "{Book Title} - Chapter {Chapter Number}: {Chapter Title}".
+  Book without a chapter: "{Book Title}". Podcast episode:
+  "{Podcast Title} - Episode {Episode Number}: {Episode Title}", or omit
+  " - Episode {Episode Number}" when no episode number is known. Show episode:
+  "{Show Name} Season {Season Number} Episode {Episode Number}". Song,
+  Devotional, and Group titles should use the clearest title from the source note.
 - Imported images cannot recreate encrypted uploaded image files. If a source
   note contains an image, describe it in section text or include an "images"
   note so it can be attached manually after import.
+- Before answering, check the entire response as JSON. Phrases like
+  "waiting room for heaven", "just not how you are", or "I'm praying about it"
+  should become 'waiting room for heaven', 'just not how you are', and
+  'I'm praying about it' when they appear inside JSON string values.
 
 Example output:
 ${JSON.stringify([EXAMPLE_ENTRY], null, 2)}
@@ -72,6 +165,7 @@ ${JSON.stringify([EXAMPLE_ENTRY], null, 2)}
 
 const isNonEmptyString = (val) => typeof val === 'string' && val.trim().length > 0
 const STRONGS_NUMBER_RE = /^[GH]\d+$/i
+const RESOURCE_METADATA_KEYS = new Set(['type', 'metadata', 'primary'])
 
 const normalizeSectionContent = (content, fieldType) => {
   if (fieldType === 'list') return isNonEmptyString(content) ? content : ''
@@ -95,6 +189,121 @@ const sanitizeSections = (sections) =>
 // related_links entries are opened via window.open(url) straight from the
 // view page — same http(s)-only rule the manual link form enforces.
 const isSafeUrl = (url) => isNonEmptyString(url) && isSafeExternalUrl(url)
+
+const RESOURCE_IDENTITY_FIELDS = {
+  [RESOURCE_TYPES.AUTHOR]: ['name'],
+  [RESOURCE_TYPES.BOOK]: ['title'],
+  [RESOURCE_TYPES.CHAPTER]: ['number', 'title'],
+  [RESOURCE_TYPES.CHURCH]: ['name'],
+  [RESOURCE_TYPES.DEVOTIONAL]: ['name'],
+  [RESOURCE_TYPES.EPISODE]: ['episodeNumber', 'name'],
+  [RESOURCE_TYPES.GROUP]: ['name'],
+  [RESOURCE_TYPES.PASTOR]: ['name'],
+  [RESOURCE_TYPES.PODCAST]: ['title'],
+  [RESOURCE_TYPES.PODCAST_EPISODE]: ['episodeNumber', 'title'],
+  [RESOURCE_TYPES.SEASON]: ['seasonNumber'],
+  [RESOURCE_TYPES.SERMON]: ['date', 'title'],
+  [RESOURCE_TYPES.SERMON_SERIES]: ['title'],
+  [RESOURCE_TYPES.SHOW]: ['name'],
+  [RESOURCE_TYPES.SONG_ARTIST]: ['name'],
+}
+
+const normalizeResourceKeyPart = (value) => String(value || '')
+  .trim()
+  .toLowerCase()
+  .replace(/\s+/g, ' ')
+
+const resourceKey = (type, metadata = {}) => {
+  const fields = RESOURCE_IDENTITY_FIELDS[type] || Object.keys(metadata).sort()
+  const parts = fields
+    .map((field) => normalizeResourceKeyPart(metadata[field]))
+    .filter(Boolean)
+  return `${type}:${parts.join('|')}`
+}
+
+const cleanResourceMetadata = (type, rawMetadata) => {
+  if (!RESOURCE_TYPE_IDS.includes(type) || !rawMetadata || typeof rawMetadata !== 'object') return null
+
+  const config = getResourceConfig(type)
+  const metadata = {}
+  Object.keys(config.fields).forEach((key) => {
+    const value = rawMetadata[key]
+    if (isNonEmptyString(value) || typeof value === 'number') {
+      metadata[key] = String(value).trim()
+    }
+  })
+
+  const hasRequiredFields = Object.entries(config.fields)
+    .filter(([, field]) => field.required)
+    .every(([key]) => isNonEmptyString(metadata[key]))
+
+  return hasRequiredFields ? metadata : null
+}
+
+const normalizeResourceItem = (item) => {
+  if (!item || typeof item !== 'object' || !RESOURCE_TYPE_IDS.includes(item.type)) return null
+  const looseMetadata = Object.fromEntries(
+    Object.entries(item).filter(([key]) => !RESOURCE_METADATA_KEYS.has(key)),
+  )
+  const metadata = cleanResourceMetadata(item.type, item.metadata || looseMetadata)
+  if (!metadata) return null
+  return { type: item.type, metadata, primary: item.primary === true }
+}
+
+const makeResourceResolver = async (userId) => {
+  const { data: existingResources, error: resourcesError } = await supabase
+    .from('resources')
+    .select('*')
+    .eq('user_id', userId)
+  if (resourcesError) throw resourcesError
+
+  const resourcesByKey = new Map()
+  ;(existingResources || []).forEach((resource) => {
+    resourcesByKey.set(resourceKey(resource.type, resource.metadata), resource)
+  })
+
+  const { data: existingRelationships, error: relationshipsError } = await supabase
+    .from('resource_resources')
+    .select('parent_resource_id, child_resource_id')
+    .eq('user_id', userId)
+  if (relationshipsError) throw relationshipsError
+
+  const relationshipKeys = new Set(
+    (existingRelationships || []).map((row) => `${row.parent_resource_id}:${row.child_resource_id}`),
+  )
+
+  const resolveResource = async ({ type, metadata }) => {
+    const key = resourceKey(type, metadata)
+    if (resourcesByKey.has(key)) return resourcesByKey.get(key)
+
+    const { data, error } = await supabase
+      .from('resources')
+      .insert({ user_id: userId, type, metadata })
+      .select()
+      .single()
+    if (error) throw error
+    resourcesByKey.set(key, data)
+    return data
+  }
+
+  const linkParentChild = async (parent, child) => {
+    if (!parent || !child || !getAllowedChildTypes(parent.type).includes(child.type)) return false
+    const key = `${parent.id}:${child.id}`
+    if (relationshipKeys.has(key)) return true
+
+    const { error } = await supabase.from('resource_resources').insert({
+      parent_resource_id: parent.id,
+      child_resource_id: child.id,
+      user_id: userId,
+      relationship_type: child.type.toLowerCase(),
+    })
+    if (error) throw error
+    relationshipKeys.add(key)
+    return true
+  }
+
+  return { resolveResource, linkParentChild }
+}
 
 const normalizeStrongsNumber = (item) => {
   const raw = typeof item === 'string' ? item : item?.strongsNumber || item?.strongs_number
@@ -176,7 +385,7 @@ const makeTagResolver = (userId) => {
   }
 }
 
-const importOneEntry = async (raw, { userId, encryptionKey, bibleData, resolveTag }) => {
+const importOneEntry = async (raw, { userId, encryptionKey, bibleData, resolveTag, resourceResolver }) => {
   const warnings = []
 
   const contentObject = { sections: sanitizeSections(Array.isArray(raw.sections) ? raw.sections : []) }
@@ -229,6 +438,46 @@ const importOneEntry = async (raw, { userId, encryptionKey, bibleData, resolveTa
       tags.map((tag) => ({ journal_id: entry.id, tag_id: tag.id, user_id: userId })),
     )
     if (error) warnings.push(`some tags could not be saved — ${error.message}`)
+  }
+
+  // Resources
+  const allResourceItems = Array.isArray(raw.resources) ? raw.resources : []
+  const resourceItems = allResourceItems.map(normalizeResourceItem).filter(Boolean)
+  if (resourceItems.length < allResourceItems.length) {
+    warnings.push('one or more resources were skipped — use a supported resource type with required metadata fields')
+  }
+  if (resourceItems.length > 0) {
+    const resolvedResources = []
+    let parent = null
+
+    for (const item of resourceItems) {
+      const resource = await resourceResolver.resolveResource(item)
+      resolvedResources.push({ resource, primary: item.primary })
+      await resourceResolver.linkParentChild(parent, resource)
+      parent = resource
+    }
+
+    if (!resolvedResources.some((item) => item.primary)) {
+      resolvedResources[0].primary = true
+    }
+
+    const uniqueResources = []
+    const seenResourceIds = new Set()
+    resolvedResources.forEach((item) => {
+      if (seenResourceIds.has(item.resource.id)) return
+      seenResourceIds.add(item.resource.id)
+      uniqueResources.push(item)
+    })
+
+    const { error } = await supabase.from('journal_resources').insert(
+      uniqueResources.map(({ resource, primary }) => ({
+        journal_id: entry.id,
+        resource_id: resource.id,
+        primary_resource: primary,
+        user_id: userId,
+      })),
+    )
+    if (error) warnings.push(`some resources could not be saved — ${error.message}`)
   }
 
   // Quotes
@@ -303,6 +552,7 @@ export const importEntries = async (rawText) => {
   const bibleData = useBibleDataStore()
   await bibleData.loadBooks()
   const resolveTag = makeTagResolver(session.user.id)
+  const resourceResolver = await makeResourceResolver(session.user.id)
 
   const succeeded = []
   const failed = []
@@ -322,7 +572,13 @@ export const importEntries = async (rawText) => {
     }
 
     try {
-      const entryWarnings = await importOneEntry(raw, { userId: session.user.id, encryptionKey, bibleData, resolveTag })
+      const entryWarnings = await importOneEntry(raw, {
+        userId: session.user.id,
+        encryptionKey,
+        bibleData,
+        resolveTag,
+        resourceResolver,
+      })
       succeeded.push({ title })
       entryWarnings.forEach((message) => warnings.push({ index: i, title, message }))
     } catch (err) {

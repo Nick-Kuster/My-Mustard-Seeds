@@ -40,31 +40,23 @@ export const useAuthStore = defineStore('auth', () => {
     if (error) throw error
   }
 
-  const signInWithEmail = async (email, password) => {
-    const { error } = await supabase.auth.signInWithPassword({
+  const sendEmailSignInCode = async (email) => {
+    const { error } = await supabase.auth.signInWithOtp({
       email,
-      password,
+      options: {
+        shouldCreateUser: true,
+      },
     })
     if (error) throw error
   }
 
-  const signUpWithEmail = async (email, password) => {
-    const { data, error } = await supabase.auth.signUp({
+  const verifyEmailSignInCode = async (email, token) => {
+    const { error } = await supabase.auth.verifyOtp({
       email,
-      password,
+      token,
+      type: 'email',
     })
-
-    if (error) {
-      // Pass through the raw error for handling in the component
-      throw error
-    }
-
-    // Check if email is already registered
-    if (data?.user?.identities?.length === 0) {
-      throw new Error('already-registered')
-    }
-
-    return { data, error }
+    if (error) throw error
   }
 
   const signOut = async () => {
@@ -75,22 +67,14 @@ export const useAuthStore = defineStore('auth', () => {
     useResourcesStore().reset()
   }
 
-  const resetPassword = async (email) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback`,
-    })
-    if (error) throw error
-  }
-
   return {
     user,
     loading,
     isAuthenticated,
     initialize,
     signInWithGoogle,
-    signInWithEmail,
-    signUpWithEmail,
+    sendEmailSignInCode,
+    verifyEmailSignInCode,
     signOut,
-    resetPassword,
   }
 })

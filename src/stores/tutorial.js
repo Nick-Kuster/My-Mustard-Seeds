@@ -3,7 +3,7 @@ import { ref, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { driver } from 'driver.js'
 import 'driver.js/dist/driver.css'
-import { QUICK_TOUR_STEPS, FULL_TOUR_STEPS } from 'src/constants/tutorialSteps'
+import { MAIN_TOUR_STEPS } from 'src/constants/tutorialSteps'
 import { useJournalStore } from 'src/stores/journalData'
 import { useSavedFiltersStore } from 'src/stores/savedFilters'
 import { usePrayerRequestsStore } from 'src/stores/prayerRequests'
@@ -104,6 +104,41 @@ export const useTutorialStore = defineStore('tutorial', () => {
     pendingAction.value = null
   }
 
+  const waitForFrame = () => new Promise((resolve) => requestAnimationFrame(() => resolve()))
+
+  const waitForStepElement = async (step) => {
+    if (!step?.selector || typeof document === 'undefined') return
+    if (document.querySelector(step.selector)) return
+
+    const timeoutMs = step.waitForElement ?? 2000
+    if (timeoutMs <= 0) return
+
+    await new Promise((resolve) => {
+      let done = false
+      const finish = () => {
+        if (done) return
+        done = true
+        observer.disconnect()
+        window.clearTimeout(timeout)
+        resolve()
+      }
+
+      const observer = new MutationObserver(() => {
+        if (document.querySelector(step.selector)) finish()
+      })
+      const timeout = window.setTimeout(finish, timeoutMs)
+      observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true })
+    })
+  }
+
+  const navigateForStep = async (step) => {
+    if (!step?.page) return
+    await router.push(step.page)
+    await nextTick()
+    await waitForFrame()
+    await waitForStepElement(step)
+  }
+
   const buildDriveSteps = (rawSteps) =>
     rawSteps.map((raw, i) => {
       const next = rawSteps[i + 1]
@@ -120,10 +155,9 @@ export const useTutorialStore = defineStore('tutorial', () => {
             await nextTick()
           }
           if (needsForwardNav) {
-            await router.push(next.page)
-            await nextTick()
+            await navigateForStep(next)
           }
-          opts.driver.moveNext()
+          opts.driver.moveTo(i + 1)
         }
       }
 
@@ -134,9 +168,8 @@ export const useTutorialStore = defineStore('tutorial', () => {
       // popover text until Next is clicked again.
       if (needsBackwardNav) {
         popover.onPrevClick = async (element, step, opts) => {
-          await router.push(prev.page)
-          await nextTick()
-          opts.driver.movePrevious()
+          await navigateForStep(prev)
+          opts.driver.moveTo(i - 1)
         }
       }
 
@@ -155,8 +188,8 @@ export const useTutorialStore = defineStore('tutorial', () => {
     driverObj?.destroy()
   }
 
-  const start = async (selectedTrack, { useDemoData = false } = {}) => {
-    const rawSteps = selectedTrack === 'full' ? FULL_TOUR_STEPS : QUICK_TOUR_STEPS
+  const start = async (_selectedTrack, { useDemoData = false } = {}) => {
+    const rawSteps = MAIN_TOUR_STEPS
 
     // Every tour starts from the homepage regardless of where it was
     // launched from (Settings' Replay Tour is on a different page).
@@ -169,7 +202,7 @@ export const useTutorialStore = defineStore('tutorial', () => {
       await seedDemoData()
     }
 
-    track.value = selectedTrack
+    track.value = 'main'
     stepIndex.value = 0
     active.value = true
 

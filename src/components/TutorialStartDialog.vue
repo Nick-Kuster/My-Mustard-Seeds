@@ -23,10 +23,9 @@
         </q-checkbox>
       </q-card-section>
 
-      <q-card-actions align="right" class="q-pb-md q-px-md">
+      <q-card-actions align="right" class="q-pb-md q-px-md tour-actions">
         <q-btn flat :label="askName ? 'Skip' : 'Cancel'" color="grey" :loading="saving" @click="choose(null)" />
-        <q-btn outline color="primary" label="Quick Tour" :loading="saving" @click="choose('quick')" />
-        <q-btn unelevated color="primary" label="Full Tour" :loading="saving" @click="choose('full')" />
+        <q-btn unelevated color="primary" label="Start Tour" :loading="saving" @click="choose('main')" />
       </q-card-actions>
     </q-card>
   </q-dialog>
@@ -79,3 +78,9 @@ const choose = async (track) => {
   }
 }
 </script>
+
+<style scoped>
+.tour-actions {
+  gap: 8px;
+}
+</style>

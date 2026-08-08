@@ -26,6 +26,33 @@ export const DEMO_TESTIMONY =
 // in sync (see sql/Demo Prayer Requests Table.sql's header comment).
 const demoGroupId = (name) => `demo-group-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
 
+const DEMO_PRAYER_ROWS = [
+  { id: 'demo-prayer-1', sort_order: 1, content: 'Healing for my mother\'s knee surgery recovery', group_name: 'Family', status: 'active', answer_note: null, answered_at: null, created_at: '2026-08-01T12:00:00.000Z' },
+  { id: 'demo-prayer-2', sort_order: 2, content: 'Wisdom as we consider a move closer to family', group_name: 'Family', status: 'active', answer_note: null, answered_at: null, created_at: '2026-08-02T12:00:00.000Z' },
+  { id: 'demo-prayer-3', sort_order: 3, content: 'Open hearts for our upcoming outreach event', group_name: 'Church & Ministry', status: 'active', answer_note: null, answered_at: null, created_at: '2026-08-03T12:00:00.000Z' },
+  { id: 'demo-prayer-4', sort_order: 4, content: 'Provision for the youth ministry\'s summer camp costs', group_name: 'Church & Ministry', status: 'answered', answer_note: 'An anonymous donor covered the full amount within a week!', answered_at: '2026-08-04T12:00:00.000Z', created_at: '2026-08-04T12:00:00.000Z' },
+  { id: 'demo-prayer-5', sort_order: 5, content: 'Peace and focus during a stressful season at work', group_name: null, status: 'active', answer_note: null, answered_at: null, created_at: '2026-08-05T12:00:00.000Z' },
+  { id: 'demo-prayer-6', sort_order: 6, content: 'Safe travels for my sister\'s cross-country move', group_name: null, status: 'answered', answer_note: 'She arrived safely and already found a great apartment.', answered_at: '2026-08-06T12:00:00.000Z', created_at: '2026-08-06T12:00:00.000Z' },
+]
+
+const mapPrayerRows = (rows) => ({
+  requests: rows.map((row, index) => ({
+    id: row.id,
+    position: row.sort_order ?? index,
+    group_id: row.group_name ? demoGroupId(row.group_name) : null,
+    status: row.status,
+    created_at: row.created_at,
+    answered_at: row.answered_at,
+    decryptedContent: row.content,
+    decryptedAnswerNote: row.answer_note,
+  })),
+  groups: [...new Set(rows.map((row) => row.group_name).filter(Boolean))].map((name, index) => ({
+    id: demoGroupId(name),
+    name,
+    position: index,
+  })),
+})
+
 export const useDemoDataStore = defineStore('demoData', () => {
   const demoEntries = ref([])
   const demoSavedFilters = ref([])
@@ -48,7 +75,7 @@ export const useDemoDataStore = defineStore('demoData', () => {
 
       if (entriesResult.error) throw entriesResult.error
       if (filtersResult.error) throw filtersResult.error
-      if (prayersResult.error) throw prayersResult.error
+      if (prayersResult.error && prayersResult.error.code !== 'PGRST205') throw prayersResult.error
       if (resourcesResult.error) throw resourcesResult.error
 
       // Reshape into exactly what decryptedEntries/savedFiltersStore.filters
@@ -70,23 +97,10 @@ export const useDemoDataStore = defineStore('demoData', () => {
       // Matches usePrayerRequestsStore().requests' shape — decrypted fields
       // populated directly since there's nothing encrypted about fake demo
       // content (see useTestimonyStore.load()'s equivalent skip for why).
-      demoPrayerRequests.value = prayersResult.data.map((row, index) => ({
-        id: row.id,
-        position: row.sort_order ?? index,
-        group_id: row.group_name ? demoGroupId(row.group_name) : null,
-        status: row.status,
-        created_at: row.created_at,
-        answered_at: row.answered_at,
-        decryptedContent: row.content,
-        decryptedAnswerNote: row.answer_note,
-      }))
-
-      const groupNames = [...new Set(prayersResult.data.map((row) => row.group_name).filter(Boolean))]
-      demoPrayerGroups.value = groupNames.map((name, index) => ({
-        id: demoGroupId(name),
-        name,
-        position: index,
-      }))
+      const prayerRows = prayersResult.error?.code === 'PGRST205' ? DEMO_PRAYER_ROWS : prayersResult.data
+      const { requests, groups } = mapPrayerRows(prayerRows)
+      demoPrayerRequests.value = requests
+      demoPrayerGroups.value = groups
 
       demoResources.value = resourcesResult.data.map((row) => ({
         id: row.id,

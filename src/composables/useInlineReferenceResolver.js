@@ -130,7 +130,7 @@ export const useInlineReferenceResolver = ({ linkedVerses, selectedTags, selecte
   const pushResolvedVerse = (resolved) => {
     if (isDuplicateVerse(resolved)) return
     linkedVerses.value.push(resolved)
-    $q.notify({ type: 'info', message: `Linked ${resolved.display}`, timeout: 1500 })
+    $q.notify({ type: 'info', message: `Linked ${resolved.display}`, timeout: 1200 })
   }
 
   const pushResolvedTag = (tag, created = false) => {
@@ -139,14 +139,14 @@ export const useInlineReferenceResolver = ({ linkedVerses, selectedTags, selecte
     $q.notify({
       type: 'info',
       message: created ? `Created and linked tag "${tag.name}"` : `Tagged #${tag.name}`,
-      timeout: 1500,
+      timeout: 1200,
     })
   }
 
   const pushResolvedStrongs = (entry) => {
     if (isDuplicateStrongs(entry)) return
     selectedStrongs.value.push(entry)
-    $q.notify({ type: 'info', message: `Linked ${entry.strongs_number} (${entry.lemma})`, timeout: 1500 })
+    $q.notify({ type: 'info', message: `Linked ${entry.strongs_number} (${entry.lemma})`, timeout: 1200 })
   }
 
   const processMatch = async (match, state) => {

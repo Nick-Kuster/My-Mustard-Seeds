@@ -94,7 +94,7 @@ export default defineConfig((/* ctx */) => {
       // Back/Edit/Delete, etc. — see BottomNavBar.vue) on mobile. 'top'
       // never collides with it.
       config: {
-        notify: { position: 'top' },
+        notify: { position: 'top', timeout: 1200 },
       },
 
       // iconSet: 'material-icons', // Quasar icon set
