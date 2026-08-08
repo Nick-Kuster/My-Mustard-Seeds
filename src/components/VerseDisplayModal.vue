@@ -12,21 +12,35 @@
           <q-spinner color="primary" size="2em" />
         </div>
         <div v-else>
-          <div v-for="(verse, index) in verses" :key="index" class="q-mb-md">
+          <div v-for="verse in verses" :key="verse.verse" class="q-mb-md">
             <div class="verse-content">
               <span class="verse-number text-weight-medium">{{ verse.verse }}</span>
-              {{ verse.content }}
+              <template v-for="(word, index) in verse.words" :key="index">
+                <span
+                  v-if="word.strongsNumber"
+                  class="verse-word verse-word--tagged"
+                  role="button"
+                  tabindex="0"
+                  @click="openStrongs(word.strongsNumber)"
+                  @keydown.enter="openStrongs(word.strongsNumber)"
+                  @keydown.space.prevent="openStrongs(word.strongsNumber)"
+                >{{ word.text }}</span>
+                <span v-else>{{ word.text }}</span>
+              </template>
             </div>
           </div>
         </div>
       </q-card-section>
     </q-card>
   </q-dialog>
+
+  <StrongsDisplayModal :model-value="!!viewingEntry" :entry="viewingEntry" @update:model-value="viewingEntry = null" />
 </template>
 
 <script setup>
 import { ref, watch, computed } from 'vue'
 import { supabase } from 'src/boot/supabase'
+import StrongsDisplayModal from './StrongsDisplayModal.vue'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -47,6 +61,17 @@ const isOpen = computed({
 
 const loading = ref(true)
 const verses = ref([])
+const viewingEntry = ref(null)
+
+// Populated per fetchVerses() call from whatever strongs_entries this
+// reference range actually needs — looked up once in bulk rather than
+// per-word-click, since a verse range can repeat the same number many
+// times (e.g. "the" tagged G3588 a dozen times in one chapter).
+let strongsEntriesByNumber = new Map()
+
+const openStrongs = (strongsNumber) => {
+  viewingEntry.value = strongsEntriesByNumber.get(strongsNumber) || null
+}
 
 const fetchVerses = async () => {
   if (!props.startVerse || !props.endVerse) {
@@ -56,14 +81,33 @@ const fetchVerses = async () => {
   loading.value = true
   try {
     const { data, error } = await supabase
-      .from('bible_verses')
-      .select('verse, content')
+      .from('bible_verse_words')
+      .select('verse, position, word_text, strongs_number')
       .gte('verse_number', props.startVerse)
       .lte('verse_number', props.endVerse)
       .order('verse_number')
+      .order('position')
 
     if (error) throw error
-    verses.value = data || []
+
+    const byVerse = new Map()
+    for (const row of data || []) {
+      if (!byVerse.has(row.verse)) byVerse.set(row.verse, [])
+      byVerse.get(row.verse).push({ text: row.word_text, strongsNumber: row.strongs_number })
+    }
+    verses.value = [...byVerse.entries()].map(([verse, words]) => ({ verse, words }))
+
+    const neededNumbers = [...new Set((data || []).map((row) => row.strongs_number).filter(Boolean))]
+    if (neededNumbers.length > 0) {
+      const { data: entries, error: entriesError } = await supabase
+        .from('strongs_entries')
+        .select('*')
+        .in('strongs_number', neededNumbers)
+      if (entriesError) throw entriesError
+      strongsEntriesByNumber = new Map((entries || []).map((entry) => [entry.strongs_number, entry]))
+    } else {
+      strongsEntriesByNumber = new Map()
+    }
   } catch (error) {
     console.error('Error fetching verses:', error)
   } finally {
@@ -103,5 +147,16 @@ watch(
 
 .verse-content {
   line-height: 1.6;
+}
+
+.verse-word--tagged {
+  cursor: pointer;
+  border-bottom: 1px dotted var(--color-text-secondary);
+}
+
+.verse-word--tagged:hover,
+.verse-word--tagged:focus {
+  background-color: var(--color-hover);
+  outline: none;
 }
 </style>

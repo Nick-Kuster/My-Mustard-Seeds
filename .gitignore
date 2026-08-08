@@ -34,3 +34,7 @@ yarn-error.log*
 .env.local*
 .env.strongs
 sql/
+
+# One-time BSB import source data (~70MB) — see
+# scripts/import-bsb-verses.mjs header comment for where to get it.
+/bsb-usj
