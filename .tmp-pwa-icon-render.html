@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>pwa icon render</title></head>
+<body>
+<canvas id="cv"></canvas>
+<script>
+// Same B2 leaf+book mark used in the header, on a solid background this
+// time — PWA home-screen icons need an opaque backdrop (transparent
+// icons render inconsistently across launchers), and the same file is
+// reused for both the "any" and "maskable" manifest entries, so the mark
+// stays well inside the ~80% maskable safe zone regardless of purpose.
+const SVG_MARKUP = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 66">' +
+  '<path d="M32 35 C19 31 17 18 26 10 C35 19 35 29 32 35 Z" fill="#fffdf8" opacity="0.92"/>' +
+  '<path d="M32 35 C45 31 47 18 38 10 C29 19 29 29 32 35 Z" fill="#fffdf8" opacity="0.62"/>' +
+  '<circle cx="32" cy="40" r="4.6" fill="#d4b499"/>' +
+  '<path d="M32 47 V45.5" stroke="#fffdf8" stroke-width="1.6" opacity="0.5"/>' +
+  '<path d="M32 47 C24 44.5 19 46 15 51" stroke="#fffdf8" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.75"/>' +
+  '<path d="M32 47 C40 44.5 45 46 49 51" stroke="#fffdf8" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.75"/>' +
+  '<path d="M32 52 C25 50 21 51 18 55" stroke="#fffdf8" stroke-width="1.7" fill="none" stroke-linecap="round" opacity="0.48"/>' +
+  '<path d="M32 52 C39 50 43 51 46 55" stroke="#fffdf8" stroke-width="1.7" fill="none" stroke-linecap="round" opacity="0.48"/>' +
+  '</svg>';
+
+async function renderSize(size) {
+  const svg64 = btoa(unescape(encodeURIComponent(SVG_MARKUP)));
+  const url = 'data:image/svg+xml;base64,' + svg64;
+  const img = new Image();
+  await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+  const cv = document.getElementById('cv');
+  cv.width = size; cv.height = size;
+  const ctx = cv.getContext('2d');
+
+  // Solid background fill — the app's sage-green theme_color.
+  ctx.fillStyle = '#7c9082';
+  ctx.fillRect(0, 0, size, size);
+
+  // Mark scaled to ~55% of canvas width, centered — comfortably inside
+  // the maskable 80% safe-zone circle with margin to spare.
+  const scale = (size * 0.55) / 66;
+  const w = 64 * scale, h = 66 * scale;
+  const x = (size - w) / 2, y = (size - h) / 2;
+  ctx.drawImage(img, x, y, w, h);
+
+  return cv.toDataURL('image/png');
+}
+window.renderSize = renderSize;
+</script>
+</body>
+</html>
