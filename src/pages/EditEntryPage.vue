@@ -233,10 +233,8 @@
             <q-tab-panel name="main" class="q-pa-none">
               <!-- Dynamic Sections -->
               <ReferenceShortcutsHint />
-              <draggable :list="contentSections.filter(section => !section.headerProperty)" @update="handleDragUpdate"
-                item-key="id" handle=".drag-handle" class="q-gutter-y-md" :animation="200" ghost-class="ghost-section"
-                drag-class="drag-section">
-                <template #item="{ element: section, index }">
+              <div class="q-gutter-y-md">
+                <template v-for="section in regularContentSections" :key="section.id">
                   <div class="section-container q-mb-md">
                     <div class="row items-center q-mb-sm section-header">
                       <q-btn flat round dense size="sm"
@@ -248,34 +246,14 @@
                       <div class="col-auto">
                         <div class="row items-center no-wrap">
                           <!-- Delete button -->
-                          <q-btn v-if="contentSections.length > 1" round flat color="negative" icon="delete" size="sm"
-                            @click="removeSection(index)" :disable="dragging" />
-                          <!-- Drag handle -->
-                          <div class="drag-handle-wrapper q-ml-sm">
-                            <q-btn flat round dense class="drag-handle" unelevated>
-                              <div class="handle-dots">
-                                <div class="dots-row">
-                                  <div class="dot"></div>
-                                  <div class="dot"></div>
-                                </div>
-                                <div class="dots-row">
-                                  <div class="dot"></div>
-                                  <div class="dot"></div>
-                                </div>
-                                <div class="dots-row">
-                                  <div class="dot"></div>
-                                  <div class="dot"></div>
-                                </div>
-                              </div>
-                            </q-btn>
-                          </div>
+                          <q-btn v-if="regularContentSections.length > 1" round flat color="negative" icon="delete"
+                            size="sm" @click="removeSection(section)" />
                         </div>
                       </div>
                     </div>
                     <div v-show="!isCollapsed(section.id)">
                       <RichTextEditor v-if="section.fieldType !== 'list'" v-model="section.content"
                         :ref="(el) => setRichTextEditorRef(section.id, el)"
-                        :disable="dragging"
                         :on-verse-resolved="inlineResolver.pushResolvedVerse"
                         :on-tag-resolved="inlineResolver.pushResolvedTag"
                         :on-strongs-resolved="inlineResolver.pushResolvedStrongs" />
@@ -283,21 +261,24 @@
                       <div v-else class="list-editor q-mb-sm">
                         <div v-for="(item, i) in getListItems(section.content)" :key="i"
                           class="row items-start no-wrap q-mb-xs list-item-row">
-                          <q-icon name="fiber_manual_record" size="6px" class="q-mr-sm list-bullet" />
                           <q-input :ref="(el) => setListItemRef(section.id, i, el)" :model-value="item"
                             @update:model-value="section.content = setListItem(section.content, i, $event)" dense
-                            borderless type="textarea" autogrow placeholder="List item" class="col"
-                            :disable="dragging" @keydown.enter.prevent="handleListItemEnter(section, i)" />
-                          <q-btn flat round dense icon="close" size="sm" :disable="dragging"
+                            borderless type="textarea" autogrow placeholder="List item" class="col list-item-input"
+                            @keydown.enter.prevent="handleListItemEnter(section, i)">
+                            <template #prepend>
+                              <span class="list-bullet" aria-hidden="true"></span>
+                            </template>
+                          </q-input>
+                          <q-btn flat round dense icon="close" size="sm"
                             @click="section.content = removeListItem(section.content, i)" />
                         </div>
                         <q-btn flat dense no-caps icon="add" label="Add Item" color="primary" size="sm"
-                          :disable="dragging" @click="section.content = addListItem(section.content)" />
+                          @click="section.content = addListItem(section.content)" />
                       </div>
                     </div>
                   </div>
                 </template>
-              </draggable>
+              </div>
             </q-tab-panel>
 
             <!-- Additional Content Tab -->
@@ -333,7 +314,7 @@
 
           <!-- Action Buttons (mobile: these live in the bottom nav bar instead, see pageActions store) -->
           <div v-if="$q.screen.gt.sm" class="row q-col-gutter-x-sm q-mt-lg">
-            <div class="col-4">
+            <div class="col-3">
               <q-btn-dropdown rounded unelevated color="info" no-caps class="full-width" style="height: 40px"
                 icon="add" label="Add Section" content-style="min-width: 160px">
                 <q-list>
@@ -352,12 +333,16 @@
                 </q-list>
               </q-btn-dropdown>
             </div>
-            <div class="col-4">
+            <div class="col-3">
+              <q-btn rounded unelevated outline color="info" class="full-width" icon="swap_vert" label="Reorder"
+                style="height: 40px" :disable="regularContentSections.length < 2" @click="openReorderSections" />
+            </div>
+            <div class="col-3">
               <q-btn rounded unelevated color="negative" class="full-width" @click="goBack" style="height: 40px">
                 <q-icon name="cancel" class="q-mr-sm" /> Cancel
               </q-btn>
             </div>
-            <div class="col-4">
+            <div class="col-3">
               <q-btn rounded unelevated color="primary" @click="updateEntry" class="full-width" :loading="saving"
                 style="height: 40px">
                 <span v-if="!saving">
@@ -370,6 +355,35 @@
         </div>
       </div>
     </div>
+    <q-dialog v-model="showReorderSectionsDialog">
+      <q-card style="width: 90vw; max-width: 440px">
+        <q-card-section>
+          <div class="text-h6">Reorder Sections</div>
+        </q-card-section>
+        <q-card-section class="q-pt-none">
+          <draggable
+            v-model="reorderSections"
+            item-key="id"
+            handle=".section-reorder-handle"
+            ghost-class="ghost-section"
+            @end="persistSectionOrder"
+          >
+            <template #item="{ element: section }">
+              <div class="reorder-section-row row items-center no-wrap">
+                <q-icon name="drag_indicator" class="section-reorder-handle q-mr-sm" />
+                <q-icon :name="section.fieldType === 'list' ? 'checklist' : 'notes'" class="q-mr-sm text-grey-7" />
+                <span class="text-body2 text-weight-medium ellipsis">
+                  {{ section.title || (section.fieldType === 'list' ? 'List Section' : 'Text Section') }}
+                </span>
+              </div>
+            </template>
+          </draggable>
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Done" v-close-popup />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 <script setup>
@@ -399,7 +413,6 @@ const QuoteSelector = defineAsyncComponent(() => import('src/components/QuoteSel
 const LinkSelector = defineAsyncComponent(() => import('src/components/LinkSelector.vue'))
 const StrongsSelector = defineAsyncComponent(() => import('src/components/StrongsSelector.vue'))
 
-const dragging = ref(false)
 const router = useRouter()
 const route = useRoute()
 const $q = useQuasar()
@@ -448,6 +461,9 @@ const verseEntryTypes = ['Daily Bible Reading', 'Bible']
 
 const title = ref('')
 const contentSections = ref([])
+const regularContentSections = computed(() => contentSections.value.filter(section => !section.headerProperty))
+const showReorderSectionsDialog = ref(false)
+const reorderSections = ref([])
 const mainVerse = ref({})
 const linkedVerses = ref([])
 const selectedTags = ref([])
@@ -732,13 +748,15 @@ const loadEntry = async () => {
 }
 
 // Event Handlers
-const handleDragUpdate = (event) => {
-  const allSections = [...contentSections.value]
-  const headerSections = allSections.filter(section => section.headerProperty)
-  const regularSections = allSections.filter(section => !section.headerProperty)
-  const movedItem = regularSections.splice(event.oldIndex, 1)[0]
-  regularSections.splice(event.newIndex, 0, movedItem)
-  contentSections.value = [...headerSections, ...regularSections]
+const openReorderSections = () => {
+  if (regularContentSections.value.length < 2) return
+  reorderSections.value = [...regularContentSections.value]
+  showReorderSectionsDialog.value = true
+}
+
+const persistSectionOrder = () => {
+  const headerSections = contentSections.value.filter(section => section.headerProperty)
+  contentSections.value = [...headerSections, ...reorderSections.value]
 }
 
 const onVerseSelect = (verseData) => {
@@ -790,8 +808,9 @@ const openSectionLink = (url) => {
   }
 }
 
-const removeSection = (index) => {
-  contentSections.value.splice(index, 1)
+const removeSection = (section) => {
+  const index = contentSections.value.findIndex(item => item.id === section.id)
+  if (index !== -1) contentSections.value.splice(index, 1)
 }
 
 const captureDraft = () => ({
@@ -1377,6 +1396,13 @@ onMounted(() => {
       handler: () => addSectionAndFocus('list'),
     },
     {
+      key: 'reorder-sections',
+      label: 'Reorder',
+      icon: 'swap_vert',
+      color: 'info',
+      handler: openReorderSections,
+    },
+    {
       key: 'cancel',
       label: 'Cancel',
       icon: 'cancel',
@@ -1420,11 +1446,12 @@ onUnmounted(() => {
 
   .entry-card {
     margin: 0 !important;
-    padding: 12px !important;
+    padding: 8px !important;
   }
 
   .section-container {
-    padding: 8px;
+    padding: 4px 0;
+    background: transparent;
   }
 }
 
@@ -1449,6 +1476,20 @@ onUnmounted(() => {
   background: var(--color-surface-muted) !important;
   border: 2px dashed var(--q-primary) !important;
   opacity: 0.5 !important;
+}
+
+.reorder-section-row {
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  margin-bottom: 8px;
+}
+
+.section-reorder-handle {
+  cursor: grab;
+  color: var(--color-text-muted);
 }
 
 .chosen-section {
@@ -1568,8 +1609,12 @@ onUnmounted(() => {
 }
 
 .list-bullet {
-  color: var(--color-text-muted);
-  flex-shrink: 0;
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  opacity: 0.8;
 }
 
 /* items-start (needed so a wrapped multi-line item's icon/close button sit
@@ -1577,11 +1622,15 @@ onUnmounted(() => {
    the bullet flush with the row's top edge — nudge it down to the text
    baseline of the first line instead. */
 .list-item-row {
-  padding-top: 2px;
+  padding-top: 0;
 }
 
-.list-item-row .list-bullet {
-  margin-top: 9px;
+.list-item-input :deep(.q-field__prepend) {
+  align-items: flex-start;
+  height: auto;
+  min-height: 0;
+  padding-right: 8px;
+  padding-top: 18px;
 }
 
 .list-item-row .q-btn {

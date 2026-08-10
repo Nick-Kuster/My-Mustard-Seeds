@@ -213,10 +213,11 @@ onBeforeUnmount(() => {
   top: 0;
   z-index: 2;
   background: var(--color-parchment);
+  margin-bottom: 8px;
 }
 
 .rich-text-body {
-  padding: 12px 0 4px;
+  padding: 8px 0 4px;
 }
 
 /* min-height belongs on the actual contenteditable element, not this
@@ -287,5 +288,16 @@ onBeforeUnmount(() => {
 
 .rich-text-body :deep(.inline-strongs-word:hover) {
   opacity: 0.8;
+}
+
+@media (max-width: 599px) {
+  .rich-text-editor {
+    border-color: transparent;
+    padding: 0;
+  }
+
+  .rich-text-body {
+    padding: 8px 0 2px;
+  }
 }
 </style>
