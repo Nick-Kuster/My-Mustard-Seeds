@@ -24,6 +24,7 @@
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import TagSelectionModal from './TagSelectionModal.vue'
+import { searchRouteForFacet } from 'src/utils/searchRoute'
 
 const props = defineProps({
   modelValue: {
@@ -48,15 +49,7 @@ const removeTag = (tag) => {
 
 const openTagSearch = (tag) => {
   if (!props.displayOnly || !tag?.name) return
-
-  router.push({
-    path: '/search',
-    query: {
-      facets: JSON.stringify({
-        types: [], verses: [], books: [], resourceTypes: [], resources: [], tags: [tag.name], quotes: [], links: [],
-      }),
-    },
-  })
+  router.push(searchRouteForFacet('tags', tag.name))
 }
 
 // Watch for changes in selected tags

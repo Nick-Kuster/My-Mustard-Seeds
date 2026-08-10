@@ -12,7 +12,11 @@
       <div v-for="(link, index) in links" :key="index" class="link-item">
         <div class="row items-start">
           <div class="col">
-            <div class="text-weight-medium">{{ link.name }}</div>
+            <a v-if="displayOnly" href="#" class="text-weight-medium reference-search-link"
+              @click.prevent="openLinkSearch(link)">
+              {{ link.name }}
+            </a>
+            <div v-else class="text-weight-medium">{{ link.name }}</div>
             <div class="text-caption text-grey-8 link-url">
               {{ link.url }}
             </div>
@@ -37,10 +41,13 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
+import { useRouter } from 'vue-router'
 import LinkSelectionModal from './LinkSelectionModal.vue'
 import { openSafeExternalUrl } from 'src/utils/urlUtils'
+import { searchRouteForFacet } from 'src/utils/searchRoute'
 
 const $q = useQuasar()
+const router = useRouter()
 
 const props = defineProps({
   modelValue: {
@@ -105,6 +112,11 @@ const openLink = (url) => {
     $q.notify({ type: 'negative', message: 'This link is not a valid http(s) URL and was not opened' })
   }
 }
+
+const openLinkSearch = (link) => {
+  if (!props.displayOnly || !link?.name) return
+  router.push(searchRouteForFacet('links', link.name))
+}
 </script>
 
 <style scoped>
@@ -134,5 +146,11 @@ const openLink = (url) => {
 .link-url {
   word-break: break-all;
   line-height: 1.3;
+}
+
+.reference-search-link {
+  color: var(--q-primary);
+  text-decoration: underline;
+  text-decoration-style: dotted;
 }
 </style>

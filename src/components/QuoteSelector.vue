@@ -17,7 +17,12 @@
               "{{ quote.decryptedQuote || quote.quote }}"
             </div>
             <div v-if="quote.source || quote.page_number" class="text-caption text-grey-8">
-              - {{ quote.source }}
+              -
+              <a v-if="displayOnly && quote.source" href="#" class="reference-search-link"
+                @click.prevent="openQuoteSearch(quote)">
+                {{ quote.source }}
+              </a>
+              <template v-else>{{ quote.source }}</template>
               <template v-if="quote.page_number">
                 (p. {{ quote.page_number }})
               </template>
@@ -40,7 +45,9 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import QuoteSelectionModal from './QuoteSelectionModal.vue'
+import { searchRouteForFacet } from 'src/utils/searchRoute'
 
 const props = defineProps({
   modelValue: {
@@ -54,6 +61,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue'])
+const router = useRouter()
 
 const showModal = ref(false)
 const quotes = ref(props.modelValue || [])
@@ -108,6 +116,11 @@ const removeQuote = (index) => {
   quotes.value.splice(index, 1)
   emit('update:modelValue', quotes.value)
 }
+
+const openQuoteSearch = (quote) => {
+  if (!props.displayOnly || !quote?.source) return
+  router.push(searchRouteForFacet('quotes', quote.source))
+}
 </script>
 
 <style scoped>
@@ -146,5 +159,11 @@ const removeQuote = (index) => {
   overflow-wrap: break-word;
   line-height: 1.5;
   margin-right: 8px;
+}
+
+.reference-search-link {
+  color: var(--q-primary);
+  text-decoration: underline;
+  text-decoration-style: dotted;
 }
 </style>

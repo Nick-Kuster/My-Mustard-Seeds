@@ -124,6 +124,13 @@
                   </div>
                 </div>
 
+                <div class="row q-gutter-sm q-mt-sm">
+                  <q-chip v-for="resource in entry.resources" :key="resource.id" clickable color="primary"
+                    text-color="white" @click="openResourceSearch(resource)">
+                    {{ getResourceTitle(resource) }}
+                  </q-chip>
+                </div>
+
               </div>
             </div>
           </div>
@@ -222,7 +229,7 @@ import { ref, computed, onMounted, onUnmounted, watch, defineAsyncComponent } fr
 import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { supabase } from 'src/boot/supabase'
-import { useJournalStore } from 'src/stores/journalData'
+import { useJournalStore, getResourceTitle } from 'src/stores/journalData'
 import { usePageActionsStore } from 'stores/pageActions'
 import { useTutorialStore } from 'src/stores/tutorial'
 import LinkedVerses from 'components/LinkedVerses.vue'
@@ -230,6 +237,7 @@ import VerseDisplayModal from 'components/VerseDisplayModal.vue'
 import ContentSectionView from 'components/ContentSectionView.vue'
 import { createDisplayVerse } from 'src/utils/verseUtils'
 import { useResourcesStore } from 'src/stores/resources'
+import { searchRouteForFacet } from 'src/utils/searchRoute'
 
 const TagSelector = defineAsyncComponent(() => import('components/TagSelector.vue'))
 const QuoteSelector = defineAsyncComponent(() => import('components/QuoteSelector.vue'))
@@ -277,8 +285,15 @@ const linkedVerses = computed(() => {
   if (!entry.value?.verses) return []
   return entry.value.verses
     .filter(v => !v.main_verse)
-    .map(createDisplayVerse)
+    .map(v => ({ ...v, ...createDisplayVerse(v) }))
 })
+
+const openResourceSearch = (resource) => {
+  const title = getResourceTitle(resource)
+  if (!title || !resource?.type) return
+
+  router.push(searchRouteForFacet('resources', { type: resource.type, title, label: title }))
+}
 
 const resetEntryState = () => {
   entry.value = null

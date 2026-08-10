@@ -55,6 +55,7 @@ export const useJournalStore = defineStore('journalData', () => {
     tags: [], // selected tags
     quotes: [], // Will contain quote sources
     links: [], // Add this line
+    strongs: [], // selected Strong's numbers
   })
 
   // Computed property to get all available facets from the current entries
@@ -68,6 +69,7 @@ export const useJournalStore = defineStore('journalData', () => {
       tags: new Set(),
       quotes: new Set(),
       links: new Set(),
+      strongs: new Set(),
     }
 
     decryptedEntries.value.forEach((entry) => {
@@ -103,6 +105,10 @@ export const useJournalStore = defineStore('journalData', () => {
           facets.quotes.add(quote.source)
         }
       })
+
+      entry.strongs?.forEach((item) => {
+        if (item.strongs_number) facets.strongs.add(item.strongs_number)
+      })
     })
 
     // Convert Sets to sorted arrays
@@ -115,6 +121,7 @@ export const useJournalStore = defineStore('journalData', () => {
       tags: Array.from(facets.tags).sort(),
       quotes: Array.from(facets.quotes).sort(),
       links: Array.from(facets.links).sort(),
+      strongs: Array.from(facets.strongs).sort(),
     }
   })
 
@@ -173,6 +180,14 @@ export const useJournalStore = defineStore('journalData', () => {
           return true
         // Search in tags
         if (entry.tags?.some((tag) => tag.name.toLowerCase().includes(search))) return true
+
+        if (
+          entry.strongs?.some((item) =>
+            [item.strongs_number, item.lemma, item.transliteration, item.kjv_def, item.strongs_def]
+              .some((value) => String(value || '').toLowerCase().includes(search)),
+          )
+        )
+          return true
 
         return false
       })
@@ -246,6 +261,11 @@ export const useJournalStore = defineStore('journalData', () => {
         entry.links?.some((link) => selectedFacets.value.links.includes(link.name)),
       )
     }
+    if (selectedFacets.value.strongs.length > 0) {
+      filtered = filtered.filter((entry) =>
+        entry.strongs?.some((item) => selectedFacets.value.strongs.includes(item.strongs_number)),
+      )
+    }
     return filtered
   })
 
@@ -265,6 +285,7 @@ export const useJournalStore = defineStore('journalData', () => {
       tags: [],
       quotes: [],
       links: [],
+      strongs: [],
     }
   }
 

@@ -4,6 +4,10 @@
       <q-card-section class="row items-center">
         <div class="text-h6">{{ reference }}</div>
         <q-space />
+        <q-btn v-if="searchFacet" icon="search" flat round dense color="primary" aria-label="Find entries"
+          @click="openVerseSearch">
+          <q-tooltip>Find entries with this passage</q-tooltip>
+        </q-btn>
         <q-btn icon="close" flat round dense v-close-popup />
       </q-card-section>
 
@@ -31,6 +35,7 @@
           </div>
         </div>
       </q-card-section>
+
     </q-card>
   </q-dialog>
 
@@ -39,8 +44,10 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { supabase } from 'src/boot/supabase'
 import StrongsDisplayModal from './StrongsDisplayModal.vue'
+import { searchRouteForFacet } from 'src/utils/searchRoute'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -49,10 +56,15 @@ const props = defineProps({
     default: ''
   },
   startVerse: Number,
-  endVerse: Number
+  endVerse: Number,
+  searchFacet: {
+    type: Object,
+    default: null,
+  },
 })
 
 const emit = defineEmits(['update:modelValue'])
+const router = useRouter()
 
 const isOpen = computed({
   get: () => props.modelValue,
@@ -71,6 +83,12 @@ let strongsEntriesByNumber = new Map()
 
 const openStrongs = (strongsNumber) => {
   viewingEntry.value = strongsEntriesByNumber.get(strongsNumber) || null
+}
+
+const openVerseSearch = () => {
+  if (!props.searchFacet) return
+  isOpen.value = false
+  router.push(searchRouteForFacet('verses', props.searchFacet))
 }
 
 const fetchVerses = async () => {

@@ -11,7 +11,7 @@
 
     <div v-if="linkedVerses.length > 0" class="row q-gutter-sm">
       <VerseChip v-for="(verse, index) in linkedVerses" :key="index" :verse="verse" color="secondary"
-        @remove="removeVerse(index)" :removable="!displayOnly" />
+        @remove="removeVerse(index)" :removable="!displayOnly" :show-search-action="displayOnly" />
     </div>
 
     <VerseSelectionModal v-model="showVerseModal" @select="onVerseSelect" />

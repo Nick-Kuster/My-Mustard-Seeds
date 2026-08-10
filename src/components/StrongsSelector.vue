@@ -23,6 +23,10 @@
             </div>
           </div>
           <div class="col-auto">
+            <q-btn v-if="displayOnly" flat round dense color="primary" icon="search" size="sm"
+              @click.stop="openStrongsSearch(item)">
+              <q-tooltip>Find entries with this Strong's word</q-tooltip>
+            </q-btn>
             <q-btn v-if="!displayOnly" flat round dense color="negative" icon="delete" size="sm"
               @click.stop="removeItem(index)" />
           </div>
@@ -38,8 +42,10 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import StrongsSelectionModal from './StrongsSelectionModal.vue'
 import StrongsDisplayModal from './StrongsDisplayModal.vue'
+import { searchRouteForFacet } from 'src/utils/searchRoute'
 
 const props = defineProps({
   modelValue: {
@@ -57,6 +63,7 @@ const emit = defineEmits(['update:modelValue'])
 const showModal = ref(false)
 const items = ref(props.modelValue || [])
 const viewingItem = ref(null)
+const router = useRouter()
 
 watch(() => props.modelValue, (newValue) => {
   items.value = [...(newValue || [])]
@@ -71,6 +78,11 @@ const onSelect = (entry) => {
 const removeItem = (index) => {
   items.value.splice(index, 1)
   emit('update:modelValue', items.value)
+}
+
+const openStrongsSearch = (item) => {
+  if (!props.displayOnly || !item?.strongs_number) return
+  router.push(searchRouteForFacet('strongs', item.strongs_number))
 }
 </script>
 

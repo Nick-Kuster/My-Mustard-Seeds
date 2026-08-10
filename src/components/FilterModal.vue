@@ -204,6 +204,7 @@ import { useSavedFiltersStore } from 'stores/savedFilters'
 import { verseMatchesRange, buildVerseRangeLabel, parseVerseFilterRef } from 'src/utils/verseUtils'
 import { getResourceConfig, pluralizeTitle } from 'src/configs/resourceConfigs'
 import { RESOURCE_TYPES } from 'src/constants/resourceTypes'
+import { FACET_KEYS } from 'src/utils/searchRoute'
 
 const props = defineProps({
   modelValue: Boolean
@@ -229,6 +230,9 @@ const selectedBooks = ref([...journalStore.selectedFacets.books])
 const selectedVerseRanges = ref([...journalStore.selectedFacets.verses])
 const selectedResourceTypes = ref([...journalStore.selectedFacets.resourceTypes])
 const selectedResourcesByType = ref(groupResourceSelections(journalStore.selectedFacets.resources))
+const selectedQuotes = ref([...journalStore.selectedFacets.quotes])
+const selectedLinks = ref([...journalStore.selectedFacets.links])
+const selectedStrongs = ref([...journalStore.selectedFacets.strongs])
 
 // Verse range builder inputs — free-text "chapter:verse" (e.g. "1:1"),
 // same trust-the-user pattern as VerseSelectionModal
@@ -328,6 +332,12 @@ const entryMatchesPending = (entry, excludedResourceType) => {
   if (selectedTypes.value.length && !selectedTypes.value.includes(entry.type)) return false
   if (selectedTags.value.length && !entry.tags?.some((t) => selectedTags.value.includes(t.name)))
     return false
+  if (selectedQuotes.value.length && !entry.quotes?.some((q) => selectedQuotes.value.includes(q.source)))
+    return false
+  if (selectedLinks.value.length && !entry.links?.some((l) => selectedLinks.value.includes(l.name)))
+    return false
+  if (selectedStrongs.value.length && !entry.strongs?.some((s) => selectedStrongs.value.includes(s.strongs_number)))
+    return false
   if (selectedBooks.value.length && !entry.verses?.some((v) => selectedBooks.value.includes(v.book)))
     return false
   if (
@@ -380,6 +390,9 @@ watch(() => props.modelValue, (newVal) => {
     selectedVerseRanges.value = [...journalStore.selectedFacets.verses]
     selectedResourceTypes.value = [...journalStore.selectedFacets.resourceTypes]
     selectedResourcesByType.value = groupResourceSelections(journalStore.selectedFacets.resources)
+    selectedQuotes.value = [...journalStore.selectedFacets.quotes]
+    selectedLinks.value = [...journalStore.selectedFacets.links]
+    selectedStrongs.value = [...journalStore.selectedFacets.strongs]
     Object.keys(filteredResourceOptionsByType).forEach((key) => delete filteredResourceOptionsByType[key])
   }
 })
@@ -436,7 +449,10 @@ const hasActiveFilters = computed(() => {
     selectedBooks.value.length > 0 ||
     selectedVerseRanges.value.length > 0 ||
     selectedResourceTypes.value.length > 0 ||
-    flatSelectedResources.value.length > 0
+    flatSelectedResources.value.length > 0 ||
+    selectedQuotes.value.length > 0 ||
+    selectedLinks.value.length > 0 ||
+    selectedStrongs.value.length > 0
 })
 
 const getSelectedCount = () => {
@@ -445,7 +461,10 @@ const getSelectedCount = () => {
     selectedBooks.value.length +
     selectedVerseRanges.value.length +
     selectedResourceTypes.value.length +
-    flatSelectedResources.value.length
+    flatSelectedResources.value.length +
+    selectedQuotes.value.length +
+    selectedLinks.value.length +
+    selectedStrongs.value.length
 }
 
 const clearAllFilters = () => {
@@ -455,6 +474,9 @@ const clearAllFilters = () => {
   selectedVerseRanges.value = []
   selectedResourceTypes.value = []
   selectedResourcesByType.value = {}
+  selectedQuotes.value = []
+  selectedLinks.value = []
+  selectedStrongs.value = []
 }
 
 const applyFilters = () => {
@@ -464,6 +486,9 @@ const applyFilters = () => {
   journalStore.updateFacet('verses', selectedVerseRanges.value)
   journalStore.updateFacet('resourceTypes', selectedResourceTypes.value)
   journalStore.updateFacet('resources', flatSelectedResources.value)
+  journalStore.updateFacet('quotes', selectedQuotes.value)
+  journalStore.updateFacet('links', selectedLinks.value)
+  journalStore.updateFacet('strongs', selectedStrongs.value)
   isOpen.value = false
   emit('applied')
 }
@@ -478,8 +503,9 @@ const currentFacetsSnapshot = () => ({
   verses: selectedVerseRanges.value,
   resourceTypes: selectedResourceTypes.value,
   resources: flatSelectedResources.value,
-  quotes: [],
-  links: [],
+  quotes: selectedQuotes.value,
+  links: selectedLinks.value,
+  strongs: selectedStrongs.value,
 })
 
 const newFilterName = ref('')
@@ -515,7 +541,8 @@ const saveCurrentFilter = async () => {
 // — it's meant to be a one-click "jump to this view," not a starting point
 // to tweak further.
 const applySavedFilter = (saved) => {
-  Object.entries(saved.facets || {}).forEach(([key, values]) => {
+  FACET_KEYS.forEach((key) => {
+    const values = saved.facets?.[key]
     journalStore.updateFacet(key, Array.isArray(values) ? values : [])
   })
   isOpen.value = false

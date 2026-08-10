@@ -85,12 +85,24 @@ const routes = [
     ],
   },
   {
-    path: '/:catchAll(.*)*',
-    component: () => import('pages/ErrorNotFound.vue'),
+    path: '/auth/callback',
+    component: () => import('layouts/BlankLayout.vue'),
+    children: [
+      {
+        path: '',
+        component: () => import('pages/AuthCallback.vue'),
+      },
+    ],
   },
   {
-    path: '/auth/callback',
-    component: () => import('pages/AuthCallback.vue'),
+    path: '/:catchAll(.*)*',
+    component: () => import('layouts/BlankLayout.vue'),
+    children: [
+      {
+        path: '',
+        component: () => import('pages/ErrorNotFound.vue'),
+      },
+    ],
   },
 ]
 

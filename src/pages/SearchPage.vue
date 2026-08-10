@@ -27,7 +27,7 @@
             <q-btn flat dense size="sm" color="grey" label="Clear All" @click="clearAllFilters" />
           </div>
           <div class="row q-col-gutter-sm">
-            <q-chip v-for="chip in activeFilterChips" :key="`${chip.facetType}-${chip.value}`" removable
+            <q-chip v-for="chip in activeFilterChips" :key="chip.key" removable
               @remove="removeFacetValue(chip.facetType, chip.value)" color="primary" text-color="white">
               {{ chip.label }}
             </q-chip>
@@ -85,6 +85,7 @@ import { useJournalTypeColorsStore } from 'src/stores/journalTypeColors'
 import { useTutorialStore } from 'src/stores/tutorial'
 import FilterModal from 'src/components/FilterModal.vue'
 import PrintOptionsModal from 'src/components/PrintOptionsModal.vue'
+import { FACET_KEYS } from 'src/utils/searchRoute'
 
 const router = useRouter()
 const route = useRoute()
@@ -116,16 +117,19 @@ const facetLabels = {
   tags: 'Tag',
   quotes: 'Quote',
   links: 'Link',
+  strongs: 'Strong\'s',
 }
 
 // Verse facets are range objects with a .label; everything else is a string
 const facetValueText = (value) => (typeof value === 'string' ? value : value.label)
+const facetValueKey = (value) => (typeof value === 'string' ? value : JSON.stringify(value))
 
 const activeFilterChips = computed(() =>
   Object.entries(journalStore.selectedFacets).flatMap(([facetType, values]) =>
     (values || []).map((value) => ({
       facetType,
       value,
+      key: `${facetType}-${facetValueKey(value)}`,
       label: `${facetLabels[facetType] || facetType}: ${facetValueText(value)}`,
     })),
   ),
@@ -141,8 +145,6 @@ const removeFacetValue = (facetType, value) => {
 const clearAllFilters = () => {
   journalStore.clearFacets()
 }
-
-const FACET_KEYS = ['types', 'verses', 'books', 'resourceTypes', 'resources', 'tags', 'quotes', 'links']
 
 // Reflects the full current facet state into the URL as its own history
 // entry, so Back returns to exactly this filtered view instead of skipping
