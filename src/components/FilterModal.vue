@@ -534,7 +534,7 @@ const saveCurrentFilter = async () => {
       $q.notify({ type: 'positive', message: `Updated "${name}"` })
     } else {
       await savedFiltersStore.saveFilter(name, currentFacetsSnapshot())
-      $q.notify({ type: 'positive', message: `Saved "${name}"` })
+      $q.notify({ type: 'positive', message: `Saved "${name}" to Home` })
     }
     newFilterName.value = ''
   } catch {

@@ -15,6 +15,15 @@
       secondary-icon="school"
       @secondary="showTutorialDialog = true"
     />
+    <AppEmptyState
+      v-else-if="typeGroups.length === 0"
+      icon="visibility_off"
+      title="All Home sections are hidden"
+      message="Unhide at least one section in Settings to bring entries back to this screen."
+      primary-label="Home Settings"
+      primary-icon="tune"
+      primary-to="/settings"
+    />
     <template v-else>
       <div class="entries-toolbar">
         <q-btn
@@ -98,10 +107,10 @@
               v-if="group.hasViewAll"
               clickable class="entry-item view-all-item"
               :style="{ borderLeftColor: groupColor(group) }"
-              @click="viewFavorites"
+              @click="viewAllGroup(group)"
             >
               <q-item-section>
-                <q-item-label class="text-wrap text-weight-medium">View all favorites</q-item-label>
+                <q-item-label class="text-wrap text-weight-medium">{{ group.viewAllLabel }}</q-item-label>
               </q-item-section>
               <q-item-section side>
                 <q-icon name="chevron_right" />
@@ -128,11 +137,12 @@ import { useJournalStore, getResourceTitle } from 'stores/journalData'
 import { useJournalTypeColorsStore } from 'stores/journalTypeColors'
 import { useUserPreferencesStore } from 'stores/userPreferences'
 import { useHomeViewStateStore } from 'stores/homeViewState'
+import { useSavedFiltersStore } from 'stores/savedFilters'
 import { JOURNAL_TYPES } from 'src/constants/journalTypes'
 import { getResourceTypeDepth } from 'src/configs/resourceConfigs'
 import { getBibleBook } from 'src/constants/bibleBooks'
-import { HOME_SECTION_IDS } from 'stores/userPreferences'
-import { searchRouteForFacet } from 'src/utils/searchRoute'
+import { HOME_SECTION_IDS, savedFilterIdFromSectionId, savedFilterSectionId } from 'stores/userPreferences'
+import { searchRouteForFacet, searchRouteForFacets } from 'src/utils/searchRoute'
 import ResourceTreeSection from './ResourceTreeSection.vue'
 import FavoriteButton from './FavoriteButton.vue'
 import AppEmptyState from './AppEmptyState.vue'
@@ -145,6 +155,7 @@ const journalStore = useJournalStore()
 const typeColorsStore = useJournalTypeColorsStore()
 const userPreferencesStore = useUserPreferencesStore()
 const homeViewState = useHomeViewStateStore()
+const savedFiltersStore = useSavedFiltersStore()
 const sortOrder = ref('desc')
 const lanesEl = ref(null)
 const showTutorialDialog = ref(false)
@@ -255,6 +266,7 @@ const SPECIAL_SECTION_COLORS = {
   [HOME_SECTION_IDS.FAVORITES]: '#d4a94c',
   [HOME_SECTION_IDS.RECENT]: '#7c9082',
 }
+const SAVED_FILTER_LIMIT = 10
 
 const groupColor = (group) => group.color || SPECIAL_SECTION_COLORS[group.type] || typeColorsStore.getColor(group.type)
 
@@ -282,7 +294,15 @@ const typeGroups = computed(() => {
   const groups = []
   const usedTypeIds = new Set()
 
-  for (const sectionId of userPreferencesStore.homeSectionOrder) {
+  const savedFilterSections = savedFiltersStore.filters.map((filter) => savedFilterSectionId(filter.id))
+  const hiddenSections = new Set(userPreferencesStore.hiddenHomeSectionIds)
+  const sectionOrder = [
+    ...userPreferencesStore.homeSectionOrder,
+    ...savedFilterSections.filter((sectionId) => !userPreferencesStore.homeSectionOrder.includes(sectionId)),
+  ].filter((sectionId) => !hiddenSections.has(sectionId))
+  const usedSavedFilterIds = new Set()
+
+  for (const sectionId of sectionOrder) {
     if (sectionId === HOME_SECTION_IDS.FAVORITES) {
       if (favoriteEntries.length) {
         groups.push({
@@ -293,6 +313,8 @@ const typeGroups = computed(() => {
           entries: favoriteEntries.slice(0, FAVORITES_LIMIT),
           resourceTree: null,
           hasViewAll: favoriteEntries.length > FAVORITES_LIMIT,
+          viewAllLabel: 'View all favorites',
+          viewAllRoute: searchRouteForFacet('favorites', 'Favorites'),
         })
       }
       continue
@@ -310,6 +332,27 @@ const typeGroups = computed(() => {
       continue
     }
 
+    const savedFilterId = savedFilterIdFromSectionId(sectionId)
+    if (savedFilterId) {
+      const savedFilter = savedFiltersStore.filters.find((filter) => filter.id === savedFilterId)
+      if (!savedFilter) continue
+      const matchingEntries = journalStore.entriesMatchingFacets(savedFilter.facets)
+        .sort((a, b) => factor * (new Date(entryDate(a)) - new Date(entryDate(b))))
+      groups.push({
+        type: sectionId,
+        label: savedFilter.name,
+        icon: 'bookmark',
+        color: '#8f6f4e',
+        entries: matchingEntries.slice(0, SAVED_FILTER_LIMIT),
+        resourceTree: null,
+        hasViewAll: true,
+        viewAllLabel: 'Open in Search',
+        viewAllRoute: searchRouteForFacets(savedFilter.facets),
+      })
+      usedSavedFilterIds.add(savedFilter.id)
+      continue
+    }
+
     const type = typesById.get(sectionId)
     if (type && byType.has(type.id)) {
       groups.push(buildGroup(type.id, type.label, type.icon))
@@ -321,7 +364,25 @@ const typeGroups = computed(() => {
     .filter((type) => !usedTypeIds.has(type))
     .map((type) => buildGroup(type, type, 'help_outline'))
 
-  return [...groups, ...unknown]
+  const missingSavedFilterGroups = savedFiltersStore.filters
+    .filter((filter) => !usedSavedFilterIds.has(filter.id) && !hiddenSections.has(savedFilterSectionId(filter.id)))
+    .map((filter) => {
+      const matchingEntries = journalStore.entriesMatchingFacets(filter.facets)
+        .sort((a, b) => factor * (new Date(entryDate(a)) - new Date(entryDate(b))))
+      return {
+        type: savedFilterSectionId(filter.id),
+        label: filter.name,
+        icon: 'bookmark',
+        color: '#8f6f4e',
+        entries: matchingEntries.slice(0, SAVED_FILTER_LIMIT),
+        resourceTree: null,
+        hasViewAll: true,
+        viewAllLabel: 'Open in Search',
+        viewAllRoute: searchRouteForFacets(filter.facets),
+      }
+    })
+
+  return [...groups, ...missingSavedFilterGroups, ...unknown]
 })
 
 // On tablet/desktop, lanes stack as full-width collapsible rows instead of
@@ -395,8 +456,8 @@ const viewEntry = (id) => {
   router.push(`/entry/${id}`)
 }
 
-const viewFavorites = () => {
-  router.push(searchRouteForFacet('favorites', 'Favorites'))
+const viewAllGroup = (group) => {
+  if (group.viewAllRoute) router.push(group.viewAllRoute)
 }
 
 onMounted(async () => {
@@ -404,6 +465,7 @@ onMounted(async () => {
     await Promise.all([
       journalStore.entries.length ? Promise.resolve() : journalStore.fetchEntries(),
       userPreferencesStore.load(),
+      savedFiltersStore.filters.length ? Promise.resolve() : savedFiltersStore.fetchFilters(),
     ])
   } catch (error) {
     console.error('Error fetching entries:', error)

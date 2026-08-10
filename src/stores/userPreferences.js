@@ -8,6 +8,13 @@ export const HOME_SECTION_IDS = {
   RECENT: '__recent__',
 }
 
+export const SAVED_FILTER_SECTION_PREFIX = '__saved_filter__:'
+export const savedFilterSectionId = (id) => `${SAVED_FILTER_SECTION_PREFIX}${id}`
+export const savedFilterIdFromSectionId = (sectionId) =>
+  sectionId?.startsWith(SAVED_FILTER_SECTION_PREFIX)
+    ? sectionId.slice(SAVED_FILTER_SECTION_PREFIX.length)
+    : null
+
 const DEFAULT_JOURNAL_ORDER = JOURNAL_TYPES.map((t) => t.id)
 const DEFAULT_HOME_SECTION_ORDER = [HOME_SECTION_IDS.FAVORITES, HOME_SECTION_IDS.RECENT, ...DEFAULT_JOURNAL_ORDER]
 
@@ -116,12 +123,21 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
         : DEFAULT_HOME_SECTION_ORDER
 
     const known = new Set(DEFAULT_HOME_SECTION_ORDER)
-    const valid = stored.filter((id) => known.has(id))
+    const valid = stored.filter((id) => known.has(id) || savedFilterIdFromSectionId(id))
     const missing = DEFAULT_HOME_SECTION_ORDER.filter((id) => !valid.includes(id))
     return [...valid, ...missing]
   })
 
   const setHomeSectionOrder = (order) => setPreferences({ homeSectionOrder: order })
+
+  const hiddenHomeSectionIds = computed(() =>
+    Array.isArray(preferences.value.hiddenHomeSectionIds) ? preferences.value.hiddenHomeSectionIds : [],
+  )
+
+  const setHomeSections = (order, hiddenIds) => setPreferences({
+    homeSectionOrder: order,
+    hiddenHomeSectionIds: hiddenIds,
+  })
 
   const journalOrder = computed(() =>
     homeSectionOrder.value.filter((id) => DEFAULT_JOURNAL_ORDER.includes(id)),
@@ -148,6 +164,8 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
     setPreferences,
     homeSectionOrder,
     setHomeSectionOrder,
+    hiddenHomeSectionIds,
+    setHomeSections,
     journalOrder,
     setJournalOrder,
     themeMode,

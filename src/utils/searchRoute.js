@@ -17,6 +17,10 @@ export const searchRouteForFacet = (facetType, value) => {
   const facets = emptyFacets()
   facets[facetType] = [value]
 
+  return searchRouteForFacets(facets)
+}
+
+export const searchRouteForFacets = (facets) => {
   return {
     path: '/search',
     query: {

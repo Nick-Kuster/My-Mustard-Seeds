@@ -126,6 +126,84 @@ export const useJournalStore = defineStore('journalData', () => {
     }
   })
 
+  const entryMatchesFacetSelection = (entry, facets) => {
+    const selected = {
+      types: [],
+      verses: [],
+      books: [],
+      resourceTypes: [],
+      resources: [],
+      tags: [],
+      quotes: [],
+      links: [],
+      strongs: [],
+      favorites: [],
+      ...(facets || {}),
+    }
+
+    if (selected.types.length > 0 && !selected.types.includes(entry.type)) return false
+
+    if (
+      selected.verses.length > 0 &&
+      !entry.verses?.some((verse) =>
+        selected.verses.some((range) => verseMatchesRange(verse, range)),
+      )
+    ) return false
+
+    if (
+      selected.books.length > 0 &&
+      !entry.verses?.some((verse) => selected.books.includes(verse.book))
+    ) return false
+
+    if (
+      selected.resourceTypes.length > 0 &&
+      !entry.resources?.some((resource) => selected.resourceTypes.includes(resource.type))
+    ) return false
+
+    if (selected.resources.length > 0) {
+      const groups = {}
+      selected.resources.forEach((sel) => {
+        const type = typeof sel === 'string' ? '*' : sel.type
+        const title = typeof sel === 'string' ? sel : sel.title
+        if (!groups[type]) groups[type] = []
+        groups[type].push(title)
+      })
+
+      const matchesAllResourceGroups = Object.entries(groups).every(([type, titles]) =>
+        entry.resources?.some(
+          (resource) =>
+            (type === '*' || resource.type === type) &&
+            titles.includes(getResourceTitle(resource)),
+        ),
+      )
+      if (!matchesAllResourceGroups) return false
+    }
+
+    if (
+      selected.tags.length > 0 &&
+      !entry.tags?.some((tag) => selected.tags.includes(tag.name))
+    ) return false
+
+    if (
+      selected.quotes.length > 0 &&
+      !entry.quotes?.some((quote) => selected.quotes.includes(quote.source))
+    ) return false
+
+    if (
+      selected.links.length > 0 &&
+      !entry.links?.some((link) => selected.links.includes(link.name))
+    ) return false
+
+    if (
+      selected.strongs.length > 0 &&
+      !entry.strongs?.some((item) => selected.strongs.includes(item.strongs_number))
+    ) return false
+
+    if (selected.favorites.length > 0 && !entry.is_favorite) return false
+
+    return true
+  }
+
   // Updated filteredEntries computed property with faceted search
   const filteredEntries = computed(() => {
     let filtered = [...decryptedEntries.value]
@@ -272,6 +350,9 @@ export const useJournalStore = defineStore('journalData', () => {
     }
     return filtered
   })
+
+  const entriesMatchingFacets = (facets) =>
+    decryptedEntries.value.filter((entry) => entryMatchesFacetSelection(entry, facets))
 
   // Function to update facets
   const updateFacet = (facetType, values) => {
@@ -668,6 +749,7 @@ export const useJournalStore = defineStore('journalData', () => {
     filteredEntries,
     selectedFacets,
     availableFacets,
+    entriesMatchingFacets,
     fetchEntries,
     addEntry,
     removeEntry,

@@ -10,16 +10,41 @@
             class="rounded-borders order-section">
             <q-card-section>
               <div class="text-body2 text-grey-8 q-mb-md">
-                Drag to change the order home screen sections appear, then save.
+                Drag to change the order home screen sections appear. Use the eye button to hide or show a section.
+              </div>
+
+              <div v-if="hiddenSectionIds.length > 0" class="row justify-end q-mb-sm">
+                <q-btn
+                  flat
+                  dense
+                  no-caps
+                  color="primary"
+                  icon="visibility"
+                  label="Unhide All"
+                  :disable="orderedSections.length === 0"
+                  @click="unhideAllSections"
+                />
               </div>
 
               <draggable v-model="orderedSections" item-key="id" handle=".drag-handle" tag="div" class="q-gutter-y-sm"
                 ghost-class="ghost-type-row" @change="markOrderDirty">
                 <template #item="{ element }">
-                  <div class="type-order-row row items-center no-wrap">
+                  <div class="type-order-row row items-center no-wrap" :class="{ 'type-order-row--hidden': isSectionHidden(element.id) }">
                     <q-icon name="drag_indicator" class="drag-handle q-mr-sm" />
                     <q-icon :name="element.icon" size="20px" :style="{ color: sectionColor(element) }" class="q-mr-sm" />
-                    <span>{{ element.label }}</span>
+                    <span class="type-order-label">{{ element.label }}</span>
+                    <q-btn
+                      flat
+                      round
+                      dense
+                      size="sm"
+                      color="primary"
+                      :icon="isSectionHidden(element.id) ? 'visibility_off' : 'visibility'"
+                      :aria-label="isSectionHidden(element.id) ? `Show ${element.label}` : `Hide ${element.label}`"
+                      @click="toggleSectionVisibility(element.id)"
+                    >
+                      <q-tooltip>{{ isSectionHidden(element.id) ? 'Hidden from Home' : 'Shown on Home' }}</q-tooltip>
+                    </q-btn>
                   </div>
                 </template>
               </draggable>
@@ -201,9 +226,15 @@ import { useQuasar } from 'quasar'
 import draggable from 'vuedraggable'
 import { useJournalStore } from 'stores/journalData'
 import { useJournalTypeColorsStore } from 'stores/journalTypeColors'
-import { HOME_SECTION_IDS, useUserPreferencesStore } from 'stores/userPreferences'
+import {
+  HOME_SECTION_IDS,
+  savedFilterIdFromSectionId,
+  savedFilterSectionId,
+  useUserPreferencesStore,
+} from 'stores/userPreferences'
 import { useTagsStore } from 'stores/tags'
 import { useResourcesStore } from 'stores/resources'
+import { useSavedFiltersStore } from 'stores/savedFilters'
 import { JOURNAL_TYPES } from 'src/constants/journalTypes'
 import { buildImportTemplateText, importEntries } from 'src/utils/journalImport'
 import { useAccountExport } from 'src/composables/useAccountExport'
@@ -217,6 +248,7 @@ const typeColorsStore = useJournalTypeColorsStore()
 const userPreferencesStore = useUserPreferencesStore()
 const tagsStore = useTagsStore()
 const resourcesStore = useResourcesStore()
+const savedFiltersStore = useSavedFiltersStore()
 const accountExport = useAccountExport()
 
 const showTutorialDialog = ref(false)
@@ -259,6 +291,7 @@ const results = ref(null)
 // through the store's computed, which isn't reliable enough for something
 // this simple to hinge Save's enabled state on.
 const orderedSections = ref([])
+const hiddenSectionIds = ref([])
 const savingOrder = ref(false)
 const isOrderDirty = ref(false)
 const typesById = new Map(JOURNAL_TYPES.map((t) => [t.id, t]))
@@ -267,13 +300,32 @@ const specialHomeSections = new Map([
   [HOME_SECTION_IDS.RECENT, { id: HOME_SECTION_IDS.RECENT, label: 'Recent', icon: 'schedule', color: '#7c9082' }],
 ])
 
-const homeSectionById = (id) => specialHomeSections.get(id) || typesById.get(id)
+const homeSectionById = (id) => {
+  const special = specialHomeSections.get(id)
+  if (special) return special
+
+  const savedFilterId = savedFilterIdFromSectionId(id)
+  if (savedFilterId) {
+    const savedFilter = savedFiltersStore.filters.find((filter) => filter.id === savedFilterId)
+    return savedFilter
+      ? { id, label: `Saved Filter: ${savedFilter.name}`, icon: 'bookmark', color: '#8f6f4e' }
+      : null
+  }
+
+  return typesById.get(id)
+}
 const sectionColor = (section) => section.color || typeColorsStore.getColor(section.id)
 
 const syncOrderedTypes = () => {
-  orderedSections.value = userPreferencesStore.homeSectionOrder
+  const savedFilterSections = savedFiltersStore.filters.map((filter) => savedFilterSectionId(filter.id))
+  orderedSections.value = [
+    ...userPreferencesStore.homeSectionOrder,
+    ...savedFilterSections.filter((id) => !userPreferencesStore.homeSectionOrder.includes(id)),
+  ]
     .map((id) => homeSectionById(id))
     .filter(Boolean)
+  const knownSectionIds = new Set(orderedSections.value.map((section) => section.id))
+  hiddenSectionIds.value = userPreferencesStore.hiddenHomeSectionIds.filter((id) => knownSectionIds.has(id))
   isOrderDirty.value = false
 }
 
@@ -281,12 +333,28 @@ const markOrderDirty = () => {
   isOrderDirty.value = true
 }
 
+const isSectionHidden = (id) => hiddenSectionIds.value.includes(id)
+const toggleSectionVisibility = (id) => {
+  hiddenSectionIds.value = isSectionHidden(id)
+    ? hiddenSectionIds.value.filter((sectionId) => sectionId !== id)
+    : [...hiddenSectionIds.value, id]
+  markOrderDirty()
+}
+
+const unhideAllSections = () => {
+  hiddenSectionIds.value = []
+  markOrderDirty()
+}
+
 const saveOrder = async () => {
   savingOrder.value = true
   try {
-    await userPreferencesStore.setHomeSectionOrder(orderedSections.value.map((section) => section.id))
+    await userPreferencesStore.setHomeSections(
+      orderedSections.value.map((section) => section.id),
+      hiddenSectionIds.value,
+    )
     isOrderDirty.value = false
-    $q.notify({ type: 'positive', message: 'Order saved' })
+    $q.notify({ type: 'positive', message: 'Home screen saved' })
   } catch {
     $q.notify({ type: 'negative', message: 'Failed to save order' })
   } finally {
@@ -295,7 +363,10 @@ const saveOrder = async () => {
 }
 
 onMounted(async () => {
-  await userPreferencesStore.load()
+  await Promise.all([
+    userPreferencesStore.load(),
+    savedFiltersStore.filters.length ? Promise.resolve() : savedFiltersStore.fetchFilters(),
+  ])
   syncOrderedTypes()
 })
 
@@ -354,6 +425,15 @@ const runImport = async () => {
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-surface-alt);
+}
+
+.type-order-row--hidden {
+  opacity: 0.62;
+}
+
+.type-order-label {
+  flex: 1;
+  min-width: 0;
 }
 
 .drag-handle {
