@@ -252,19 +252,11 @@ const prayersDeepDiveSteps = [
     skipMissingElement: true,
   },
   {
-    selector: '[data-tour="prayers-manage-btn"]',
-    page: '/',
-    title: 'Organize your prayers',
-    description: 'Switch into Manage mode to add, group, and reorder — List view stays a quick, read-only glance.',
-    onAdvance: 'open-prayers-manage',
-  },
-  {
     selector: '[data-tour="prayer-groups-area"]',
     page: '/',
-    title: 'Group your prayers',
+    title: 'Organize your prayers',
     description:
-      'Create a group — Family, Church, whatever fits — then add prayers directly under it, or use Miscellaneous for anything that doesn\'t need one.',
-    skipMissingElement: true,
+      'Keep prayers grouped in one simple view. Add groups from the top, then add prayers inline under any group.',
   },
   {
     selector: '[data-tour="prayer-quick-add"]',

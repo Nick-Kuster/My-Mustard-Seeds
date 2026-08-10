@@ -27,7 +27,7 @@ export const DEMO_TESTIMONY =
 const demoGroupId = (name) => `demo-group-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
 
 const DEMO_PRAYER_ROWS = [
-  { id: 'demo-prayer-1', sort_order: 1, content: 'Healing for my mother\'s knee surgery recovery', group_name: 'Family', status: 'active', answer_note: null, answered_at: null, follow_up_date: '2026-08-10', last_followed_up_at: null, created_at: '2026-08-01T12:00:00.000Z' },
+  { id: 'demo-prayer-1', sort_order: 1, content: 'Healing for my mother\'s knee surgery recovery', group_name: 'Family', status: 'active', answer_note: null, answered_at: null, follow_up_date: '2026-08-10', follow_up_time: '08:00', last_followed_up_at: null, created_at: '2026-08-01T12:00:00.000Z' },
   { id: 'demo-prayer-2', sort_order: 2, content: 'Wisdom as we consider a move closer to family', group_name: 'Family', status: 'active', answer_note: null, answered_at: null, created_at: '2026-08-02T12:00:00.000Z' },
   { id: 'demo-prayer-3', sort_order: 3, content: 'Open hearts for our upcoming outreach event', group_name: 'Church & Ministry', status: 'active', answer_note: null, answered_at: null, created_at: '2026-08-03T12:00:00.000Z' },
   { id: 'demo-prayer-4', sort_order: 4, content: 'Provision for the youth ministry\'s summer camp costs', group_name: 'Church & Ministry', status: 'answered', answer_note: 'An anonymous donor covered the full amount within a week!', answered_at: '2026-08-04T12:00:00.000Z', created_at: '2026-08-04T12:00:00.000Z' },
@@ -44,6 +44,7 @@ const mapPrayerRows = (rows) => ({
     created_at: row.created_at,
     answered_at: row.answered_at,
     follow_up_date: row.follow_up_date || null,
+    follow_up_time: row.follow_up_time || null,
     last_followed_up_at: row.last_followed_up_at || null,
     decryptedContent: row.content,
     decryptedAnswerNote: row.answer_note,

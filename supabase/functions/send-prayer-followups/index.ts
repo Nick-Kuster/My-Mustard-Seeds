@@ -28,6 +28,7 @@ type PreferenceRow = {
 type PrayerRow = {
   user_id: string
   follow_up_date: string
+  follow_up_time?: string | null
 }
 
 const json = (body: unknown, status = 200) =>
@@ -113,26 +114,30 @@ Deno.serve(async (req) => {
       const options = preferenceByUser.get(userId)
       if (!options?.enabled) return null
       const local = safeZoneParts(options.timezone)
-      return Number(options.hour ?? 8) === local.hour ? { userId, today: local.date } : null
+      return { userId, today: local.date, hour: local.hour, fallbackHour: Number(options.hour ?? 8) }
     })
-    .filter(Boolean) as Array<{ userId: string, today: string }>
+    .filter(Boolean) as Array<{ userId: string, today: string, hour: number, fallbackHour: number }>
 
   if (!eligibleUsers.length) return json({ sent: 0, users: 0, removed: 0 })
 
   const { data: prayers, error: prayersError } = await supabase
     .from('prayer_requests')
-    .select('user_id,follow_up_date')
+    .select('user_id,follow_up_date,follow_up_time')
     .in('user_id', eligibleUsers.map((user) => user.userId))
     .eq('status', 'active')
     .not('follow_up_date', 'is', null)
 
   if (prayersError) return json({ error: prayersError.message }, 500)
 
-  const todayByUser = new Map(eligibleUsers.map((user) => [user.userId, user.today]))
+  const localByUser = new Map(eligibleUsers.map((user) => [user.userId, user]))
   const dueCountByUser = new Map<string, number>()
   ;(prayers || []).forEach((prayer: PrayerRow) => {
-    const today = todayByUser.get(prayer.user_id)
-    if (today && prayer.follow_up_date <= today) {
+    const local = localByUser.get(prayer.user_id)
+    const reminderHour = prayer.follow_up_time
+      ? Number(prayer.follow_up_time.slice(0, 2))
+      : local?.fallbackHour
+
+    if (local && prayer.follow_up_date <= local.today && reminderHour === local.hour) {
       dueCountByUser.set(prayer.user_id, (dueCountByUser.get(prayer.user_id) || 0) + 1)
     }
   })

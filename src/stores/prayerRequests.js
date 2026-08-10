@@ -80,18 +80,19 @@ export const usePrayerRequestsStore = defineStore('prayerRequests', () => {
     return data
   }
 
-  const updateFollowUp = async (id, followUpDate) => {
+  const updateFollowUp = async (id, followUpDate, followUpTime = null) => {
     const nextDate = followUpDate || null
+    const nextTime = nextDate ? followUpTime || null : null
     const { error } = await supabase
       .from('prayer_requests')
-      .update({ follow_up_date: nextDate, updated_at: new Date().toISOString() })
+      .update({ follow_up_date: nextDate, follow_up_time: nextTime, updated_at: new Date().toISOString() })
       .eq('id', id)
 
     if (error) throw error
 
     const index = requests.value.findIndex((r) => r.id === id)
     if (index !== -1) {
-      requests.value[index] = { ...requests.value[index], follow_up_date: nextDate }
+      requests.value[index] = { ...requests.value[index], follow_up_date: nextDate, follow_up_time: nextTime }
     }
   }
 
@@ -101,6 +102,7 @@ export const usePrayerRequestsStore = defineStore('prayerRequests', () => {
       .from('prayer_requests')
       .update({
         follow_up_date: null,
+        follow_up_time: null,
         last_followed_up_at: followedAt,
         updated_at: followedAt,
       })
@@ -113,16 +115,17 @@ export const usePrayerRequestsStore = defineStore('prayerRequests', () => {
       requests.value[index] = {
         ...requests.value[index],
         follow_up_date: null,
+        follow_up_time: null,
         last_followed_up_at: followedAt,
       }
     }
   }
 
-  const snoozeFollowUp = async (id, days = 7) => {
+  const snoozeFollowUp = async (id, days = 7, followUpTime = null) => {
     const next = new Date()
     next.setDate(next.getDate() + days)
     const nextDate = toDateValue(next)
-    await updateFollowUp(id, nextDate)
+    await updateFollowUp(id, nextDate, followUpTime)
   }
 
   // Persists a full reorder/regroup in one go — items is the final flat
@@ -200,6 +203,7 @@ export const usePrayerRequestsStore = defineStore('prayerRequests', () => {
         answer_note: encryptedNote,
         answered_at: new Date().toISOString(),
         follow_up_date: null,
+        follow_up_time: null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)
@@ -213,6 +217,7 @@ export const usePrayerRequestsStore = defineStore('prayerRequests', () => {
         status: 'answered',
         answered_at: new Date().toISOString(),
         follow_up_date: null,
+        follow_up_time: null,
         decryptedAnswerNote: answerNote || null,
       }
     }

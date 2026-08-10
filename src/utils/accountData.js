@@ -143,7 +143,9 @@ export const formatAsMarkdown = (data) => {
       const status = request.status === 'answered' ? ' (Answered)' : ''
       const lines = [`## ${request.decryptedContent}${status}`]
       if (group) lines.push(`**Group:** ${group}`)
-      if (request.follow_up_date) lines.push(`**Follow Up:** ${request.follow_up_date}`)
+      if (request.follow_up_date) {
+        lines.push(`**Follow Up:** ${[request.follow_up_date, request.follow_up_time].filter(Boolean).join(' ')}`)
+      }
       if (request.last_followed_up_at) lines.push(`**Last Followed Up:** ${formatDate(request.last_followed_up_at)}`)
       if (request.decryptedAnswerNote) lines.push(`**Answer:** ${request.decryptedAnswerNote}`)
       parts.push(lines.join('\n\n'))
