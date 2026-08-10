@@ -30,7 +30,7 @@ const welcomeStep = {
   page: '/',
   title: 'Welcome to My Mustard Seeds',
   description:
-    'A private, end-to-end encrypted Bible study and prayer journal. Let\'s take a quick look at what it can do.',
+    'My Mustard Seeds helps you remember and revisit what God is growing in your life. Keep Scripture, sermons, prayers, and reflections together so you can see patterns, return to encouragement, and stay attentive to what the Lord is teaching you.',
 }
 
 const introSteps = [

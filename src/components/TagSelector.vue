@@ -10,8 +10,8 @@
     </div>
 
     <div v-if="selectedTags.length > 0" class="row q-gutter-sm">
-      <q-chip v-for="tag in selectedTags" :key="tag.id" :removable="!displayOnly" @remove="removeTag(tag)" color="info"
-        text-color="white">
+      <q-chip v-for="tag in selectedTags" :key="tag.id" :removable="!displayOnly" :clickable="displayOnly"
+        @click="openTagSearch(tag)" @remove="removeTag(tag)" color="info" text-color="white">
         {{ tag.name }}
       </q-chip>
     </div>
@@ -22,6 +22,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import TagSelectionModal from './TagSelectionModal.vue'
 
 const props = defineProps({
@@ -36,12 +37,26 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue'])
+const router = useRouter()
 const showModal = ref(false)
 const selectedTags = ref(props.modelValue || [])
 
 const removeTag = (tag) => {
   selectedTags.value = selectedTags.value.filter(t => t.id !== tag.id)
   emit('update:modelValue', selectedTags.value)
+}
+
+const openTagSearch = (tag) => {
+  if (!props.displayOnly || !tag?.name) return
+
+  router.push({
+    path: '/search',
+    query: {
+      facets: JSON.stringify({
+        types: [], verses: [], books: [], resourceTypes: [], resources: [], tags: [tag.name], quotes: [], links: [],
+      }),
+    },
+  })
 }
 
 // Watch for changes in selected tags

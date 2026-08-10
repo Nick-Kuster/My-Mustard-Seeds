@@ -45,6 +45,9 @@ const MAX_CANDIDATE_LEN = 80
 // a single plain-boundary slice is enough to grab the whole candidate.
 const STRONGS_NUMBER_RE = /^[HG]\d+$/i
 
+const hasExplicitChapter = (parsed) =>
+  Number.isInteger(parsed?.startChapter) && parsed.startChapter > 0
+
 // Shared by the `::` (verse link) and `@` (verse quote) branches — both
 // need the same "walk forward across boundaries until parseFullVerseReference
 // resolves, or give up" logic, just with a different trigger length and
@@ -63,7 +66,7 @@ const scanVerseReference = (text, i, triggerLen, type) => {
     if (candidate.includes('::') || candidate.includes('@') || candidate.includes('#')) break
 
     const parsed = parseFullVerseReference(candidate)
-    if (parsed) {
+    if (parsed && hasExplicitChapter(parsed)) {
       return { type, start: i, end: nextBoundary, raw: text.slice(i, nextBoundary), verseRange: parsed }
     }
 

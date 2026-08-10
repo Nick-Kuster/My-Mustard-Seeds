@@ -1,6 +1,14 @@
 <template>
   <div class="rich-text-toolbar-wrap">
     <div class="row items-center q-gutter-xs rich-text-toolbar" data-tour="rich-text-toolbar">
+      <q-btn flat dense round size="sm" :ripple="false" icon="undo" :disable="!canUndo()"
+        @mousedown.prevent @click="editor.chain().focus().undo().run()">
+        <q-tooltip>Undo</q-tooltip>
+      </q-btn>
+      <q-btn flat dense round size="sm" :ripple="false" icon="redo" :disable="!canRedo()"
+        @mousedown.prevent @click="editor.chain().focus().redo().run()">
+        <q-tooltip>Redo</q-tooltip>
+      </q-btn>
       <q-btn flat dense round size="sm" :ripple="false" icon="title"
         :color="isActive('heading') ? 'primary' : undefined"
         @mousedown.prevent @click="showTextStyleDialog = true" />
@@ -175,6 +183,16 @@ onBeforeUnmount(() => {
 const isActive = (name, attrs) => {
   void revision.value // establish reactive dependency
   return props.editor.isActive(name, attrs)
+}
+
+const canUndo = () => {
+  void revision.value // establish reactive dependency
+  return props.editor.can().undo()
+}
+
+const canRedo = () => {
+  void revision.value // establish reactive dependency
+  return props.editor.can().redo()
 }
 </script>
 

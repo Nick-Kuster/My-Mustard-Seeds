@@ -119,13 +119,24 @@ const buildVerseQuoteContent = (resolved) => ({
   })),
 })
 
-const resolveVerseMatches = async () => {
+// isLive: true for the ambient pause-debounce, false for the explicit
+// blur/save flush. A bare "Book Chapter" reference (no ":verse") is
+// already a *complete, valid* whole-chapter match to parseFullVerseReference
+// — so pausing mid-typing right after "Genesis 1", before adding ":1",
+// used to resolve to and insert the entire chapter. While live, skip any
+// match whose end still sits exactly at the cursor (nothing typed after
+// it yet) — that's the ambiguous "still might be extending this"
+// position. Once the user types past it (or blurs/saves, isLive=false)
+// it resolves normally; it's never silently dropped, only deferred.
+const resolveVerseMatches = async (isLive) => {
   const ed = editor.value
   if (!ed) return
 
   const matches = scanEditorForTriggers(ed.state).filter((m) => m.type === 'verse' || m.type === 'verseQuote')
   for (const match of matches) {
     if (resolvedKeys.has(match.raw) || failedKeys.has(match.raw)) continue
+
+    if (isLive && ed.state.selection.empty && ed.state.selection.from === match.to) continue
 
     await bibleData.loadBooks()
     const resolved = match.type === 'verseQuote'
@@ -163,7 +174,7 @@ const scheduleResolve = () => {
   if (debounceTimer) clearTimeout(debounceTimer)
   debounceTimer = setTimeout(() => {
     debounceTimer = null
-    resolveVerseMatches()
+    resolveVerseMatches(true)
   }, DEBOUNCE_MS)
 }
 
@@ -175,7 +186,7 @@ const flushPendingReferences = async () => {
     clearTimeout(debounceTimer)
     debounceTimer = null
   }
-  await resolveVerseMatches()
+  await resolveVerseMatches(false)
 }
 
 defineExpose({ flushPendingReferences })
