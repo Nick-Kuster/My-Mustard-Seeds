@@ -1,7 +1,7 @@
 <template>
-  <q-page class="q-pa-md q-mt-lg q-ml-sm">
-    <div class="row q-col-gutter-md justify-center">
-      <div class="col-12 content-card entry-card q-pa-lg parchment">
+  <q-page class="entry-editor-page q-pa-md q-mt-lg q-ml-sm">
+    <div class="row justify-center">
+      <div class="col-12 content-card entry-editor-card entry-card q-pa-lg parchment">
         <div class="row items-center q-mb-md">
           <div class="col">
             <div class="text-h6">Plant a New Seed</div>
@@ -1350,6 +1350,22 @@ onUnmounted(() => {
    scroll, not a broken page. */
 .entry-card {
   min-height: calc(100vh - 180px);
+}
+
+@media (max-width: 599px) {
+  .entry-editor-page {
+    padding-left: 0;
+    padding-right: 0;
+    margin-left: 0;
+  }
+
+  .entry-card {
+    padding: 12px !important;
+  }
+
+  .section-container {
+    padding: 8px;
+  }
 }
 
 .draft-restore-card {

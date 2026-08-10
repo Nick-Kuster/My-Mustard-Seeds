@@ -1,10 +1,10 @@
 <template>
-  <q-page class="q-pa-md q-mt-lg">
+  <q-page class="entry-editor-page q-pa-md q-mt-lg">
     <div v-if="loading" class="text-center q-pa-lg">
       <q-spinner color="primary" size="3em" />
     </div>
-    <div v-else class="row q-col-gutter-md justify-center">
-      <div class="col-12 content-card entry-card q-ma-lg q-pa-lg parchment">
+    <div v-else class="row justify-center">
+      <div class="col-12 content-card entry-editor-card entry-card q-ma-lg q-pa-lg parchment">
         <div class="row items-center q-mb-md">
           <div class="col">
             <div class="text-h6">Edit Seed</div>
@@ -1410,6 +1410,22 @@ onUnmounted(() => {
    scroll, not a broken page. */
 .entry-card {
   min-height: calc(100vh - 180px);
+}
+
+@media (max-width: 599px) {
+  .entry-editor-page {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .entry-card {
+    margin: 0 !important;
+    padding: 12px !important;
+  }
+
+  .section-container {
+    padding: 8px;
+  }
 }
 
 /* Keep all your existing styles */
