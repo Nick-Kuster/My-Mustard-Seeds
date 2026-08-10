@@ -71,18 +71,6 @@
           </q-banner>
 
           <div class="row items-center q-col-gutter-md">
-            <div class="col-12 col-sm-5">
-              <q-select
-                v-model="reminderHour"
-                outlined
-                dense
-                emit-value
-                map-options
-                label="Reminder time"
-                :options="reminderHourOptions"
-                :disable="savingReminderOptions"
-              />
-            </div>
             <div class="col-12 col-sm-auto">
               <q-btn
                 v-if="!remindersEnabled"
@@ -107,7 +95,7 @@
           </div>
 
           <div v-if="remindersEnabled" class="text-caption text-grey-7 q-mt-sm">
-            Reminders are enabled for {{ reminderHourLabel(reminderHour) }}.
+            Reminders are enabled. Each prayer uses its own follow-up time.
           </div>
         </q-card>
       </div>
@@ -372,7 +360,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import draggable from 'vuedraggable'
 import { useJournalStore } from 'stores/journalData'
@@ -414,19 +402,7 @@ const showDeleteTagsDialog = ref(false)
 const deletingTags = ref(false)
 const savingReminderOptions = ref(false)
 const remindersEnabled = ref(false)
-const reminderHour = ref(8)
 const pushStatus = ref({ supported: false, reason: 'Checking notification support...' })
-
-const reminderHourOptions = Array.from({ length: 24 }, (_, hour) => ({
-  label: reminderHourLabel(hour),
-  value: hour,
-}))
-
-function reminderHourLabel(hour) {
-  const date = new Date()
-  date.setHours(hour, 0, 0, 0)
-  return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
-}
 
 const allTagsSelected = computed(() =>
   tagsStore.tags.length > 0 && selectedTagIds.value.length === tagsStore.tags.length,
@@ -544,29 +520,16 @@ onMounted(async () => {
   syncOrderedTypes()
   pushStatus.value = pushSupportStatus()
   remindersEnabled.value = userPreferencesStore.prayerReminderOptions.enabled
-  reminderHour.value = userPreferencesStore.prayerReminderOptions.hour
 })
 
 const saveReminderPreferences = async (enabled) => {
   await userPreferencesStore.setPrayerReminderOptions({
     enabled,
-    hour: reminderHour.value,
+    hour: userPreferencesStore.prayerReminderOptions.hour ?? 8,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   })
   remindersEnabled.value = enabled
 }
-
-watch(reminderHour, async () => {
-  if (!remindersEnabled.value) return
-  savingReminderOptions.value = true
-  try {
-    await saveReminderPreferences(true)
-  } catch {
-    $q.notify({ type: 'negative', message: 'Could not save reminder time' })
-  } finally {
-    savingReminderOptions.value = false
-  }
-})
 
 const enablePrayerReminders = async () => {
   savingReminderOptions.value = true

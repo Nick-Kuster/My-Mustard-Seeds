@@ -154,13 +154,46 @@
               </template>
             </div>
 
-            <template v-if="section.items.length > 0 && !isGroupCollapsed(section.key)">
+            <template v-if="!isGroupCollapsed(section.key) || isAddingPrayerTo(section)">
               <ul class="prayer-bullet-list">
                 <li v-for="request in section.items" :key="request.id" class="prayer-list-item" @click="openDetails(request)">
                   <span class="prayer-list-text">{{ request.decryptedContent }}</span>
                   <span v-if="request.follow_up_date" class="prayer-list-meta">
                     Follow up {{ formatFollowUpDateTime(request) }}
                   </span>
+                </li>
+                <li v-if="isAddingPrayerTo(section)" class="prayer-list-item prayer-list-item--new">
+                  <q-input
+                    :ref="setAddPrayerInputRef"
+                    v-model="addPrayerText"
+                    dense
+                    borderless
+                    autogrow
+                    type="textarea"
+                    placeholder="Add a prayer"
+                    class="new-prayer-input"
+                    @click.stop
+                    @keydown.enter.exact.prevent="confirmAddPrayer"
+                    @keyup.esc="cancelAddPrayer"
+                  />
+                  <div class="new-prayer-actions">
+                    <q-btn
+                      flat
+                      round
+                      dense
+                      icon="check"
+                      color="primary"
+                      size="sm"
+                      :loading="addingPrayer"
+                      :disable="!addPrayerText.trim()"
+                      @click.stop="confirmAddPrayer"
+                    >
+                      <q-tooltip>Save prayer</q-tooltip>
+                    </q-btn>
+                    <q-btn flat round dense icon="close" size="sm" @click.stop="cancelAddPrayer">
+                      <q-tooltip>Cancel</q-tooltip>
+                    </q-btn>
+                  </div>
                 </li>
               </ul>
             </template>
@@ -211,37 +244,6 @@
         <q-card-actions align="right">
           <q-btn flat label="Cancel" v-close-popup />
           <q-btn color="positive" label="Mark Answered" :loading="answering" @click="confirmAnswer" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
-    <q-dialog v-model="showAddPrayerDialog">
-      <q-card style="width: 90vw; max-width: 420px">
-        <q-card-section>
-          <div class="text-h6">Add Prayer</div>
-          <div class="text-caption text-grey-7">To {{ addPrayerSection?.label || 'Miscellaneous' }}</div>
-        </q-card-section>
-        <q-card-section class="q-pt-none">
-          <q-input
-            ref="addPrayerInputRef"
-            v-model="addPrayerText"
-            outlined
-            type="textarea"
-            autogrow
-            label="Prayer"
-            @keyup.ctrl.enter="confirmAddPrayer"
-          />
-        </q-card-section>
-        <q-card-actions align="right">
-          <q-btn flat label="Cancel" v-close-popup />
-          <q-btn
-            color="primary"
-            icon="add"
-            label="Add"
-            :loading="addingPrayer"
-            :disable="!addPrayerText.trim()"
-            @click="confirmAddPrayer"
-          />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -359,14 +361,23 @@
           <div class="text-body2 text-grey-8 q-mb-md text-wrap">
             {{ followUpRequest?.decryptedContent }}
           </div>
-          <div class="row q-col-gutter-sm">
-            <div class="col-7">
-              <q-input v-model="followUpDate" outlined dense type="date" label="Follow up on" />
+            <div class="row q-col-gutter-sm">
+              <div class="col-7">
+                <q-input v-model="followUpDate" outlined dense type="date" label="Follow up on" />
+              </div>
+              <div class="col-5">
+                <q-select
+                  v-model="followUpTime"
+                  outlined
+                  dense
+                  clearable
+                  emit-value
+                  map-options
+                  label="Reminder"
+                  :options="quarterHourOptions"
+                />
+              </div>
             </div>
-            <div class="col-5">
-              <q-input v-model="followUpTime" outlined dense type="time" label="Time" />
-            </div>
-          </div>
         </q-card-section>
         <q-card-actions align="right">
           <q-btn v-if="followUpRequest?.follow_up_date" flat label="Clear" :loading="savingFollowUp" @click="clearFollowUp" />
@@ -413,7 +424,16 @@
                 <q-input v-model="detailsFollowUpDate" outlined dense type="date" label="Date" />
               </div>
               <div class="col-5">
-                <q-input v-model="detailsFollowUpTime" outlined dense type="time" label="Time" />
+                <q-select
+                  v-model="detailsFollowUpTime"
+                  outlined
+                  dense
+                  clearable
+                  emit-value
+                  map-options
+                  label="Reminder"
+                  :options="quarterHourOptions"
+                />
               </div>
             </div>
           </div>
@@ -556,12 +576,16 @@ const isGroupCollapsed = (key) => collapsedGroups.has(key)
 
 const collapseNewSections = (sections, includeMisc) => {
   sections.forEach((section) => {
-    if (section.items.length > 0 && !collapseSeededGroups.has(section.key)) {
+    if (
+      section.items.length > 0 &&
+      !collapseSeededGroups.has(section.key) &&
+      addPrayerSection.value?.mapKey !== section.mapKey
+    ) {
       collapsedGroups.add(section.key)
       collapseSeededGroups.add(section.key)
     }
   })
-  if (includeMisc && !collapseSeededGroups.has(null)) {
+  if (includeMisc && !collapseSeededGroups.has(null) && addPrayerSection.value?.mapKey !== MISC_KEY) {
     collapsedGroups.add(null)
     collapseSeededGroups.add(null)
   }
@@ -622,6 +646,29 @@ const formatFollowUpTime = (timeString) => {
   return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
 }
 
+const quarterHourOptions = Array.from({ length: 96 }, (_, index) => {
+  const hour = Math.floor(index / 4)
+  const minute = (index % 4) * 15
+  const value = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+  return { label: formatFollowUpTime(value), value }
+})
+
+const normalizeQuarterHour = (timeString) => {
+  if (!timeString) return ''
+  const [rawHour, rawMinute = '0'] = timeString.split(':')
+  let hour = Number(rawHour)
+  const minute = Number(rawMinute)
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return ''
+
+  let roundedMinute = Math.round(minute / 15) * 15
+  if (roundedMinute === 60) {
+    roundedMinute = 0
+    hour = (hour + 1) % 24
+  }
+
+  return `${String(hour).padStart(2, '0')}:${String(roundedMinute).padStart(2, '0')}`
+}
+
 const formatFollowUpDateTime = (request) => {
   const date = formatFollowUpDate(request.follow_up_date)
   const time = formatFollowUpTime(request.follow_up_time)
@@ -650,7 +697,6 @@ const followUpStatusClass = (request) => {
   return 'text-grey-7'
 }
 
-const showAddPrayerDialog = ref(false)
 const addPrayerInputRef = ref(null)
 const addPrayerSection = ref(null)
 const addPrayerText = ref('')
@@ -658,10 +704,16 @@ const addingPrayer = ref(false)
 const showReorderGroupsDialog = ref(false)
 const savingGroupOrder = ref(false)
 
+const isAddingPrayerTo = (section) => addPrayerSection.value?.mapKey === section.mapKey
+
+const setAddPrayerInputRef = (el) => {
+  addPrayerInputRef.value = el
+}
+
 const openAddPrayer = async (section) => {
   addPrayerSection.value = section
   addPrayerText.value = ''
-  showAddPrayerDialog.value = true
+  collapsedGroups.delete(section.key)
   await nextTick()
   addPrayerInputRef.value?.focus()
 }
@@ -674,13 +726,21 @@ const confirmAddPrayer = async () => {
   addingPrayer.value = true
   try {
     await store.addRequest(text, section.key)
-    showAddPrayerDialog.value = false
+    addPrayerText.value = ''
     syncGroups()
+    addPrayerSection.value = allSectionsForDisplay.value.find((item) => item.mapKey === section.mapKey) || section
+    await nextTick()
+    addPrayerInputRef.value?.focus()
   } catch {
     $q.notify({ type: 'negative', message: 'Failed to add prayer request' })
   } finally {
     addingPrayer.value = false
   }
+}
+
+const cancelAddPrayer = () => {
+  addPrayerSection.value = null
+  addPrayerText.value = ''
 }
 
 const persistGroupOrder = async () => {
@@ -854,7 +914,7 @@ const snoozingId = ref(null)
 const openFollowUp = (request) => {
   followUpRequest.value = request
   followUpDate.value = request.follow_up_date || todayDate()
-  followUpTime.value = request.follow_up_time?.slice(0, 5) || ''
+  followUpTime.value = normalizeQuarterHour(request.follow_up_time?.slice(0, 5))
   showFollowUpDialog.value = true
 }
 
@@ -866,7 +926,7 @@ const openFollowUpFromFollowUps = (request) => {
 const saveFollowUp = async () => {
   savingFollowUp.value = true
   try {
-    await store.updateFollowUp(followUpRequest.value.id, followUpDate.value, followUpTime.value)
+    await store.updateFollowUp(followUpRequest.value.id, followUpDate.value, normalizeQuarterHour(followUpTime.value))
     showFollowUpDialog.value = false
     syncGroups()
   } catch {
@@ -904,7 +964,7 @@ const markPrayed = async (request) => {
 const snooze = async (request) => {
   snoozingId.value = request.id
   try {
-    await store.snoozeFollowUp(request.id, 7, request.follow_up_time?.slice(0, 5) || null)
+    await store.snoozeFollowUp(request.id, 7, normalizeQuarterHour(request.follow_up_time?.slice(0, 5)) || null)
     syncGroups()
   } catch {
     $q.notify({ type: 'negative', message: 'Failed to snooze follow-up' })
@@ -925,7 +985,7 @@ const openDetails = (request) => {
   detailsRequest.value = request
   detailsContent.value = request.decryptedContent || ''
   detailsFollowUpDate.value = request.follow_up_date || ''
-  detailsFollowUpTime.value = request.follow_up_time?.slice(0, 5) || ''
+  detailsFollowUpTime.value = normalizeQuarterHour(request.follow_up_time?.slice(0, 5))
   detailsAnswerNote.value = ''
   showDetailsDialog.value = true
 }
@@ -950,7 +1010,7 @@ const saveDetails = async () => {
     if (content !== request.decryptedContent) {
       await store.updateContent(request.id, content)
     }
-    await store.updateFollowUp(request.id, detailsFollowUpDate.value || null, detailsFollowUpTime.value || null)
+    await store.updateFollowUp(request.id, detailsFollowUpDate.value || null, normalizeQuarterHour(detailsFollowUpTime.value) || null)
     syncGroups()
     refreshDetailsRequest()
     showDetailsDialog.value = false
@@ -1230,6 +1290,44 @@ onMounted(async () => {
 
 .prayer-list-item:hover {
   background: var(--color-hover);
+}
+
+.prayer-list-item--new {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  padding-top: 0;
+  padding-bottom: 0;
+  cursor: default;
+}
+
+.prayer-list-item--new:hover {
+  background: transparent;
+}
+
+.new-prayer-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.new-prayer-input :deep(.q-field__control) {
+  min-height: 30px;
+  padding: 0;
+}
+
+.new-prayer-input :deep(.q-field__native),
+.new-prayer-input :deep(.q-field__input) {
+  min-height: 30px;
+  padding: 3px 0;
+  line-height: 1.4;
+  font-size: 0.93rem;
+}
+
+.new-prayer-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 1px;
+  padding-top: 1px;
 }
 
 .prayer-list-text {

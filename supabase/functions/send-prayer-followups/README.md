@@ -25,7 +25,7 @@ supabase functions deploy send-prayer-followups --no-verify-jwt
 
 ## Schedule
 
-Run the SQL in `sql/Prayer Reminder Push Notifications.sql`, then create an hourly Cron job that posts to:
+Run the SQL in `sql/Prayer Reminder Push Notifications.sql`, then create a Cron job that runs every 15 minutes and posts to:
 
 ```text
 https://<project-ref>.supabase.co/functions/v1/send-prayer-followups

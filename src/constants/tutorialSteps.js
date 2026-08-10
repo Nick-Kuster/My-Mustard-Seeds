@@ -352,7 +352,7 @@ const settingsDeepDiveSteps = [
     page: '/settings',
     title: 'Prayer reminders',
     description:
-      'Turn on daily phone reminders for due prayer follow-ups and choose the hour you want to be reminded. On iPhone, this works from the installed Home Screen app.',
+      'Turn on phone reminders for due prayer follow-ups. Each prayer uses the follow-up time you set on that request. On iPhone, this works from the installed Home Screen app.',
   },
   {
     selector: '[data-tour="settings-tags"]',

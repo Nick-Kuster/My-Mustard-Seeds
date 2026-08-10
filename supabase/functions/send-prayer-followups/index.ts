@@ -44,6 +44,7 @@ const datePartsForZone = (timezone: string) => {
     month: '2-digit',
     day: '2-digit',
     hour: 'numeric',
+    minute: '2-digit',
     hour12: false,
   }).formatToParts(new Date())
 
@@ -53,6 +54,7 @@ const datePartsForZone = (timezone: string) => {
 
   return {
     hour,
+    minute: Number(value('minute') || '0'),
     date: `${value('year')}-${value('month')}-${value('day')}`,
   }
 }
@@ -114,9 +116,9 @@ Deno.serve(async (req) => {
       const options = preferenceByUser.get(userId)
       if (!options?.enabled) return null
       const local = safeZoneParts(options.timezone)
-      return { userId, today: local.date, hour: local.hour, fallbackHour: Number(options.hour ?? 8) }
+      return { userId, today: local.date, hour: local.hour, minute: local.minute, fallbackHour: Number(options.hour ?? 8) }
     })
-    .filter(Boolean) as Array<{ userId: string, today: string, hour: number, fallbackHour: number }>
+    .filter(Boolean) as Array<{ userId: string, today: string, hour: number, minute: number, fallbackHour: number }>
 
   if (!eligibleUsers.length) return json({ sent: 0, users: 0, removed: 0 })
 
@@ -136,8 +138,17 @@ Deno.serve(async (req) => {
     const reminderHour = prayer.follow_up_time
       ? Number(prayer.follow_up_time.slice(0, 2))
       : local?.fallbackHour
+    const reminderMinute = prayer.follow_up_time
+      ? Number(prayer.follow_up_time.slice(3, 5))
+      : 0
+    const localMinuteSlot = Math.floor((local?.minute || 0) / 15) * 15
 
-    if (local && prayer.follow_up_date <= local.today && reminderHour === local.hour) {
+    if (
+      local &&
+      prayer.follow_up_date <= local.today &&
+      reminderHour === local.hour &&
+      reminderMinute === localMinuteSlot
+    ) {
       dueCountByUser.set(prayer.user_id, (dueCountByUser.get(prayer.user_id) || 0) + 1)
     }
   })
