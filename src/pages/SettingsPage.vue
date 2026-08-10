@@ -126,8 +126,8 @@
             placeholder="Paste output here" :input-style="{ height: '180px', resize: 'none', overflowY: 'auto' }"
             class="q-mb-md import-json-input" />
 
-          <q-btn unelevated color="primary" label="Import" :loading="importing" :disable="!importText.trim()"
-            @click="runImport" />
+          <q-btn unelevated color="primary" label="Preview Import" :loading="previewingImport"
+            :disable="!importText.trim()" @click="previewImport" />
 
           <div v-if="results" class="q-mt-lg">
             <q-banner :class="results.failed.length ? 'import-result-banner--warning' : 'import-result-banner--success'"
@@ -200,6 +200,103 @@
     <TutorialStartDialog v-model="showTutorialDialog" />
     <DeleteAccountDialog v-model="showDeleteAccountDialog" />
 
+    <q-dialog v-model="showImportPreviewDialog">
+      <q-card class="import-preview-card">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-h6">Review Import</div>
+          <q-space />
+          <q-btn flat round dense icon="close" v-close-popup />
+        </q-card-section>
+
+        <q-card-section v-if="importPreview" class="scroll import-preview-body">
+          <div class="text-body2 q-mb-md">
+            {{ importPreview.validCount }} of {{ importPreview.total }}
+            {{ importPreview.total === 1 ? 'entry is' : 'entries are' }} ready to import.
+          </div>
+
+          <div class="text-subtitle2 text-weight-bold q-mb-sm">Entries to import</div>
+          <q-list bordered separator class="rounded-borders bg-white q-mb-md">
+            <q-item v-for="entry in importPreview.entries" :key="entry.index" dense>
+              <q-item-section>
+                <q-item-label>
+                  {{ entry.title }}
+                </q-item-label>
+                <q-item-label caption>
+                  {{ entry.valid ? entry.type : `Skipped — ${entry.reason}` }}
+                </q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-icon :name="entry.valid ? 'check_circle' : 'error'" :color="entry.valid ? 'positive' : 'negative'" />
+              </q-item-section>
+            </q-item>
+          </q-list>
+
+          <q-banner v-if="importPreview.failed.length" rounded class="import-result-banner import-result-banner--warning q-mb-md">
+            <div class="text-weight-medium">Skipped entries</div>
+            <ul class="q-mb-none">
+              <li v-for="item in importPreview.failed" :key="item.index">
+                {{ item.title }} — {{ item.reason }}
+              </li>
+            </ul>
+          </q-banner>
+
+          <q-banner v-if="importPreview.warnings.length" rounded class="import-result-banner import-result-banner--warning q-mb-md">
+            <div class="text-weight-medium">Warnings</div>
+            <ul class="q-mb-none">
+              <li v-for="(item, i) in importPreview.warnings" :key="i">
+                {{ item.title }} — {{ item.message }}
+              </li>
+            </ul>
+          </q-banner>
+
+          <div class="text-subtitle2 text-weight-bold q-mb-sm">Resources</div>
+          <div class="resource-preview-grid q-mb-md">
+            <div class="resource-preview-box">
+              <div class="text-caption text-grey-7 q-mb-xs">Will reuse</div>
+              <div class="text-h6">{{ importPreview.resources.reuse.length }}</div>
+              <div v-if="!importPreview.resources.reuse.length" class="text-caption text-grey-7">None</div>
+              <q-list v-else dense>
+                <q-item v-for="resource in importPreview.resources.reuse" :key="resource.key" dense>
+                  <q-item-section>
+                    <q-item-label>{{ resource.title }}</q-item-label>
+                    <q-item-label caption>{{ resource.type }} · {{ resource.count }} reference{{ resource.count === 1 ? '' : 's' }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </div>
+            <div class="resource-preview-box">
+              <div class="text-caption text-grey-7 q-mb-xs">Will create</div>
+              <div class="text-h6">{{ importPreview.resources.create.length }}</div>
+              <div v-if="!importPreview.resources.create.length" class="text-caption text-grey-7">None</div>
+              <q-list v-else dense>
+                <q-item v-for="resource in importPreview.resources.create" :key="resource.key" dense>
+                  <q-item-section>
+                    <q-item-label>{{ resource.title }}</q-item-label>
+                    <q-item-label caption>{{ resource.type }} · {{ resource.count }} reference{{ resource.count === 1 ? '' : 's' }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </div>
+          </div>
+
+          <q-banner v-if="importPreview.resources.skipped.length" rounded class="import-result-banner import-result-banner--warning">
+            <div class="text-weight-medium">Skipped resources</div>
+            <ul class="q-mb-none">
+              <li v-for="item in importPreview.resources.skipped" :key="`${item.index}-${item.resourceIndex}`">
+                {{ item.title }} — {{ item.reason }}
+              </li>
+            </ul>
+          </q-banner>
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" v-close-popup />
+          <q-btn color="primary" label="Import Now" :loading="importing"
+            :disable="!importPreview || importPreview.validCount === 0" @click="runImport" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
     <!-- Delete tags confirmation -->
     <q-dialog v-model="showDeleteTagsDialog">
       <q-card style="width: 90vw; max-width: 320px">
@@ -236,7 +333,7 @@ import { useTagsStore } from 'stores/tags'
 import { useResourcesStore } from 'stores/resources'
 import { useSavedFiltersStore } from 'stores/savedFilters'
 import { JOURNAL_TYPES } from 'src/constants/journalTypes'
-import { buildImportTemplateText, importEntries } from 'src/utils/journalImport'
+import { buildImportTemplateText, importEntries, previewImportEntries } from 'src/utils/journalImport'
 import { useAccountExport } from 'src/composables/useAccountExport'
 import TutorialStartDialog from 'components/TutorialStartDialog.vue'
 import DeleteAccountDialog from 'components/DeleteAccountDialog.vue'
@@ -281,6 +378,9 @@ const confirmDeleteTags = async () => {
 
 const importText = ref('')
 const importing = ref(false)
+const previewingImport = ref(false)
+const importPreview = ref(null)
+const showImportPreviewDialog = ref(false)
 const results = ref(null)
 
 // Local editable copy of the user's journal-type order, seeded from the
@@ -393,6 +493,19 @@ const handleExportData = async () => {
   }
 }
 
+const previewImport = async () => {
+  previewingImport.value = true
+  results.value = null
+  try {
+    importPreview.value = await previewImportEntries(importText.value)
+    showImportPreviewDialog.value = true
+  } catch (error) {
+    $q.notify({ type: 'negative', message: error.message || 'Import preview failed' })
+  } finally {
+    previewingImport.value = false
+  }
+}
+
 const runImport = async () => {
   importing.value = true
   results.value = null
@@ -401,8 +514,11 @@ const runImport = async () => {
     results.value = summary
     if (summary.failed.length === 0) {
       importText.value = ''
+      importPreview.value = null
+      showImportPreviewDialog.value = false
     }
     await journalStore.fetchEntries()
+    await resourcesStore.loadResources(true)
   } catch (error) {
     $q.notify({ type: 'negative', message: error.message || 'Import failed' })
   } finally {
@@ -449,6 +565,29 @@ const runImport = async () => {
   resize: none;
 }
 
+.import-preview-card {
+  width: 760px;
+  max-width: 95vw;
+}
+
+.import-preview-body {
+  max-height: 70vh;
+}
+
+.resource-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.resource-preview-box {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface-alt);
+  padding: 12px;
+  min-width: 0;
+}
+
 .import-result-banner {
   color: #243228;
 }
@@ -475,5 +614,11 @@ body.body--dark .import-result-banner--success {
 body.body--dark .import-result-banner--warning {
   background: #684b22;
   border-color: rgba(245, 210, 151, 0.24);
+}
+
+@media (max-width: 599px) {
+  .resource-preview-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

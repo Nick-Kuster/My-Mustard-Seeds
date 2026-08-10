@@ -250,6 +250,92 @@ const normalizeResourceItem = (item) => {
   return { type: item.type, metadata, primary: item.primary === true }
 }
 
+const parseImportText = (rawText) => {
+  let parsed
+  try {
+    parsed = JSON.parse(rawText)
+  } catch {
+    throw new Error('That doesn\'t look like valid JSON — check for missing commas/brackets or extra text around it.')
+  }
+  const rawEntries = Array.isArray(parsed) ? parsed : [parsed]
+  if (rawEntries.length === 0) throw new Error('No entries found.')
+  return rawEntries
+}
+
+const entryTitleForPreview = (raw, index) =>
+  isNonEmptyString(raw?.title) ? raw.title.trim() : `Entry ${index + 1}`
+
+const validateImportEntry = (raw, index) => {
+  const title = entryTitleForPreview(raw, index)
+  if (!TYPE_IDS.includes(raw?.type)) {
+    return { valid: false, index, title, reason: `unknown type "${raw?.type}"` }
+  }
+  if (!isNonEmptyString(raw?.title)) {
+    return { valid: false, index, title, reason: 'missing title' }
+  }
+  return { valid: true, index, title, type: raw.type }
+}
+
+const summarizeResourceItem = (item) => ({
+  key: resourceKey(item.type, item.metadata),
+  type: item.type,
+  title: getResourceDisplayTitle({ type: item.type, metadata: item.metadata }),
+  metadata: item.metadata,
+})
+
+const buildResourceImportPreview = async (rawEntries, userId) => {
+  const { data: existingResources, error } = await supabase
+    .from('resources')
+    .select('*')
+    .eq('user_id', userId)
+  if (error) throw error
+
+  const existingByKey = new Map()
+  ;(existingResources || []).forEach((resource) => {
+    existingByKey.set(resourceKey(resource.type, resource.metadata), resource)
+  })
+
+  const reuse = new Map()
+  const create = new Map()
+  const skipped = []
+
+  rawEntries.forEach((raw, index) => {
+    const entryTitle = entryTitleForPreview(raw, index)
+    const allResourceItems = Array.isArray(raw.resources) ? raw.resources : []
+    allResourceItems.forEach((rawResource, resourceIndex) => {
+      const normalized = normalizeResourceItem(rawResource)
+      if (!normalized) {
+        skipped.push({
+          index,
+          title: entryTitle,
+          resourceIndex,
+          reason: 'unsupported type or missing required metadata',
+        })
+        return
+      }
+
+      const summary = summarizeResourceItem(normalized)
+      const existing = existingByKey.get(summary.key)
+      const target = existing ? reuse : create
+      const current = target.get(summary.key) || {
+        ...summary,
+        count: 0,
+        entries: [],
+        existingId: existing?.id,
+      }
+      current.count += 1
+      if (!current.entries.includes(entryTitle)) current.entries.push(entryTitle)
+      target.set(summary.key, current)
+    })
+  })
+
+  return {
+    reuse: Array.from(reuse.values()).sort((a, b) => a.title.localeCompare(b.title)),
+    create: Array.from(create.values()).sort((a, b) => a.title.localeCompare(b.title)),
+    skipped,
+  }
+}
+
 const makeResourceResolver = async (userId) => {
   const { data: existingResources, error: resourcesError } = await supabase
     .from('resources')
@@ -536,14 +622,7 @@ const importOneEntry = async (raw, { userId, encryptionKey, bibleData, resolveTa
 // creates each one, sequentially, in Supabase. Returns a summary rather than
 // throwing on a per-entry problem — one bad entry shouldn't sink the batch.
 export const importEntries = async (rawText) => {
-  let parsed
-  try {
-    parsed = JSON.parse(rawText)
-  } catch {
-    throw new Error('That doesn\'t look like valid JSON — check for missing commas/brackets or extra text around it.')
-  }
-  const rawEntries = Array.isArray(parsed) ? parsed : [parsed]
-  if (rawEntries.length === 0) throw new Error('No entries found.')
+  const rawEntries = parseImportText(rawText)
 
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) throw new Error('No active session')
@@ -560,14 +639,11 @@ export const importEntries = async (rawText) => {
 
   for (let i = 0; i < rawEntries.length; i++) {
     const raw = rawEntries[i]
-    const title = isNonEmptyString(raw?.title) ? raw.title.trim() : `Entry ${i + 1}`
+    const validation = validateImportEntry(raw, i)
+    const title = validation.title
 
-    if (!TYPE_IDS.includes(raw?.type)) {
-      failed.push({ index: i, title, reason: `unknown type "${raw?.type}"` })
-      continue
-    }
-    if (!isNonEmptyString(raw?.title)) {
-      failed.push({ index: i, title, reason: 'missing title' })
+    if (!validation.valid) {
+      failed.push({ index: i, title, reason: validation.reason })
       continue
     }
 
@@ -587,4 +663,49 @@ export const importEntries = async (rawText) => {
   }
 
   return { succeeded, failed, warnings }
+}
+
+export const previewImportEntries = async (rawText) => {
+  const rawEntries = parseImportText(rawText)
+
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) throw new Error('No active session')
+
+  const entries = rawEntries.map((raw, index) => {
+    const validation = validateImportEntry(raw, index)
+    const warnings = []
+    const allResourceItems = Array.isArray(raw.resources) ? raw.resources : []
+    const resourceItems = allResourceItems.map(normalizeResourceItem).filter(Boolean)
+
+    if (resourceItems.length < allResourceItems.length) {
+      warnings.push('one or more resources will be skipped')
+    }
+    if (Array.isArray(raw.links) && raw.links.some((link) => !isSafeUrl(link?.url))) {
+      warnings.push('one or more links will be skipped')
+    }
+    if (Array.isArray(raw.strongs) && raw.strongs.some((item) => !normalizeStrongsNumber(item))) {
+      warnings.push('one or more Strong\'s items will be skipped')
+    }
+    if (Array.isArray(raw.images) && raw.images.length > 0) {
+      warnings.push('image notes will not create uploaded image files')
+    }
+
+    return { ...validation, warnings }
+  })
+
+  const resources = await buildResourceImportPreview(rawEntries, session.user.id)
+  const validCount = entries.filter((entry) => entry.valid).length
+
+  return {
+    total: rawEntries.length,
+    validCount,
+    failed: entries
+      .filter((entry) => !entry.valid)
+      .map(({ index, title, reason }) => ({ index, title, reason })),
+    warnings: entries.flatMap((entry) =>
+      entry.warnings.map((message) => ({ index: entry.index, title: entry.title, message })),
+    ),
+    entries,
+    resources,
+  }
 }

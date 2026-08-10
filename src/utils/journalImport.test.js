@@ -318,4 +318,47 @@ describe('importEntries', () => {
       { journal_id: 'entry-1', resource_id: 'existing-pastor', primary_resource: true, user_id: 'user-1' },
     ])
   })
+
+  it('previews import without writing and separates reused from new resources', async () => {
+    mocks.existingResources.push(
+      { id: 'existing-church', user_id: 'user-1', type: 'Church', metadata: { name: 'Mosaic', location: 'Evansville' } },
+    )
+
+    const { previewImportEntries } = await import('./journalImport')
+    const input = JSON.stringify([
+      {
+        type: 'Sermon',
+        title: 'Preview sermon',
+        resources: [
+          { type: 'Church', metadata: { name: 'Mosaic' } },
+          { type: 'Pastor', metadata: { name: 'Adam Barton' } },
+          { type: 'BadType', metadata: { name: 'Skipped' } },
+        ],
+        links: [{ name: 'Unsafe', url: 'javascript:alert(1)' }],
+        strongs: ['not-a-number'],
+      },
+      { type: 'Wrong', title: 'Bad entry' },
+    ])
+
+    const preview = await previewImportEntries(input)
+
+    expect(preview.total).toBe(2)
+    expect(preview.validCount).toBe(1)
+    expect(preview.failed).toEqual([{ index: 1, title: 'Bad entry', reason: 'unknown type "Wrong"' }])
+    expect(preview.resources.reuse).toMatchObject([
+      { type: 'Church', title: 'Mosaic', count: 1, existingId: 'existing-church' },
+    ])
+    expect(preview.resources.create).toMatchObject([
+      { type: 'Pastor', title: 'Adam Barton', count: 1 },
+    ])
+    expect(preview.resources.skipped).toHaveLength(1)
+    expect(preview.warnings.map((warning) => warning.message)).toEqual(expect.arrayContaining([
+      'one or more resources will be skipped',
+      'one or more links will be skipped',
+      'one or more Strong\'s items will be skipped',
+    ]))
+
+    expect(mocks.inserted.journal_entries).toEqual([])
+    expect(mocks.inserted.resources).toEqual([])
+  })
 })
