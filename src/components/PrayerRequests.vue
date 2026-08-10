@@ -21,12 +21,50 @@
          no drag handles, no group management, nothing interactive besides
          Edit. This is the default view. -->
     <template v-else-if="viewMode === 'list'">
-      <div class="row justify-between items-center q-mb-md">
+      <div class="row justify-between items-center q-mb-sm">
         <div class="text-subtitle2 text-weight-bold text-grey-8">
           Active ({{ active.length }})
         </div>
         <q-btn flat dense no-caps icon="edit" label="Edit" data-tour="prayers-manage-btn" @click="viewMode = 'manage'" />
       </div>
+
+      <q-expansion-item
+        v-if="followUps.length > 0"
+        default-opened
+        label="Follow-Ups"
+        :caption="`${followUps.length} due or coming soon`"
+        header-class="text-weight-bold"
+        class="rounded-borders bg-white follow-up-section q-mb-sm"
+      >
+        <q-list separator dense>
+          <q-item v-for="request in followUps" :key="request.id" dense class="follow-up-item">
+            <q-item-section>
+              <q-item-label class="text-wrap">{{ request.decryptedContent }}</q-item-label>
+              <q-item-label caption :class="followUpStatusClass(request)">
+                {{ followUpStatusLabel(request) }}
+              </q-item-label>
+            </q-item-section>
+            <q-item-section side class="compact-actions-section">
+              <div class="compact-action-row">
+                <q-btn flat round dense size="sm" icon="done" color="positive" :loading="followingUpId === request.id"
+                  @click="markPrayed(request)">
+                  <q-tooltip>Prayed today</q-tooltip>
+                </q-btn>
+                <q-btn flat round dense size="sm" icon="update" :loading="snoozingId === request.id"
+                  @click="snooze(request)">
+                  <q-tooltip>Snooze one week</q-tooltip>
+                </q-btn>
+                <q-btn flat round dense size="sm" icon="event" @click="openFollowUp(request)">
+                  <q-tooltip>Reschedule follow-up</q-tooltip>
+                </q-btn>
+                <q-btn flat round dense size="sm" icon="check_circle" color="positive" @click="openAnswer(request)">
+                  <q-tooltip>Mark answered</q-tooltip>
+                </q-btn>
+              </div>
+            </q-item-section>
+          </q-item>
+        </q-list>
+      </q-expansion-item>
 
       <AppEmptyState
         v-if="active.length === 0"
@@ -45,12 +83,15 @@
               @click="toggleGroupCollapse(section.key)">
               <q-icon :name="isGroupCollapsed(section.key) ? 'chevron_right' : 'expand_more'" size="16px"
                 class="q-mr-xs" />
-              <span class="text-caption text-weight-bold text-grey-6">{{ section.label }}</span>
+              <span class="list-group-title">{{ section.label }}</span>
+              <span class="list-group-count">{{ section.items.length }}</span>
             </div>
             <template v-if="!isGroupCollapsed(section.key)">
-              <div v-for="request in section.items" :key="request.id" class="prayer-list-item">
-                {{ request.decryptedContent }}
-              </div>
+              <ul class="prayer-bullet-list">
+                <li v-for="request in section.items" :key="request.id" class="prayer-list-item">
+                  {{ request.decryptedContent }}
+                </li>
+              </ul>
             </template>
           </template>
         </template>
@@ -62,16 +103,16 @@
          anything that doesn't need its own group). Reorder/collapse/answer/
          delete from here too. -->
     <template v-else>
-      <div class="row justify-end q-mb-sm">
+      <div class="row justify-end q-mb-xs">
         <q-btn flat dense no-caps icon="visibility" label="View As List" @click="viewMode = 'list'" />
       </div>
 
-      <div class="text-body2 text-grey-7 q-mb-md">
+      <div class="text-caption text-grey-7 q-mb-sm">
         Add a group, then add prayers under it — or use Miscellaneous below for anything
         that doesn't need one.
       </div>
 
-      <div class="row justify-end items-center q-gutter-sm q-mb-lg" data-tour="prayer-groups-area">
+      <div class="row justify-end items-center q-gutter-sm q-mb-md" data-tour="prayer-groups-area">
         <q-btn v-if="!addingGroup" outline dense no-caps color="primary" icon="create_new_folder" label="New Group"
           size="sm" @click="startAddGroup" />
         <template v-else>
@@ -88,7 +129,7 @@
       </div>
 
       <div class="q-mb-lg">
-        <draggable :list="groupSections" item-key="key" handle=".group-drag-handle" class="q-gutter-y-md"
+        <draggable :list="groupSections" item-key="key" handle=".group-drag-handle" class="q-gutter-y-sm"
           ghost-class="ghost-group" @end="persistGroupOrder">
           <template #item="{ element: section }">
             <div class="group-section">
@@ -124,20 +165,28 @@
                   item-key="id" handle=".drag-handle" class="q-gutter-y-xs q-mt-xs" ghost-class="ghost-request"
                   @end="persistOrder">
                   <template #item="{ element: request }">
-                    <q-item class="request-item rounded-borders bg-white">
+                    <q-item dense class="request-item rounded-borders bg-white">
                       <q-item-section avatar class="drag-handle-section">
                         <q-icon name="drag_indicator" class="drag-handle" />
                       </q-item-section>
                       <q-item-section>
                         <q-item-label class="text-wrap">{{ request.decryptedContent }}</q-item-label>
-                        <q-item-label caption>{{ formatDate(request.created_at) }}</q-item-label>
+                        <q-item-label caption>
+                          {{ formatDate(request.created_at) }}
+                          <template v-if="request.follow_up_date">
+                            - Follow up {{ formatFollowUpDate(request.follow_up_date) }}
+                          </template>
+                        </q-item-label>
                       </q-item-section>
-                      <q-item-section side>
-                        <div class="row no-wrap q-gutter-xs">
-                          <q-btn flat round dense icon="check_circle" color="positive" @click="openAnswer(request)">
+                      <q-item-section side class="compact-actions-section">
+                        <div class="compact-action-row">
+                          <q-btn flat round dense size="sm" icon="event" @click="openFollowUp(request)">
+                            <q-tooltip>Set follow-up date</q-tooltip>
+                          </q-btn>
+                          <q-btn flat round dense size="sm" icon="check_circle" color="positive" @click="openAnswer(request)">
                             <q-tooltip>Mark answered</q-tooltip>
                           </q-btn>
-                          <q-btn flat round dense icon="delete" color="negative" @click="openDelete(request)">
+                          <q-btn flat round dense size="sm" icon="delete" color="negative" @click="openDelete(request)">
                             <q-tooltip>Delete</q-tooltip>
                           </q-btn>
                         </div>
@@ -181,21 +230,29 @@
               item-key="id" handle=".drag-handle" class="q-gutter-y-xs q-mt-xs" ghost-class="ghost-request"
               @end="persistOrder">
               <template #item="{ element: request }">
-                <q-item class="request-item rounded-borders bg-white">
+                <q-item dense class="request-item rounded-borders bg-white">
                   <q-item-section avatar class="drag-handle-section">
                     <q-icon name="drag_indicator" class="drag-handle" />
                   </q-item-section>
                   <q-item-section>
                     <q-item-label class="text-wrap">{{ request.decryptedContent }}</q-item-label>
-                    <q-item-label caption>{{ formatDate(request.created_at) }}</q-item-label>
+                    <q-item-label caption>
+                      {{ formatDate(request.created_at) }}
+                      <template v-if="request.follow_up_date">
+                        - Follow up {{ formatFollowUpDate(request.follow_up_date) }}
+                      </template>
+                    </q-item-label>
                   </q-item-section>
-                  <q-item-section side>
-                    <div class="row no-wrap q-gutter-xs">
-                      <q-btn flat round dense icon="check_circle" color="positive" data-tour="prayer-mark-answered"
+                  <q-item-section side class="compact-actions-section">
+                    <div class="compact-action-row">
+                      <q-btn flat round dense size="sm" icon="event" @click="openFollowUp(request)">
+                        <q-tooltip>Set follow-up date</q-tooltip>
+                      </q-btn>
+                      <q-btn flat round dense size="sm" icon="check_circle" color="positive" data-tour="prayer-mark-answered"
                         @click="openAnswer(request)">
                         <q-tooltip>Mark answered</q-tooltip>
                       </q-btn>
-                      <q-btn flat round dense icon="delete" color="negative" @click="openDelete(request)">
+                      <q-btn flat round dense size="sm" icon="delete" color="negative" @click="openDelete(request)">
                         <q-tooltip>Delete</q-tooltip>
                       </q-btn>
                     </div>
@@ -223,7 +280,7 @@
         header-class="text-weight-bold" class="rounded-borders bg-white answered-section"
         data-tour="prayer-answered-section">
         <q-list separator>
-          <q-item v-for="request in answered" :key="request.id">
+          <q-item v-for="request in answered" :key="request.id" dense>
             <q-item-section>
               <q-item-label class="text-wrap answered-content text-grey-7">{{ request.decryptedContent }}</q-item-label>
               <q-item-label v-if="request.decryptedAnswerNote" caption class="text-wrap">
@@ -231,12 +288,12 @@
               </q-item-label>
               <q-item-label caption>Answered {{ formatDate(request.answered_at) }}</q-item-label>
             </q-item-section>
-            <q-item-section side>
-              <div class="row no-wrap q-gutter-xs">
-                <q-btn flat round dense icon="undo" @click="reopen(request)">
+            <q-item-section side class="compact-actions-section">
+              <div class="compact-action-row">
+                <q-btn flat round dense size="sm" icon="undo" @click="reopen(request)">
                   <q-tooltip>Reopen</q-tooltip>
                 </q-btn>
-                <q-btn flat round dense icon="delete" color="negative" @click="openDelete(request)">
+                <q-btn flat round dense size="sm" icon="delete" color="negative" @click="openDelete(request)">
                   <q-tooltip>Delete</q-tooltip>
                 </q-btn>
               </div>
@@ -259,6 +316,27 @@
         <q-card-actions align="right">
           <q-btn flat label="Cancel" v-close-popup />
           <q-btn color="positive" label="Mark Answered" :loading="answering" @click="confirmAnswer" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- Follow-up date dialog -->
+    <q-dialog v-model="showFollowUpDialog">
+      <q-card style="width: 90vw; max-width: 360px">
+        <q-card-section>
+          <div class="text-h6">Prayer Follow-Up</div>
+        </q-card-section>
+        <q-card-section class="q-pt-none">
+          <div class="text-body2 text-grey-8 q-mb-md text-wrap">
+            {{ followUpRequest?.decryptedContent }}
+          </div>
+          <q-input v-model="followUpDate" outlined dense type="date" label="Follow up on" />
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn v-if="followUpRequest?.follow_up_date" flat label="Clear" :loading="savingFollowUp"
+            @click="clearFollowUp" />
+          <q-btn flat label="Cancel" v-close-popup />
+          <q-btn color="primary" label="Save" :loading="savingFollowUp" @click="saveFollowUp" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -329,6 +407,24 @@ const viewMode = ref('list')
 const requests = computed(() => store.requests)
 const active = computed(() => requests.value.filter((r) => r.status !== 'answered'))
 const answered = computed(() => requests.value.filter((r) => r.status === 'answered'))
+const dateInputValue = (date) => {
+  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+  return offsetDate.toISOString().slice(0, 10)
+}
+const todayDate = () => dateInputValue(new Date())
+const daysFromToday = (dateString) => {
+  const today = new Date(todayDate())
+  const date = new Date(dateString)
+  return Math.round((date - today) / 86400000)
+}
+const followUps = computed(() =>
+  active.value
+    .filter((request) => {
+      if (!request.follow_up_date) return false
+      return daysFromToday(request.follow_up_date) <= 7
+    })
+    .sort((a, b) => new Date(a.follow_up_date) - new Date(b.follow_up_date)),
+)
 
 // Local, draggable view of the active list, one entry per real persisted
 // group (groupsStore.groups), synced after every mutation (fetch/add/
@@ -383,6 +479,23 @@ const formatDate = (dateString) => {
     month: 'short',
     day: 'numeric',
   })
+}
+
+const formatFollowUpDate = (dateString) => formatDate(`${dateString}T00:00:00`)
+
+const followUpStatusLabel = (request) => {
+  const diff = daysFromToday(request.follow_up_date)
+  if (diff < 0) return `Overdue by ${Math.abs(diff)} day${Math.abs(diff) === 1 ? '' : 's'}`
+  if (diff === 0) return 'Due today'
+  if (diff === 1) return 'Due tomorrow'
+  return `Due in ${diff} days`
+}
+
+const followUpStatusClass = (request) => {
+  const diff = daysFromToday(request.follow_up_date)
+  if (diff < 0) return 'text-negative text-weight-medium'
+  if (diff === 0) return 'text-warning text-weight-medium'
+  return 'text-grey-7'
 }
 
 // Quick-add: a per-group inline input, right under that group's list, for
@@ -582,6 +695,69 @@ const confirmAnswer = async () => {
   }
 }
 
+const showFollowUpDialog = ref(false)
+const savingFollowUp = ref(false)
+const followUpDate = ref('')
+const followUpRequest = ref(null)
+const followingUpId = ref(null)
+const snoozingId = ref(null)
+
+const openFollowUp = (request) => {
+  followUpRequest.value = request
+  followUpDate.value = request.follow_up_date || todayDate()
+  showFollowUpDialog.value = true
+}
+
+const saveFollowUp = async () => {
+  savingFollowUp.value = true
+  try {
+    await store.updateFollowUp(followUpRequest.value.id, followUpDate.value)
+    showFollowUpDialog.value = false
+    syncGroups()
+  } catch {
+    $q.notify({ type: 'negative', message: 'Failed to save follow-up date' })
+  } finally {
+    savingFollowUp.value = false
+  }
+}
+
+const clearFollowUp = async () => {
+  savingFollowUp.value = true
+  try {
+    await store.updateFollowUp(followUpRequest.value.id, null)
+    showFollowUpDialog.value = false
+    syncGroups()
+  } catch {
+    $q.notify({ type: 'negative', message: 'Failed to clear follow-up date' })
+  } finally {
+    savingFollowUp.value = false
+  }
+}
+
+const markPrayed = async (request) => {
+  followingUpId.value = request.id
+  try {
+    await store.markFollowedUp(request.id)
+    syncGroups()
+  } catch {
+    $q.notify({ type: 'negative', message: 'Failed to update follow-up' })
+  } finally {
+    followingUpId.value = null
+  }
+}
+
+const snooze = async (request) => {
+  snoozingId.value = request.id
+  try {
+    await store.snoozeFollowUp(request.id, 7)
+    syncGroups()
+  } catch {
+    $q.notify({ type: 'negative', message: 'Failed to snooze follow-up' })
+  } finally {
+    snoozingId.value = null
+  }
+}
+
 const reopen = async (request) => {
   try {
     await store.reopenRequest(request.id)
@@ -655,7 +831,42 @@ watch(
 .request-item {
   border: 1px solid var(--color-border);
   background: var(--color-surface);
-  min-height: 56px;
+  min-height: 42px;
+  padding: 4px 8px;
+}
+
+.request-item :deep(.q-item__label) {
+  line-height: 1.25;
+}
+
+.request-item :deep(.q-item__label--caption),
+.follow-up-item :deep(.q-item__label--caption) {
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+
+.follow-up-item {
+  min-height: 42px;
+  padding: 4px 8px;
+}
+
+.follow-up-item :deep(.q-item__label) {
+  line-height: 1.25;
+}
+
+.compact-actions-section {
+  padding-left: 4px;
+}
+
+.compact-action-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 2px;
+}
+
+.compact-action-row :deep(.q-btn) {
+  min-height: 28px;
+  min-width: 28px;
 }
 
 .drag-handle-section {
@@ -677,7 +888,7 @@ watch(
 }
 
 .empty-group-drop {
-  padding: 10px;
+  padding: 6px;
   border: 1px dashed var(--color-border);
   border-radius: 8px;
 }
@@ -694,7 +905,7 @@ watch(
 }
 
 .quick-add-row {
-  padding: 4px 4px 4px 12px;
+  padding: 1px 2px 1px 10px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-surface);
@@ -702,7 +913,7 @@ watch(
 
 .group-header {
   cursor: pointer;
-  padding: 4px 2px;
+  padding: 2px;
   border-radius: 4px;
 }
 
@@ -718,11 +929,12 @@ watch(
 .list-group-label {
   cursor: pointer;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
-  margin-top: 20px;
-  margin-bottom: 6px;
-  padding: 2px;
+  letter-spacing: 0;
+  margin-top: 16px;
+  margin-bottom: 4px;
+  padding: 3px 2px;
   border-radius: 4px;
+  color: var(--color-text);
 }
 
 .list-group-label:hover {
@@ -733,14 +945,32 @@ watch(
   margin-top: 0;
 }
 
-.prayer-list-item {
-  padding: 10px 2px;
-  border-bottom: 1px solid var(--color-border-light);
-  line-height: 1.6;
-  font-size: 1rem;
+.list-group-title {
+  font-size: 0.8rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
 }
 
-.prayer-list-item:last-child {
+.list-group-count {
+  margin-left: 6px;
+  color: var(--color-text-muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.prayer-bullet-list {
+  margin: 0 0 4px;
+  padding-left: 22px;
+}
+
+.prayer-list-item {
+  padding: 2px 2px 3px;
   border-bottom: none;
+  line-height: 1.4;
+  font-size: 0.93rem;
+}
+
+.prayer-list-item::marker {
+  color: var(--color-text-muted);
 }
 </style>

@@ -4,6 +4,11 @@ import { supabase } from 'src/boot/supabase'
 import { getEncryptionKey, encryptData, decryptData } from 'src/utils/encryption'
 import { demoModeActive } from 'src/utils/demoMode'
 
+const toDateValue = (date) => {
+  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+  return offsetDate.toISOString().slice(0, 10)
+}
+
 // Prayer requests, encrypted client-side the same way journal entries are
 // (see src/utils/encryption.js) since this is personal content.
 export const usePrayerRequestsStore = defineStore('prayerRequests', () => {
@@ -73,6 +78,51 @@ export const usePrayerRequestsStore = defineStore('prayerRequests', () => {
 
     requests.value.unshift({ ...data, decryptedContent: content, decryptedAnswerNote: null })
     return data
+  }
+
+  const updateFollowUp = async (id, followUpDate) => {
+    const nextDate = followUpDate || null
+    const { error } = await supabase
+      .from('prayer_requests')
+      .update({ follow_up_date: nextDate, updated_at: new Date().toISOString() })
+      .eq('id', id)
+
+    if (error) throw error
+
+    const index = requests.value.findIndex((r) => r.id === id)
+    if (index !== -1) {
+      requests.value[index] = { ...requests.value[index], follow_up_date: nextDate }
+    }
+  }
+
+  const markFollowedUp = async (id) => {
+    const followedAt = new Date().toISOString()
+    const { error } = await supabase
+      .from('prayer_requests')
+      .update({
+        follow_up_date: null,
+        last_followed_up_at: followedAt,
+        updated_at: followedAt,
+      })
+      .eq('id', id)
+
+    if (error) throw error
+
+    const index = requests.value.findIndex((r) => r.id === id)
+    if (index !== -1) {
+      requests.value[index] = {
+        ...requests.value[index],
+        follow_up_date: null,
+        last_followed_up_at: followedAt,
+      }
+    }
+  }
+
+  const snoozeFollowUp = async (id, days = 7) => {
+    const next = new Date()
+    next.setDate(next.getDate() + days)
+    const nextDate = toDateValue(next)
+    await updateFollowUp(id, nextDate)
   }
 
   // Persists a full reorder/regroup in one go — items is the final flat
@@ -149,6 +199,7 @@ export const usePrayerRequestsStore = defineStore('prayerRequests', () => {
         status: 'answered',
         answer_note: encryptedNote,
         answered_at: new Date().toISOString(),
+        follow_up_date: null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)
@@ -161,6 +212,7 @@ export const usePrayerRequestsStore = defineStore('prayerRequests', () => {
         ...requests.value[index],
         status: 'answered',
         answered_at: new Date().toISOString(),
+        follow_up_date: null,
         decryptedAnswerNote: answerNote || null,
       }
     }
@@ -197,6 +249,9 @@ export const usePrayerRequestsStore = defineStore('prayerRequests', () => {
     loading,
     fetchRequests,
     addRequest,
+    updateFollowUp,
+    markFollowedUp,
+    snoozeFollowUp,
     updateContent,
     reorder,
     markAnswered,
