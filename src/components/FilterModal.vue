@@ -233,6 +233,7 @@ const selectedResourcesByType = ref(groupResourceSelections(journalStore.selecte
 const selectedQuotes = ref([...journalStore.selectedFacets.quotes])
 const selectedLinks = ref([...journalStore.selectedFacets.links])
 const selectedStrongs = ref([...journalStore.selectedFacets.strongs])
+const selectedFavorites = ref([...journalStore.selectedFacets.favorites])
 
 // Verse range builder inputs — free-text "chapter:verse" (e.g. "1:1"),
 // same trust-the-user pattern as VerseSelectionModal
@@ -338,6 +339,7 @@ const entryMatchesPending = (entry, excludedResourceType) => {
     return false
   if (selectedStrongs.value.length && !entry.strongs?.some((s) => selectedStrongs.value.includes(s.strongs_number)))
     return false
+  if (selectedFavorites.value.length && !entry.is_favorite) return false
   if (selectedBooks.value.length && !entry.verses?.some((v) => selectedBooks.value.includes(v.book)))
     return false
   if (
@@ -393,6 +395,7 @@ watch(() => props.modelValue, (newVal) => {
     selectedQuotes.value = [...journalStore.selectedFacets.quotes]
     selectedLinks.value = [...journalStore.selectedFacets.links]
     selectedStrongs.value = [...journalStore.selectedFacets.strongs]
+    selectedFavorites.value = [...journalStore.selectedFacets.favorites]
     Object.keys(filteredResourceOptionsByType).forEach((key) => delete filteredResourceOptionsByType[key])
   }
 })
@@ -452,7 +455,8 @@ const hasActiveFilters = computed(() => {
     flatSelectedResources.value.length > 0 ||
     selectedQuotes.value.length > 0 ||
     selectedLinks.value.length > 0 ||
-    selectedStrongs.value.length > 0
+    selectedStrongs.value.length > 0 ||
+    selectedFavorites.value.length > 0
 })
 
 const getSelectedCount = () => {
@@ -464,7 +468,8 @@ const getSelectedCount = () => {
     flatSelectedResources.value.length +
     selectedQuotes.value.length +
     selectedLinks.value.length +
-    selectedStrongs.value.length
+    selectedStrongs.value.length +
+    selectedFavorites.value.length
 }
 
 const clearAllFilters = () => {
@@ -477,6 +482,7 @@ const clearAllFilters = () => {
   selectedQuotes.value = []
   selectedLinks.value = []
   selectedStrongs.value = []
+  selectedFavorites.value = []
 }
 
 const applyFilters = () => {
@@ -489,6 +495,7 @@ const applyFilters = () => {
   journalStore.updateFacet('quotes', selectedQuotes.value)
   journalStore.updateFacet('links', selectedLinks.value)
   journalStore.updateFacet('strongs', selectedStrongs.value)
+  journalStore.updateFacet('favorites', selectedFavorites.value)
   isOpen.value = false
   emit('applied')
 }
@@ -506,6 +513,7 @@ const currentFacetsSnapshot = () => ({
   quotes: selectedQuotes.value,
   links: selectedLinks.value,
   strongs: selectedStrongs.value,
+  favorites: selectedFavorites.value,
 })
 
 const newFilterName = ref('')

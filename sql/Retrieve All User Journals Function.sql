@@ -27,6 +27,7 @@ BEGIN
                'title', je.title,
                'type', je.type,
                'content', je.content,
+               'is_favorite', COALESCE(je.is_favorite, false),
                'created_at', je.created_at,
                'updated_at', je.updated_at
            ) as entry_data

@@ -12,17 +12,25 @@
       @click="$emit('view-entry', entry.id)"
     >
       <q-item-section>
-        <q-item-label class="text-wrap">{{ entry.title }}</q-item-label>
+        <q-item-label class="text-wrap">
+          <q-icon v-if="entry.is_favorite" name="star" color="warning" size="16px" class="q-mr-xs" />
+          {{ entry.title }}
+        </q-item-label>
         <q-item-label caption class="text-wrap">{{ formatDate(entry.updated_at || entry.created_at) }}</q-item-label>
       </q-item-section>
       <q-item-section side>
-        <q-icon name="chevron_right" />
+        <div class="row items-center no-wrap">
+          <FavoriteButton :entry="entry" />
+          <q-icon name="chevron_right" />
+        </div>
       </q-item-section>
     </q-item>
   </q-expansion-item>
 </template>
 
 <script setup>
+import FavoriteButton from './FavoriteButton.vue'
+
 defineProps({
   node: { type: Object, required: true },
   depth: { type: Number, default: 0 },

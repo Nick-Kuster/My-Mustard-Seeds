@@ -1,4 +1,4 @@
-export const FACET_KEYS = ['types', 'verses', 'books', 'resourceTypes', 'resources', 'tags', 'quotes', 'links', 'strongs']
+export const FACET_KEYS = ['types', 'verses', 'books', 'resourceTypes', 'resources', 'tags', 'quotes', 'links', 'strongs', 'favorites']
 
 export const emptyFacets = () => ({
   types: [],
@@ -10,6 +10,7 @@ export const emptyFacets = () => ({
   quotes: [],
   links: [],
   strongs: [],
+  favorites: [],
 })
 
 export const searchRouteForFacet = (facetType, value) => {

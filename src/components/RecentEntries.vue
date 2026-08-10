@@ -27,11 +27,11 @@
         <div class="type-lanes" ref="lanesEl" data-tour="type-lanes" @scroll="onLanesScroll">
         <div v-for="group in typeGroups" :key="group.type" class="type-lane">
           <div class="type-lane-header" :class="{ 'type-lane-header--clickable': isDesktop }"
-            :style="{ borderTopColor: typeColorsStore.getColor(group.type) }"
+            :style="{ borderTopColor: groupColor(group) }"
             @click="isDesktop && toggleType(group.type)">
             <q-icon v-if="isDesktop" :name="isExpanded(group.type) ? 'expand_more' : 'chevron_right'" size="18px"
               class="type-lane-chevron" />
-            <q-icon :name="group.icon" size="18px" :style="{ color: typeColorsStore.getColor(group.type) }" />
+            <q-icon :name="group.icon" size="18px" :style="{ color: groupColor(group) }" />
             <span class="type-lane-label">{{ group.label }}</span>
             <span class="type-lane-count">{{ group.entries.length }}</span>
           </div>
@@ -39,7 +39,7 @@
             <template v-if="group.resourceTree">
               <ResourceTreeSection
                 v-for="node in group.resourceTree.roots" :key="node.id"
-                :node="node" :color="typeColorsStore.getColor(group.type)"
+                :node="node" :color="groupColor(group)"
                 @view-entry="viewEntry"
               />
               <q-item
@@ -49,11 +49,17 @@
                 @click="viewEntry(entry.id)"
               >
                 <q-item-section>
-                  <q-item-label class="text-wrap">{{ entry.title }}</q-item-label>
+                  <q-item-label class="text-wrap">
+                    <q-icon v-if="entry.is_favorite" name="star" color="warning" size="16px" class="q-mr-xs" />
+                    {{ entry.title }}
+                  </q-item-label>
                   <q-item-label caption class="text-wrap">{{ formatDate(entryDate(entry)) }}</q-item-label>
                 </q-item-section>
                 <q-item-section side>
-                  <q-icon name="chevron_right" />
+                  <div class="row items-center no-wrap">
+                    <FavoriteButton :entry="entry" />
+                    <q-icon name="chevron_right" />
+                  </div>
                 </q-item-section>
               </q-item>
             </template>
@@ -65,14 +71,33 @@
                 @click="viewEntry(entry.id)"
               >
                 <q-item-section>
-                  <q-item-label class="text-wrap">{{ entry.title }}</q-item-label>
+                  <q-item-label class="text-wrap">
+                    <q-icon v-if="entry.is_favorite" name="star" color="warning" size="16px" class="q-mr-xs" />
+                    {{ entry.title }}
+                  </q-item-label>
                   <q-item-label caption class="text-wrap">{{ formatDate(entryDate(entry)) }}</q-item-label>
                 </q-item-section>
                 <q-item-section side>
-                  <q-icon name="chevron_right" />
+                  <div class="row items-center no-wrap">
+                    <FavoriteButton :entry="entry" />
+                    <q-icon name="chevron_right" />
+                  </div>
                 </q-item-section>
               </q-item>
             </template>
+            <q-item
+              v-if="group.hasViewAll"
+              clickable class="entry-item view-all-item"
+              :style="{ borderLeftColor: groupColor(group) }"
+              @click="viewFavorites"
+            >
+              <q-item-section>
+                <q-item-label class="text-wrap text-weight-medium">View all favorites</q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-icon name="chevron_right" />
+              </q-item-section>
+            </q-item>
             <div v-if="!group.entries.length" class="type-lane-empty">No entries</div>
           </div>
         </div>
@@ -96,7 +121,10 @@ import { useHomeViewStateStore } from 'stores/homeViewState'
 import { JOURNAL_TYPES } from 'src/constants/journalTypes'
 import { getResourceTypeDepth } from 'src/configs/resourceConfigs'
 import { getBibleBook } from 'src/constants/bibleBooks'
+import { HOME_SECTION_IDS } from 'stores/userPreferences'
+import { searchRouteForFacet } from 'src/utils/searchRoute'
 import ResourceTreeSection from './ResourceTreeSection.vue'
+import FavoriteButton from './FavoriteButton.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -209,7 +237,13 @@ const buildResourceTree = (list) => {
 // A leading "Recent" lane (last 10 entries across all types, flat — no
 // resource-tree grouping), followed by one column per journal type
 // (canonical order), each internally sorted by the same date direction.
-const RECENT_LANE_TYPE = '__recent__'
+const FAVORITES_LIMIT = 10
+const SPECIAL_SECTION_COLORS = {
+  [HOME_SECTION_IDS.FAVORITES]: '#d4a94c',
+  [HOME_SECTION_IDS.RECENT]: '#7c9082',
+}
+
+const groupColor = (group) => group.color || SPECIAL_SECTION_COLORS[group.type] || typeColorsStore.getColor(group.type)
 
 const typeGroups = computed(() => {
   const factor = sortOrder.value === 'desc' ? -1 : 1
@@ -218,7 +252,10 @@ const typeGroups = computed(() => {
     if (!byType.has(entry.type)) byType.set(entry.type, [])
     byType.get(entry.type).push(entry)
   }
-  byType.forEach((list) => list.sort((a, b) => factor * (new Date(entryDate(a)) - new Date(entryDate(b)))))
+  byType.forEach((list) => list.sort((a, b) => {
+    if (a.is_favorite !== b.is_favorite) return a.is_favorite ? -1 : 1
+    return factor * (new Date(entryDate(a)) - new Date(entryDate(b)))
+  }))
 
   const buildGroup = (type, label, icon) => {
     const list = byType.get(type)
@@ -228,24 +265,50 @@ const typeGroups = computed(() => {
   // User-customized order (see stores/userPreferences.js) instead of the
   // fixed JOURNAL_TYPES order, falling back to it for anything unset
   const typesById = new Map(JOURNAL_TYPES.map((t) => [t.id, t]))
-  const known = userPreferencesStore.journalOrder
-    .map((id) => typesById.get(id))
-    .filter((t) => t && byType.has(t.id))
-    .map((t) => buildGroup(t.id, t.label, t.icon))
-  const knownIds = new Set(known.map((g) => g.type))
-  const unknown = [...byType.keys()]
-    .filter((type) => !knownIds.has(type))
-    .map((type) => buildGroup(type, type, 'help_outline'))
+  const favoriteEntries = sortedEntries.value.filter((entry) => entry.is_favorite)
+  const groups = []
+  const usedTypeIds = new Set()
 
-  const recentGroup = {
-    type: RECENT_LANE_TYPE,
-    label: 'Recent',
-    icon: 'schedule',
-    entries: sortedEntries.value.slice(0, 10),
-    resourceTree: null,
+  for (const sectionId of userPreferencesStore.homeSectionOrder) {
+    if (sectionId === HOME_SECTION_IDS.FAVORITES) {
+      if (favoriteEntries.length) {
+        groups.push({
+          type: HOME_SECTION_IDS.FAVORITES,
+          label: 'Favorites',
+          icon: 'star',
+          color: SPECIAL_SECTION_COLORS[HOME_SECTION_IDS.FAVORITES],
+          entries: favoriteEntries.slice(0, FAVORITES_LIMIT),
+          resourceTree: null,
+          hasViewAll: favoriteEntries.length > FAVORITES_LIMIT,
+        })
+      }
+      continue
+    }
+
+    if (sectionId === HOME_SECTION_IDS.RECENT) {
+      groups.push({
+        type: HOME_SECTION_IDS.RECENT,
+        label: 'Recent',
+        icon: 'schedule',
+        color: SPECIAL_SECTION_COLORS[HOME_SECTION_IDS.RECENT],
+        entries: sortedEntries.value.slice(0, 10),
+        resourceTree: null,
+      })
+      continue
+    }
+
+    const type = typesById.get(sectionId)
+    if (type && byType.has(type.id)) {
+      groups.push(buildGroup(type.id, type.label, type.icon))
+      usedTypeIds.add(type.id)
+    }
   }
 
-  return [recentGroup, ...known, ...unknown]
+  const unknown = [...byType.keys()]
+    .filter((type) => !usedTypeIds.has(type))
+    .map((type) => buildGroup(type, type, 'help_outline'))
+
+  return [...groups, ...unknown]
 })
 
 // On tablet/desktop, lanes stack as full-width collapsible rows instead of
@@ -253,8 +316,8 @@ const typeGroups = computed(() => {
 // always visible since there's no room for a click-to-expand affordance in
 // a single swiped-to column. Only "Recent" starts open on desktop.
 const isDesktop = computed(() => $q.screen.gt.sm)
-const expandedTypes = reactive(new Set([RECENT_LANE_TYPE]))
-if (homeViewState.activeType && homeViewState.activeType !== RECENT_LANE_TYPE) {
+const expandedTypes = reactive(new Set())
+if (homeViewState.activeType) {
   expandedTypes.add(homeViewState.activeType)
 }
 const isExpanded = (type) => !isDesktop.value || expandedTypes.has(type)
@@ -263,7 +326,8 @@ const isExpanded = (type) => !isDesktop.value || expandedTypes.has(type)
 // default) — same router.replace-into-query pattern IndexPage.vue already
 // uses for ?tab=, so it doesn't grow browser history on every swipe/toggle.
 const syncTypeToRoute = (type) => {
-  const next = type && type !== RECENT_LANE_TYPE ? type : undefined
+  const defaultType = typeGroups.value[0]?.type
+  const next = type && type !== defaultType ? type : undefined
   if ((route.query.type || undefined) === next) return
   const query = { ...route.query }
   if (next) query.type = next
@@ -318,6 +382,10 @@ const viewEntry = (id) => {
   router.push(`/entry/${id}`)
 }
 
+const viewFavorites = () => {
+  router.push(searchRouteForFacet('favorites', 'Favorites'))
+}
+
 onMounted(async () => {
   try {
     await Promise.all([
@@ -334,6 +402,9 @@ onMounted(async () => {
   }
 
   await nextTick()
+  if (!expandedTypes.size && typeGroups.value[0]) {
+    expandedTypes.add(typeGroups.value[0].type)
+  }
   if (!isDesktop.value && lanesEl.value && homeViewState.activeType) {
     const index = typeGroups.value.findIndex((g) => g.type === homeViewState.activeType)
     if (index > 0) {

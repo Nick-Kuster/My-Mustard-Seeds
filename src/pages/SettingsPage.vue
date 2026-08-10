@@ -10,16 +10,15 @@
             class="rounded-borders order-section">
             <q-card-section>
               <div class="text-body2 text-grey-8 q-mb-md">
-                Drag to change the order journal types appear in on the home screen, then save.
+                Drag to change the order home screen sections appear, then save.
               </div>
 
-              <draggable v-model="orderedTypes" item-key="id" handle=".drag-handle" tag="div" class="q-gutter-y-sm"
+              <draggable v-model="orderedSections" item-key="id" handle=".drag-handle" tag="div" class="q-gutter-y-sm"
                 ghost-class="ghost-type-row" @change="markOrderDirty">
                 <template #item="{ element }">
                   <div class="type-order-row row items-center no-wrap">
                     <q-icon name="drag_indicator" class="drag-handle q-mr-sm" />
-                    <q-icon :name="element.icon" size="20px" :style="{ color: typeColorsStore.getColor(element.id) }"
-                      class="q-mr-sm" />
+                    <q-icon :name="element.icon" size="20px" :style="{ color: sectionColor(element) }" class="q-mr-sm" />
                     <span>{{ element.label }}</span>
                   </div>
                 </template>
@@ -195,7 +194,7 @@ import { useQuasar } from 'quasar'
 import draggable from 'vuedraggable'
 import { useJournalStore } from 'stores/journalData'
 import { useJournalTypeColorsStore } from 'stores/journalTypeColors'
-import { useUserPreferencesStore } from 'stores/userPreferences'
+import { HOME_SECTION_IDS, useUserPreferencesStore } from 'stores/userPreferences'
 import { useTagsStore } from 'stores/tags'
 import { useResourcesStore } from 'stores/resources'
 import { JOURNAL_TYPES } from 'src/constants/journalTypes'
@@ -251,14 +250,21 @@ const results = ref(null)
 // that comparison depends on vuedraggable's internal update propagating
 // through the store's computed, which isn't reliable enough for something
 // this simple to hinge Save's enabled state on.
-const orderedTypes = ref([])
+const orderedSections = ref([])
 const savingOrder = ref(false)
 const isOrderDirty = ref(false)
 const typesById = new Map(JOURNAL_TYPES.map((t) => [t.id, t]))
+const specialHomeSections = new Map([
+  [HOME_SECTION_IDS.FAVORITES, { id: HOME_SECTION_IDS.FAVORITES, label: 'Favorites', icon: 'star', color: '#d4a94c' }],
+  [HOME_SECTION_IDS.RECENT, { id: HOME_SECTION_IDS.RECENT, label: 'Recent', icon: 'schedule', color: '#7c9082' }],
+])
+
+const homeSectionById = (id) => specialHomeSections.get(id) || typesById.get(id)
+const sectionColor = (section) => section.color || typeColorsStore.getColor(section.id)
 
 const syncOrderedTypes = () => {
-  orderedTypes.value = userPreferencesStore.journalOrder
-    .map((id) => typesById.get(id))
+  orderedSections.value = userPreferencesStore.homeSectionOrder
+    .map((id) => homeSectionById(id))
     .filter(Boolean)
   isOrderDirty.value = false
 }
@@ -270,7 +276,7 @@ const markOrderDirty = () => {
 const saveOrder = async () => {
   savingOrder.value = true
   try {
-    await userPreferencesStore.setJournalOrder(orderedTypes.value.map((t) => t.id))
+    await userPreferencesStore.setHomeSectionOrder(orderedSections.value.map((section) => section.id))
     isOrderDirty.value = false
     $q.notify({ type: 'positive', message: 'Order saved' })
   } catch {

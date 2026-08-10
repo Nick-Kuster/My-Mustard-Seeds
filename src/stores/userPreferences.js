@@ -3,7 +3,13 @@ import { ref, computed } from 'vue'
 import { supabase } from 'src/boot/supabase'
 import { JOURNAL_TYPES } from 'src/constants/journalTypes'
 
+export const HOME_SECTION_IDS = {
+  FAVORITES: '__favorites__',
+  RECENT: '__recent__',
+}
+
 const DEFAULT_JOURNAL_ORDER = JOURNAL_TYPES.map((t) => t.id)
+const DEFAULT_HOME_SECTION_ORDER = [HOME_SECTION_IDS.FAVORITES, HOME_SECTION_IDS.RECENT, ...DEFAULT_JOURNAL_ORDER]
 
 // What PrintPage.vue includes per entry — all on by default so existing
 // users (and anyone who's never opened Print Options) get today's behavior
@@ -96,19 +102,30 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
     }
   }
 
-  // Journal type order for the homepage's type lanes. Any type missing
-  // from the stored order (new types added after the user last customized
-  // it, or before they've customized it at all) is appended in canonical
+  // Home screen section order. The older journalOrder preference only
+  // stored journal types, so treat it as a legacy fallback and prepend the
+  // new built-in sections for existing users. Any type missing from the
+  // stored order (new types added after the user last customized it, or
+  // before they've customized it at all) is appended in canonical
   // order at the end, so nothing silently disappears from the homepage.
-  const journalOrder = computed(() => {
-    const stored = preferences.value.journalOrder
-    if (!Array.isArray(stored) || stored.length === 0) return DEFAULT_JOURNAL_ORDER
+  const homeSectionOrder = computed(() => {
+    const stored = Array.isArray(preferences.value.homeSectionOrder) && preferences.value.homeSectionOrder.length
+      ? preferences.value.homeSectionOrder
+      : Array.isArray(preferences.value.journalOrder) && preferences.value.journalOrder.length
+        ? [HOME_SECTION_IDS.FAVORITES, HOME_SECTION_IDS.RECENT, ...preferences.value.journalOrder]
+        : DEFAULT_HOME_SECTION_ORDER
 
-    const known = new Set(DEFAULT_JOURNAL_ORDER)
+    const known = new Set(DEFAULT_HOME_SECTION_ORDER)
     const valid = stored.filter((id) => known.has(id))
-    const missing = DEFAULT_JOURNAL_ORDER.filter((id) => !valid.includes(id))
+    const missing = DEFAULT_HOME_SECTION_ORDER.filter((id) => !valid.includes(id))
     return [...valid, ...missing]
   })
+
+  const setHomeSectionOrder = (order) => setPreferences({ homeSectionOrder: order })
+
+  const journalOrder = computed(() =>
+    homeSectionOrder.value.filter((id) => DEFAULT_JOURNAL_ORDER.includes(id)),
+  )
 
   const setJournalOrder = (order) => setPreferences({ journalOrder: order })
 
@@ -129,6 +146,8 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
     loading,
     load,
     setPreferences,
+    homeSectionOrder,
+    setHomeSectionOrder,
     journalOrder,
     setJournalOrder,
     themeMode,

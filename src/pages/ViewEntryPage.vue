@@ -139,6 +139,9 @@
               <q-btn rounded unelevated color="secondary" icon="arrow_back" style="height: 40px" @click="goBack" />
             </div>
             <div class="col-auto">
+              <FavoriteButton :entry="entry" @updated="entry.is_favorite = $event" />
+            </div>
+            <div class="col-auto">
               <q-btn rounded unelevated color="primary" icon="edit" style="height: 40px"
                 @click="router.push(`/entry/${entry.id}/edit`)" />
             </div>
@@ -235,6 +238,7 @@ import { useTutorialStore } from 'src/stores/tutorial'
 import LinkedVerses from 'components/LinkedVerses.vue'
 import VerseDisplayModal from 'components/VerseDisplayModal.vue'
 import ContentSectionView from 'components/ContentSectionView.vue'
+import FavoriteButton from 'components/FavoriteButton.vue'
 import { createDisplayVerse } from 'src/utils/verseUtils'
 import { useResourcesStore } from 'src/stores/resources'
 import { searchRouteForFacet } from 'src/utils/searchRoute'
@@ -422,6 +426,22 @@ const confirmDelete = () => {
   showDeleteDialog.value = true
 }
 
+const toggleFavorite = async () => {
+  if (!entry.value?.id) return
+
+  try {
+    const nextValue = !entry.value.is_favorite
+    await journalStore.setEntryFavorite(entry.value.id, nextValue)
+    entry.value.is_favorite = nextValue
+    $q.notify({
+      type: 'positive',
+      message: nextValue ? 'Added to favorites' : 'Removed from favorites',
+    })
+  } catch {
+    $q.notify({ type: 'negative', message: 'Failed to update favorite' })
+  }
+}
+
 const deleteEntry = async () => {
   try {
     deleting.value = true
@@ -501,7 +521,7 @@ onMounted(() => {
 
 const pageActionsStore = usePageActionsStore()
 
-onMounted(() => {
+const updateFooterActions = () => {
   pageActionsStore.setFooterActions([
     {
       key: 'back',
@@ -509,6 +529,13 @@ onMounted(() => {
       icon: 'arrow_back',
       color: 'secondary',
       handler: goBack,
+    },
+    {
+      key: 'favorite',
+      label: entry.value?.is_favorite ? 'Unfavorite' : 'Favorite',
+      icon: entry.value?.is_favorite ? 'star' : 'star_border',
+      color: 'warning',
+      handler: toggleFavorite,
     },
     {
       key: 'edit',
@@ -525,7 +552,13 @@ onMounted(() => {
       handler: confirmDelete,
     },
   ])
+}
+
+onMounted(() => {
+  updateFooterActions()
 })
+
+watch(() => entry.value?.is_favorite, updateFooterActions)
 
 onUnmounted(() => {
   pageActionsStore.clearFooterActions()

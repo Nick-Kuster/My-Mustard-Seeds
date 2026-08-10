@@ -53,13 +53,19 @@
           <q-item v-for="entry in paginatedEntries" :key="entry.id" clickable class="entry-item"
             :style="{ borderLeftColor: typeColorsStore.getColor(entry.type) }" @click="viewEntry(entry.id)">
             <q-item-section>
-              <q-item-label>{{ entry.title }}</q-item-label>
+              <q-item-label>
+                <q-icon v-if="entry.is_favorite" name="star" color="warning" size="16px" class="q-mr-xs" />
+                {{ entry.title }}
+              </q-item-label>
               <q-item-label caption>
                 {{ formatDate(entry.updated_at || entry.created_at) }} • {{ entry.type }}
               </q-item-label>
             </q-item-section>
             <q-item-section side>
-              <q-icon name="chevron_right" />
+              <div class="row items-center no-wrap">
+                <FavoriteButton :entry="entry" />
+                <q-icon name="chevron_right" />
+              </div>
             </q-item-section>
           </q-item>
         </q-list>
@@ -85,6 +91,7 @@ import { useJournalTypeColorsStore } from 'src/stores/journalTypeColors'
 import { useTutorialStore } from 'src/stores/tutorial'
 import FilterModal from 'src/components/FilterModal.vue'
 import PrintOptionsModal from 'src/components/PrintOptionsModal.vue'
+import FavoriteButton from 'src/components/FavoriteButton.vue'
 import { FACET_KEYS } from 'src/utils/searchRoute'
 
 const router = useRouter()
@@ -105,8 +112,14 @@ const searchQuery = computed({
   set: (value) => journalStore.setSearchTerm(value || ''),
 })
 
-// Results come from the store's facet + search filtering
-const filteredEntries = computed(() => journalStore.filteredEntries)
+// Results come from the store's facet + search filtering. Favorites float to
+// the top without changing the user's actual entry updated date.
+const filteredEntries = computed(() =>
+  [...journalStore.filteredEntries].sort((a, b) => {
+    if (a.is_favorite !== b.is_favorite) return a.is_favorite ? -1 : 1
+    return new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at)
+  }),
+)
 
 const facetLabels = {
   types: 'Type',
@@ -118,6 +131,7 @@ const facetLabels = {
   quotes: 'Quote',
   links: 'Link',
   strongs: 'Strong\'s',
+  favorites: 'Favorite',
 }
 
 // Verse facets are range objects with a .label; everything else is a string

@@ -56,6 +56,7 @@ export const useJournalStore = defineStore('journalData', () => {
     quotes: [], // Will contain quote sources
     links: [], // Add this line
     strongs: [], // selected Strong's numbers
+    favorites: [], // selected favorite-only filter
   })
 
   // Computed property to get all available facets from the current entries
@@ -266,6 +267,9 @@ export const useJournalStore = defineStore('journalData', () => {
         entry.strongs?.some((item) => selectedFacets.value.strongs.includes(item.strongs_number)),
       )
     }
+    if (selectedFacets.value.favorites.length > 0) {
+      filtered = filtered.filter((entry) => entry.is_favorite)
+    }
     return filtered
   })
 
@@ -286,6 +290,7 @@ export const useJournalStore = defineStore('journalData', () => {
       quotes: [],
       links: [],
       strongs: [],
+      favorites: [],
     }
   }
 
@@ -462,6 +467,28 @@ export const useJournalStore = defineStore('journalData', () => {
   const updateEveryCachedEntry = (updater) => {
     entries.value.forEach((entry) => updater(entry, false))
     decryptedEntries.value.forEach((entry) => updater(entry, true))
+  }
+
+  const setEntryFavorite = async (journalId, isFavorite) => {
+    const previous = new Map()
+    updateEveryCachedEntry((entry) => {
+      if (entry.id !== journalId) return
+      previous.set(entry, entry.is_favorite)
+      entry.is_favorite = isFavorite
+    })
+
+    try {
+      const { error } = await supabase
+        .from('journal_entries')
+        .update({ is_favorite: isFavorite })
+        .eq('id', journalId)
+
+      if (error) throw error
+    } catch (error) {
+      previous.forEach((value, entry) => { entry.is_favorite = value })
+      console.error('Error updating favorite:', error)
+      throw error
+    }
   }
 
   // Add a quote to a journal entry
@@ -649,6 +676,7 @@ export const useJournalStore = defineStore('journalData', () => {
     clearFacets,
     getEntry,
     refreshEntry,
+    setEntryFavorite,
     addQuote,
     updateQuote,
     deleteQuote,
