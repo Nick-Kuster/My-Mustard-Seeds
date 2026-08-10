@@ -373,7 +373,7 @@
   </q-page>
 </template>
 <script setup>
-import { ref, onMounted, onUnmounted, computed, nextTick, defineAsyncComponent } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick, watch, defineAsyncComponent } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { supabase } from 'src/boot/supabase'
@@ -392,6 +392,7 @@ import VerseDisplayModal from 'components/VerseDisplayModal.vue'
 import { openSafeExternalUrl } from 'src/utils/urlUtils'
 import { useInlineReferenceResolver } from 'src/composables/useInlineReferenceResolver'
 import { EMPTY_RICH_DOC } from 'src/utils/richTextContent'
+import { deleteEntryDraft, entryDraftHasContent, getEntryDraft, saveEntryDraft } from 'src/utils/entryDrafts'
 
 const TagSelector = defineAsyncComponent(() => import('src/components/TagSelector.vue'))
 const QuoteSelector = defineAsyncComponent(() => import('src/components/QuoteSelector.vue'))
@@ -407,6 +408,9 @@ const activeTab = ref('main')
 const loading = ref(true)
 const saving = ref(false)
 const entryId = route.params.id
+const draftId = `edit-entry:${entryId}`
+let autosaveTimer = null
+const autosaveReady = ref(false)
 
 // Cancel was previously a hardcoded push to the view page — reachable
 // from Home/Search/another entry now, so a plain "Cancel" push always
@@ -509,6 +513,8 @@ const headerSections = computed(() => {
 
 // Load entry data
 const loadEntry = async () => {
+  autosaveReady.value = false
+  loading.value = true
   try {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error('No active session')
@@ -693,6 +699,25 @@ const loadEntry = async () => {
       }
     }
 
+    const draft = getEntryDraft(draftId)
+    if (draft?.data && entryDraftHasContent(draft.data)) {
+      restoreDraft(draft.data)
+      $q.notify({
+        type: 'info',
+        message: 'Draft restored',
+        actions: [
+          {
+            label: 'Discard',
+            color: 'white',
+            handler: () => {
+              deleteEntryDraft(draftId)
+              loadEntry()
+            },
+          },
+        ],
+      })
+    }
+
   } catch (error) {
     console.error('Error loading entry:', error)
     $q.notify({
@@ -702,6 +727,7 @@ const loadEntry = async () => {
     router.push('/')
   } finally {
     loading.value = false
+    nextTick(() => { autosaveReady.value = true })
   }
 }
 
@@ -766,6 +792,76 @@ const openSectionLink = (url) => {
 
 const removeSection = (index) => {
   contentSections.value.splice(index, 1)
+}
+
+const captureDraft = () => ({
+  entryType: entryType.value,
+  title: title.value,
+  activeTab: activeTab.value,
+  contentSections: contentSections.value,
+  mainVerse: mainVerse.value,
+  linkedVerses: linkedVerses.value,
+  selectedTags: selectedTags.value,
+  selectedQuotes: selectedQuotes.value,
+  selectedLinks: selectedLinks.value,
+  selectedStrongs: selectedStrongs.value,
+  resources: {
+    selectedChurch: selectedChurch.value,
+    selectedPastor: selectedPastor.value,
+    selectedSeries: selectedSeries.value,
+    selectedSermon: selectedSermon.value,
+    selectedPodcast: selectedPodcast.value,
+    selectedPodcastEpisode: selectedPodcastEpisode.value,
+    selectedArtist: selectedArtist.value,
+    selectedDevotional: selectedDevotional.value,
+    selectedBook: selectedBook.value,
+    selectedAuthor: selectedAuthor.value,
+    selectedChapter: selectedChapter.value,
+    selectedGroup: selectedGroup.value,
+    selectedShow: selectedShow.value,
+    selectedSeason: selectedSeason.value,
+    selectedEpisode: selectedEpisode.value,
+  },
+})
+
+const restoreDraft = (data) => {
+  entryType.value = data.entryType || entryType.value
+  title.value = data.title || ''
+  activeTab.value = data.activeTab || 'main'
+  contentSections.value = ensureSectionIds(data.contentSections?.length ? data.contentSections : contentSections.value)
+  mainVerse.value = data.mainVerse || {}
+  linkedVerses.value = data.linkedVerses || []
+  selectedTags.value = data.selectedTags || []
+  selectedQuotes.value = data.selectedQuotes || []
+  selectedLinks.value = data.selectedLinks || []
+  selectedStrongs.value = data.selectedStrongs || []
+
+  const resources = data.resources || {}
+  selectedChurch.value = resources.selectedChurch || null
+  selectedPastor.value = resources.selectedPastor || null
+  selectedSeries.value = resources.selectedSeries || null
+  selectedSermon.value = resources.selectedSermon || null
+  selectedPodcast.value = resources.selectedPodcast || null
+  selectedPodcastEpisode.value = resources.selectedPodcastEpisode || null
+  selectedArtist.value = resources.selectedArtist || null
+  selectedDevotional.value = resources.selectedDevotional || null
+  selectedBook.value = resources.selectedBook || null
+  selectedAuthor.value = resources.selectedAuthor || null
+  selectedChapter.value = resources.selectedChapter || null
+  selectedGroup.value = resources.selectedGroup || null
+  selectedShow.value = resources.selectedShow || null
+  selectedSeason.value = resources.selectedSeason || null
+  selectedEpisode.value = resources.selectedEpisode || null
+}
+
+const scheduleDraftSave = () => {
+  if (!autosaveReady.value || saving.value || loading.value) return
+  clearTimeout(autosaveTimer)
+  autosaveTimer = setTimeout(() => {
+    const draft = captureDraft()
+    if (entryDraftHasContent(draft)) saveEntryDraft(draftId, draft)
+    else deleteEntryDraft(draftId)
+  }, 800)
 }
 
 // Collapse state is purely an editing convenience, not saved with the entry
@@ -1162,6 +1258,7 @@ const updateEntry = async () => {
     // so it would otherwise hand the stale pre-save copy right back to
     // whichever page (typically ViewEntryPage) loads next.
     await journalStore.refreshEntry(entryId)
+    deleteEntryDraft(draftId)
 
     $q.notify({
       type: 'positive',
@@ -1226,6 +1323,37 @@ const handleTouchEnd = () => {
   touchEnd.value = { x: 0, y: 0 }
 }
 
+watch(
+  [
+    entryType,
+    title,
+    contentSections,
+    mainVerse,
+    linkedVerses,
+    selectedTags,
+    selectedQuotes,
+    selectedLinks,
+    selectedStrongs,
+    selectedChurch,
+    selectedPastor,
+    selectedSeries,
+    selectedSermon,
+    selectedPodcast,
+    selectedPodcastEpisode,
+    selectedArtist,
+    selectedDevotional,
+    selectedBook,
+    selectedAuthor,
+    selectedChapter,
+    selectedGroup,
+    selectedShow,
+    selectedSeason,
+    selectedEpisode,
+  ],
+  scheduleDraftSave,
+  { deep: true },
+)
+
 onMounted(() => {
   loadEntry()
 })
@@ -1267,6 +1395,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  clearTimeout(autosaveTimer)
   pageActionsStore.clearFooterActions()
 })
 </script>

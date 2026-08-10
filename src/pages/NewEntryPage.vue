@@ -372,6 +372,72 @@
       </div>
     </div>
   </q-page>
+
+  <q-dialog v-model="showDraftRestoreDialog" persistent>
+    <q-card class="draft-restore-card">
+      <q-card-section>
+        <div class="text-h6">Restore Unsaved Draft?</div>
+        <div class="text-body2 text-grey-8 q-mt-sm">
+          A previous new entry draft was found. Restore it into this blank form or discard it.
+        </div>
+      </q-card-section>
+
+      <q-card-section v-if="draftSummary" class="q-pt-none">
+        <q-list bordered separator class="rounded-borders bg-white">
+          <q-item>
+            <q-item-section avatar>
+              <q-icon name="category" color="primary" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>{{ draftSummary.type }}</q-item-label>
+              <q-item-label caption>Journal type</q-item-label>
+            </q-item-section>
+          </q-item>
+          <q-item>
+            <q-item-section avatar>
+              <q-icon name="title" color="primary" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>{{ draftSummary.title }}</q-item-label>
+              <q-item-label caption>Draft title</q-item-label>
+            </q-item-section>
+          </q-item>
+          <q-item>
+            <q-item-section avatar>
+              <q-icon name="notes" color="primary" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>{{ draftSummary.sections }}</q-item-label>
+              <q-item-label caption>Content sections</q-item-label>
+            </q-item-section>
+          </q-item>
+          <q-item>
+            <q-item-section avatar>
+              <q-icon name="sell" color="primary" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>{{ draftSummary.references }}</q-item-label>
+              <q-item-label caption>Linked items</q-item-label>
+            </q-item-section>
+          </q-item>
+          <q-item>
+            <q-item-section avatar>
+              <q-icon name="schedule" color="primary" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>{{ draftSummary.updated }}</q-item-label>
+              <q-item-label caption>Last autosaved</q-item-label>
+            </q-item-section>
+          </q-item>
+        </q-list>
+      </q-card-section>
+
+      <q-card-actions align="right">
+        <q-btn flat color="negative" label="Discard" @click="discardAvailableDraft" />
+        <q-btn color="primary" label="Restore Draft" @click="restoreAvailableDraft" />
+      </q-card-actions>
+    </q-card>
+  </q-dialog>
 </template>
 
 <script setup>
@@ -396,6 +462,7 @@ import VerseDisplayModal from 'components/VerseDisplayModal.vue'
 import { openSafeExternalUrl } from 'src/utils/urlUtils'
 import { useInlineReferenceResolver } from 'src/composables/useInlineReferenceResolver'
 import { EMPTY_RICH_DOC } from 'src/utils/richTextContent'
+import { deleteEntryDraft, entryDraftHasContent, getEntryDraft, saveEntryDraft } from 'src/utils/entryDrafts'
 
 const TagSelector = defineAsyncComponent(() => import('src/components/TagSelector.vue'))
 const QuoteSelector = defineAsyncComponent(() => import('src/components/QuoteSelector.vue'))
@@ -407,6 +474,11 @@ const router = useRouter()
 const $q = useQuasar()
 const journalStore = useJournalStore()
 const activeTab = ref('main')
+const draftId = 'new-entry'
+let autosaveTimer = null
+const autosaveReady = ref(false)
+const draftToRestore = ref(null)
+const showDraftRestoreDialog = ref(false)
 
 // Modals
 const showVerseDisplayModal = ref(false)
@@ -619,6 +691,147 @@ const toggleCollapse = (id) => {
 
 const removeSection = (index) => {
   contentSections.value.splice(index, 1)
+}
+
+const captureDraft = () => ({
+  entryType: entryType.value,
+  title: title.value,
+  activeTab: activeTab.value,
+  contentSections: contentSections.value,
+  mainVerse: mainVerse.value,
+  linkedVerses: linkedVerses.value,
+  selectedTags: selectedTags.value,
+  selectedQuotes: selectedQuotes.value,
+  selectedLinks: selectedLinks.value,
+  selectedStrongs: selectedStrongs.value,
+  resources: {
+    selectedChurch: selectedChurch.value,
+    selectedPastor: selectedPastor.value,
+    selectedSeries: selectedSeries.value,
+    selectedSermon: selectedSermon.value,
+    selectedPodcast: selectedPodcast.value,
+    selectedPodcastEpisode: selectedPodcastEpisode.value,
+    selectedArtist: selectedArtist.value,
+    selectedDevotional: selectedDevotional.value,
+    selectedBook: selectedBook.value,
+    selectedAuthor: selectedAuthor.value,
+    selectedChapter: selectedChapter.value,
+    selectedGroup: selectedGroup.value,
+    selectedShow: selectedShow.value,
+    selectedSeason: selectedSeason.value,
+    selectedEpisode: selectedEpisode.value,
+  },
+})
+
+const restoreDraft = (data) => {
+  entryType.value = data.entryType || 'Daily Bible Reading'
+  title.value = data.title || ''
+  activeTab.value = data.activeTab || 'main'
+  contentSections.value = data.contentSections?.length ? data.contentSections : [createSection()]
+  mainVerse.value = data.mainVerse || {}
+  linkedVerses.value = data.linkedVerses || []
+  selectedTags.value = data.selectedTags || []
+  selectedQuotes.value = data.selectedQuotes || []
+  selectedLinks.value = data.selectedLinks || []
+  selectedStrongs.value = data.selectedStrongs || []
+
+  const resources = data.resources || {}
+  selectedChurch.value = resources.selectedChurch || null
+  selectedPastor.value = resources.selectedPastor || null
+  selectedSeries.value = resources.selectedSeries || null
+  selectedSermon.value = resources.selectedSermon || null
+  selectedPodcast.value = resources.selectedPodcast || null
+  selectedPodcastEpisode.value = resources.selectedPodcastEpisode || null
+  selectedArtist.value = resources.selectedArtist || null
+  selectedDevotional.value = resources.selectedDevotional || null
+  selectedBook.value = resources.selectedBook || null
+  selectedAuthor.value = resources.selectedAuthor || null
+  selectedChapter.value = resources.selectedChapter || null
+  selectedGroup.value = resources.selectedGroup || null
+  selectedShow.value = resources.selectedShow || null
+  selectedSeason.value = resources.selectedSeason || null
+  selectedEpisode.value = resources.selectedEpisode || null
+}
+
+const resetDraftForm = () => {
+  entryType.value = 'Daily Bible Reading'
+  title.value = ''
+  activeTab.value = 'main'
+  contentSections.value = [createSection()]
+  mainVerse.value = {}
+  linkedVerses.value = []
+  selectedTags.value = []
+  selectedQuotes.value = []
+  selectedLinks.value = []
+  selectedStrongs.value = []
+  selectedChurch.value = null
+  selectedPastor.value = null
+  selectedSeries.value = null
+  selectedSermon.value = null
+  selectedPodcast.value = null
+  selectedPodcastEpisode.value = null
+  selectedArtist.value = null
+  selectedDevotional.value = null
+  selectedBook.value = null
+  selectedAuthor.value = null
+  selectedChapter.value = null
+  selectedGroup.value = null
+  selectedShow.value = null
+  selectedSeason.value = null
+  selectedEpisode.value = null
+}
+
+const scheduleDraftSave = () => {
+  if (!autosaveReady.value || saving.value) return
+  clearTimeout(autosaveTimer)
+  autosaveTimer = setTimeout(() => {
+    const draft = captureDraft()
+    if (entryDraftHasContent(draft)) saveEntryDraft(draftId, draft)
+    else deleteEntryDraft(draftId)
+  }, 800)
+}
+
+const richTextHasText = (content) => JSON.stringify(content || '').includes('"text"')
+
+const draftSummary = computed(() => {
+  const draft = draftToRestore.value
+  if (!draft?.data) return null
+  const data = draft.data
+  const sections = (data.contentSections || []).filter((section) => {
+    if (section.headerProperty) return false
+    if (section.fieldType === 'list') return String(section.content || '').trim()
+    return richTextHasText(section.content)
+  }).length
+  const linkedCount =
+    (data.linkedVerses?.length || 0) +
+    (data.selectedTags?.length || 0) +
+    (data.selectedQuotes?.length || 0) +
+    (data.selectedLinks?.length || 0) +
+    (data.selectedStrongs?.length || 0) +
+    (data.mainVerse?.display ? 1 : 0)
+
+  return {
+    type: data.entryType || 'Daily Bible Reading',
+    title: data.title?.trim() || data.mainVerse?.display || 'Untitled draft',
+    sections: `${sections} content section${sections === 1 ? '' : 's'}`,
+    references: `${linkedCount} linked item${linkedCount === 1 ? '' : 's'}`,
+    updated: draft.updatedAt ? new Date(draft.updatedAt).toLocaleString() : 'Unknown',
+  }
+})
+
+const restoreAvailableDraft = () => {
+  if (!draftToRestore.value?.data) return
+  autosaveReady.value = false
+  restoreDraft(draftToRestore.value.data)
+  showDraftRestoreDialog.value = false
+  nextTick(() => { autosaveReady.value = true })
+}
+
+const discardAvailableDraft = () => {
+  deleteEntryDraft(draftId)
+  draftToRestore.value = null
+  showDraftRestoreDialog.value = false
+  resetDraftForm()
 }
 
 const handleResourceSelection = (selections) => {
@@ -970,6 +1183,7 @@ const saveEntry = async () => {
 
     const newEntry = await journalStore.getEntry(entry.id);
     await journalStore.addEntry(newEntry)
+    deleteEntryDraft(draftId)
 
     router.push('/')
   } catch (error) {
@@ -1027,8 +1241,45 @@ const handleTouchEnd = () => {
   touchEnd.value = { x: 0, y: 0 }
 }
 onMounted(() => {
-  contentSections.value = [createSection()]
+  const draft = getEntryDraft(draftId)
+  resetDraftForm()
+  if (draft?.data && entryDraftHasContent(draft.data)) {
+    draftToRestore.value = draft
+    showDraftRestoreDialog.value = true
+  }
+  nextTick(() => { autosaveReady.value = true })
 })
+
+watch(
+  [
+    entryType,
+    title,
+    contentSections,
+    mainVerse,
+    linkedVerses,
+    selectedTags,
+    selectedQuotes,
+    selectedLinks,
+    selectedStrongs,
+    selectedChurch,
+    selectedPastor,
+    selectedSeries,
+    selectedSermon,
+    selectedPodcast,
+    selectedPodcastEpisode,
+    selectedArtist,
+    selectedDevotional,
+    selectedBook,
+    selectedAuthor,
+    selectedChapter,
+    selectedGroup,
+    selectedShow,
+    selectedSeason,
+    selectedEpisode,
+  ],
+  scheduleDraftSave,
+  { deep: true },
+)
 
 // Lets a mid-tour step (see src/constants/tutorialSteps.js) switch into the
 // Additional Content tab without this component needing to know the tour
@@ -1082,6 +1333,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  clearTimeout(autosaveTimer)
   pageActionsStore.clearFooterActions()
 })
 </script>
@@ -1098,6 +1350,11 @@ onUnmounted(() => {
    scroll, not a broken page. */
 .entry-card {
   min-height: calc(100vh - 180px);
+}
+
+.draft-restore-card {
+  width: 92vw;
+  max-width: 440px;
 }
 
 .section-container {
