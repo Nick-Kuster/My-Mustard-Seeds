@@ -46,9 +46,21 @@
         <div v-if="loading" class="text-center">
           <q-spinner color="primary" size="2em" />
         </div>
-        <div v-else-if="filteredEntries.length === 0" class="text-center text-grey q-pa-lg">
-          No entries found matching your search criteria
-        </div>
+        <AppEmptyState
+          v-else-if="filteredEntries.length === 0"
+          :icon="hasSearchCriteria ? 'manage_search' : 'eco'"
+          :title="hasSearchCriteria ? 'No entries match this search' : 'No entries to search yet'"
+          :message="hasSearchCriteria
+            ? 'Try a different word, remove a filter, or clear everything and search again.'
+            : 'Create your first note, then Search can help you find verses, tags, resources, and themes later.'"
+          :primary-label="hasSearchCriteria ? 'Clear Search' : 'New Entry'"
+          :primary-icon="hasSearchCriteria ? 'filter_alt_off' : 'add'"
+          :primary-to="hasSearchCriteria ? undefined : '/entry/new'"
+          :secondary-label="hasSearchCriteria ? 'New Entry' : ''"
+          :secondary-icon="hasSearchCriteria ? 'add' : ''"
+          secondary-to="/entry/new"
+          @primary="hasSearchCriteria && clearSearchCriteria()"
+        />
         <q-list v-else bordered separator>
           <q-item v-for="entry in paginatedEntries" :key="entry.id" clickable class="entry-item"
             :style="{ borderLeftColor: typeColorsStore.getColor(entry.type) }" @click="viewEntry(entry.id)">
@@ -92,6 +104,7 @@ import { useTutorialStore } from 'src/stores/tutorial'
 import FilterModal from 'src/components/FilterModal.vue'
 import PrintOptionsModal from 'src/components/PrintOptionsModal.vue'
 import FavoriteButton from 'src/components/FavoriteButton.vue'
+import AppEmptyState from 'src/components/AppEmptyState.vue'
 import { FACET_KEYS } from 'src/utils/searchRoute'
 
 const router = useRouter()
@@ -149,6 +162,10 @@ const activeFilterChips = computed(() =>
   ),
 )
 
+const hasSearchCriteria = computed(() =>
+  searchQuery.value.trim().length > 0 || activeFilterChips.value.length > 0,
+)
+
 const removeFacetValue = (facetType, value) => {
   journalStore.updateFacet(
     facetType,
@@ -158,6 +175,17 @@ const removeFacetValue = (facetType, value) => {
 
 const clearAllFilters = () => {
   journalStore.clearFacets()
+}
+
+const clearSearchCriteria = () => {
+  journalStore.setSearchTerm('')
+  journalStore.clearFacets()
+  const query = { ...route.query }
+  delete query.facets
+  delete query.type
+  delete query.resourceType
+  delete query.resources
+  router.replace({ path: '/search', query })
 }
 
 // Reflects the full current facet state into the URL as its own history

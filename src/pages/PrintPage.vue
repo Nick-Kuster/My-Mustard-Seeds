@@ -30,9 +30,15 @@
         <div v-if="filterSummary" class="doc-filters">Filtered by — {{ filterSummary }}</div>
       </header>
 
-      <div v-if="entries.length === 0" class="text-center text-grey q-pa-xl">
-        No entries match the current filters.
-      </div>
+      <AppEmptyState
+        v-if="entries.length === 0"
+        icon="print_disabled"
+        title="Nothing to print yet"
+        message="No entries match the current search or filter selections."
+        primary-label="Back to Search"
+        primary-icon="arrow_back"
+        primary-to="/search"
+      />
 
       <article v-for="entry in entries" :key="entry.id" class="entry">
         <h2 class="entry-title">{{ entry.title }}</h2>
@@ -86,6 +92,7 @@ import { useJournalStore, getVerseDisplay } from 'src/stores/journalData'
 import { useUserPreferencesStore } from 'src/stores/userPreferences'
 import { getListItems } from 'src/utils/sectionListUtils'
 import { getSectionPlainText } from 'src/utils/richTextContent'
+import AppEmptyState from 'src/components/AppEmptyState.vue'
 
 const router = useRouter()
 const journalStore = useJournalStore()

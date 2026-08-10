@@ -3,9 +3,18 @@
     <div v-if="journalStore.loading" class="loader-container">
       <q-spinner color="primary" size="3em" />
     </div>
-    <div v-else-if="entries.length === 0" class="empty-container">
-      No seeds planted yet. Start your journey by planting your first seed.
-    </div>
+    <AppEmptyState
+      v-else-if="entries.length === 0"
+      icon="eco"
+      title="Plant your first seed"
+      message="Save a sermon note, Scripture reflection, prayer, or testimony so you can return to what God is growing in your life."
+      primary-label="New Entry"
+      primary-icon="add"
+      primary-to="/entry/new"
+      secondary-label="Take Tour"
+      secondary-icon="school"
+      @secondary="showTutorialDialog = true"
+    />
     <template v-else>
       <div class="entries-toolbar">
         <q-btn
@@ -108,6 +117,7 @@
       </div>
     </template>
   </div>
+  <TutorialStartDialog v-model="showTutorialDialog" />
 </template>
 
 <script setup>
@@ -125,6 +135,8 @@ import { HOME_SECTION_IDS } from 'stores/userPreferences'
 import { searchRouteForFacet } from 'src/utils/searchRoute'
 import ResourceTreeSection from './ResourceTreeSection.vue'
 import FavoriteButton from './FavoriteButton.vue'
+import AppEmptyState from './AppEmptyState.vue'
+import TutorialStartDialog from './TutorialStartDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -135,6 +147,7 @@ const userPreferencesStore = useUserPreferencesStore()
 const homeViewState = useHomeViewStateStore()
 const sortOrder = ref('desc')
 const lanesEl = ref(null)
+const showTutorialDialog = ref(false)
 
 // A ?type= query param survives a full page reload, unlike homeViewState
 // (in-memory only) — restore from it first, so an accidental refresh

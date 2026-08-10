@@ -7,12 +7,15 @@
     <!-- viewMode takes priority over the empty-state check below — otherwise
          switching to manage mode to add the first prayer would be a no-op,
          since requests.length is still 0 until you actually add one. -->
-    <div v-else-if="viewMode !== 'manage' && requests.length === 0" class="text-center text-grey q-pa-lg">
-      No prayer requests yet.
-      <div class="q-mt-sm">
-        <q-btn flat color="primary" label="Add your first prayer" @click="viewMode = 'manage'" />
-      </div>
-    </div>
+    <AppEmptyState
+      v-else-if="viewMode !== 'manage' && requests.length === 0"
+      icon="front_hand"
+      title="Start a prayer list"
+      message="Keep the people and needs you are praying over in one place, then mark answers as they come."
+      primary-label="Add Prayer"
+      primary-icon="add"
+      @primary="viewMode = 'manage'"
+    />
 
     <!-- List view: a plain, quick-to-scan read of what's currently active —
          no drag handles, no group management, nothing interactive besides
@@ -25,9 +28,16 @@
         <q-btn flat dense no-caps icon="edit" label="Edit" data-tour="prayers-manage-btn" @click="viewMode = 'manage'" />
       </div>
 
-      <div v-if="active.length === 0" class="text-center text-grey q-pa-lg">
-        Nothing active right now.
-      </div>
+      <AppEmptyState
+        v-if="active.length === 0"
+        compact
+        icon="check_circle"
+        title="No active prayers right now"
+        message="Answered prayers stay below. Switch to edit mode when you are ready to add more."
+        primary-label="Edit Prayer List"
+        primary-icon="edit"
+        @primary="viewMode = 'manage'"
+      />
       <div v-else>
         <template v-for="section in allSectionsForDisplay" :key="section.key ?? 'misc'">
           <template v-if="section.items.length > 0">
@@ -304,6 +314,7 @@ import draggable from 'vuedraggable'
 import { usePrayerRequestsStore } from 'stores/prayerRequests'
 import { usePrayerRequestGroupsStore } from 'stores/prayerRequestGroups'
 import { useTutorialStore } from 'src/stores/tutorial'
+import AppEmptyState from './AppEmptyState.vue'
 
 const $q = useQuasar()
 const store = usePrayerRequestsStore()

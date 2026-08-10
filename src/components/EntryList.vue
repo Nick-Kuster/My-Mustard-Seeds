@@ -4,9 +4,16 @@
     <div v-if="loading" class="text-center">
       <q-spinner color="primary" size="2em" />
     </div>
-    <div v-else-if="entries.length === 0" class="text-center text-grey">
-      {{ emptyMessage }}
-    </div>
+    <AppEmptyState
+      v-else-if="entries.length === 0"
+      compact
+      icon="article"
+      title="No entries found"
+      :message="emptyMessage"
+      primary-label="New Entry"
+      primary-icon="add"
+      primary-to="/entry/new"
+    />
     <q-list v-else bordered separator>
       <q-item v-for="entry in entries" :key="entry.id" clickable @click="viewEntry(entry.id)">
         <q-item-section>
@@ -26,6 +33,7 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
+import AppEmptyState from './AppEmptyState.vue'
 
 defineProps({
   entries: {

@@ -44,9 +44,16 @@
               <div v-if="tagsStore.loading" class="text-center q-pa-md">
                 <q-spinner color="primary" size="2em" />
               </div>
-              <div v-else-if="tagsStore.tags.length === 0" class="text-body2 text-grey-8">
-                No tags yet.
-              </div>
+              <AppEmptyState
+                v-else-if="tagsStore.tags.length === 0"
+                compact
+                icon="sell"
+                title="No tags yet"
+                message="Tags appear here after you add them to entries."
+                primary-label="New Entry"
+                primary-icon="add"
+                primary-to="/entry/new"
+              />
               <template v-else>
                 <div class="row items-center q-mb-sm">
                   <q-checkbox :model-value="allTagsSelected" @update:model-value="toggleSelectAllTags"
@@ -202,6 +209,7 @@ import { buildImportTemplateText, importEntries } from 'src/utils/journalImport'
 import { useAccountExport } from 'src/composables/useAccountExport'
 import TutorialStartDialog from 'components/TutorialStartDialog.vue'
 import DeleteAccountDialog from 'components/DeleteAccountDialog.vue'
+import AppEmptyState from 'components/AppEmptyState.vue'
 
 const $q = useQuasar()
 const journalStore = useJournalStore()

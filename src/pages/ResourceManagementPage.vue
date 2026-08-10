@@ -19,9 +19,16 @@
 
         <!-- Search mode: flat list of matches regardless of depth -->
         <template v-else-if="searchTerm.trim()">
-          <div v-if="searchResults.length === 0" class="text-center text-grey q-pa-lg">
-            No resources match "{{ searchTerm }}"
-          </div>
+          <AppEmptyState
+            v-if="searchResults.length === 0"
+            compact
+            icon="manage_search"
+            title="No resources match that search"
+            :message="`Nothing matched '${searchTerm.trim()}'. Try a broader name or clear the search.`"
+            primary-label="Clear Search"
+            primary-icon="close"
+            @primary="searchTerm = ''"
+          />
           <q-list v-else separator bordered class="rounded-borders bg-white">
             <q-item v-for="resource in searchResults" :key="resource.id">
               <q-item-section>
@@ -75,9 +82,12 @@
              Ministries, Books, ...), each holding a flattened tree of that
              type's resources and their descendants -->
         <template v-else>
-          <div v-if="typeSections.length === 0" class="text-center text-grey q-pa-lg">
-            No resources found
-          </div>
+          <AppEmptyState
+            v-if="typeSections.length === 0"
+            icon="folder_open"
+            title="No resource sections are available"
+            message="Resources will appear here as you connect entries to sermons, books, podcasts, churches, and other sources."
+          />
           <q-list v-else separator bordered class="rounded-borders bg-white">
             <q-expansion-item v-for="section in typeSections" :key="section.type"
               :model-value="openSectionTypes.has(section.type)"
@@ -97,9 +107,18 @@
                 </q-item-section>
               </template>
 
-              <div v-if="section.rows.length === 0" class="text-center text-grey q-pa-md text-caption">
-                No {{ section.label.toLowerCase() }} yet
-              </div>
+              <AppEmptyState
+                v-if="section.rows.length === 0"
+                compact
+                icon="add_link"
+                :title="`No ${section.label.toLowerCase()} yet`"
+                :message="section.isRootType
+                  ? `Add a ${typeLabel(section.type).toLowerCase()} here, or connect one while creating an entry.`
+                  : 'Resources appear here after they are connected to an entry.'"
+                :primary-label="section.isRootType ? `Add ${typeLabel(section.type)}` : ''"
+                primary-icon="add"
+                @primary="section.isRootType && openAddRoot(section.type)"
+              />
               <q-item v-for="row in section.rows" :key="row.resource.id"
                 :clickable="row.hasChildren" v-ripple="row.hasChildren"
                 @click="row.hasChildren && toggleExpand(row.resource.id)"
@@ -250,6 +269,7 @@ import { useQuasar } from 'quasar'
 import { useResourcesStore } from 'src/stores/resources'
 import { RESOURCE_TYPES } from 'src/constants/resourceTypes'
 import { getResourceConfig, pluralizeTitle, getRootResourceTypes } from 'src/configs/resourceConfigs'
+import AppEmptyState from 'src/components/AppEmptyState.vue'
 
 const router = useRouter()
 const $q = useQuasar()
