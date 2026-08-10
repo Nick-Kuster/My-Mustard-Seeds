@@ -161,7 +161,9 @@ export default defineConfig((/* ctx */) => {
       // useCredentialsForManifestTag: true,
       // injectPwaMetaTags: false,
       // extendPWACustomSWConf (esbuildConf) {},
-      // extendGenerateSWOptions (cfg) {},
+      extendGenerateSWOptions (cfg) {
+        cfg.importScripts = ['push-service-worker.js']
+      },
       // extendInjectManifestOptions (cfg) {}
     },
 

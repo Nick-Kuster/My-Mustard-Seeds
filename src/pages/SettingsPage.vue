@@ -58,6 +58,60 @@
         </q-card>
       </div>
 
+      <!-- Prayer Reminders -->
+      <div class="col-12 content-card">
+        <q-card class="settings-card q-pa-lg parchment" data-tour="settings-prayer-reminders">
+          <div class="text-h6 q-mb-lg">Prayer Reminders</div>
+          <div class="text-body2 text-grey-8 q-mb-md">
+            Get a daily phone reminder when prayer follow-ups are due or overdue.
+          </div>
+
+          <q-banner v-if="!pushStatus.supported" rounded class="reminder-banner q-mb-md">
+            {{ pushStatus.reason }}
+          </q-banner>
+
+          <div class="row items-center q-col-gutter-md">
+            <div class="col-12 col-sm-5">
+              <q-select
+                v-model="reminderHour"
+                outlined
+                dense
+                emit-value
+                map-options
+                label="Reminder time"
+                :options="reminderHourOptions"
+                :disable="savingReminderOptions"
+              />
+            </div>
+            <div class="col-12 col-sm-auto">
+              <q-btn
+                v-if="!remindersEnabled"
+                unelevated
+                color="primary"
+                icon="notifications"
+                label="Enable Reminders"
+                :loading="savingReminderOptions"
+                :disable="!pushStatus.supported"
+                @click="enablePrayerReminders"
+              />
+              <q-btn
+                v-else
+                outline
+                color="negative"
+                icon="notifications_off"
+                label="Disable Reminders"
+                :loading="savingReminderOptions"
+                @click="disablePrayerReminders"
+              />
+            </div>
+          </div>
+
+          <div v-if="remindersEnabled" class="text-caption text-grey-7 q-mt-sm">
+            Reminders are enabled for {{ reminderHourLabel(reminderHour) }}.
+          </div>
+        </q-card>
+      </div>
+
       <!-- Tags -->
       <div class="col-12 content-card">
         <q-card class="settings-card q-pa-lg parchment" data-tour="settings-tags">
@@ -318,7 +372,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import draggable from 'vuedraggable'
 import { useJournalStore } from 'stores/journalData'
@@ -335,6 +389,11 @@ import { useSavedFiltersStore } from 'stores/savedFilters'
 import { JOURNAL_TYPES } from 'src/constants/journalTypes'
 import { buildImportTemplateText, importEntries, previewImportEntries } from 'src/utils/journalImport'
 import { useAccountExport } from 'src/composables/useAccountExport'
+import {
+  disablePushNotifications,
+  enablePushNotifications,
+  pushSupportStatus,
+} from 'src/utils/pushNotifications'
 import TutorialStartDialog from 'components/TutorialStartDialog.vue'
 import DeleteAccountDialog from 'components/DeleteAccountDialog.vue'
 import AppEmptyState from 'components/AppEmptyState.vue'
@@ -353,6 +412,21 @@ const showDeleteAccountDialog = ref(false)
 const selectedTagIds = ref([])
 const showDeleteTagsDialog = ref(false)
 const deletingTags = ref(false)
+const savingReminderOptions = ref(false)
+const remindersEnabled = ref(false)
+const reminderHour = ref(8)
+const pushStatus = ref({ supported: false, reason: 'Checking notification support...' })
+
+const reminderHourOptions = Array.from({ length: 24 }, (_, hour) => ({
+  label: reminderHourLabel(hour),
+  value: hour,
+}))
+
+function reminderHourLabel(hour) {
+  const date = new Date()
+  date.setHours(hour, 0, 0, 0)
+  return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+}
 
 const allTagsSelected = computed(() =>
   tagsStore.tags.length > 0 && selectedTagIds.value.length === tagsStore.tags.length,
@@ -468,7 +542,57 @@ onMounted(async () => {
     savedFiltersStore.filters.length ? Promise.resolve() : savedFiltersStore.fetchFilters(),
   ])
   syncOrderedTypes()
+  pushStatus.value = pushSupportStatus()
+  remindersEnabled.value = userPreferencesStore.prayerReminderOptions.enabled
+  reminderHour.value = userPreferencesStore.prayerReminderOptions.hour
 })
+
+const saveReminderPreferences = async (enabled) => {
+  await userPreferencesStore.setPrayerReminderOptions({
+    enabled,
+    hour: reminderHour.value,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  })
+  remindersEnabled.value = enabled
+}
+
+watch(reminderHour, async () => {
+  if (!remindersEnabled.value) return
+  savingReminderOptions.value = true
+  try {
+    await saveReminderPreferences(true)
+  } catch {
+    $q.notify({ type: 'negative', message: 'Could not save reminder time' })
+  } finally {
+    savingReminderOptions.value = false
+  }
+})
+
+const enablePrayerReminders = async () => {
+  savingReminderOptions.value = true
+  try {
+    await enablePushNotifications()
+    await saveReminderPreferences(true)
+    $q.notify({ type: 'positive', message: 'Prayer reminders enabled' })
+  } catch (error) {
+    $q.notify({ type: 'negative', message: error.message || 'Could not enable reminders' })
+  } finally {
+    savingReminderOptions.value = false
+  }
+}
+
+const disablePrayerReminders = async () => {
+  savingReminderOptions.value = true
+  try {
+    await disablePushNotifications()
+    await saveReminderPreferences(false)
+    $q.notify({ type: 'positive', message: 'Prayer reminders disabled' })
+  } catch (error) {
+    $q.notify({ type: 'negative', message: error.message || 'Could not disable reminders' })
+  } finally {
+    savingReminderOptions.value = false
+  }
+}
 
 const copyTemplate = async () => {
   try {
@@ -602,6 +726,12 @@ const runImport = async () => {
   border: 1px solid rgba(153, 104, 36, 0.24);
 }
 
+.reminder-banner {
+  background: #f5e3c4;
+  border: 1px solid rgba(153, 104, 36, 0.24);
+  color: #3d2d18;
+}
+
 body.body--dark .import-result-banner {
   color: #f3f7f1;
 }
@@ -614,6 +744,12 @@ body.body--dark .import-result-banner--success {
 body.body--dark .import-result-banner--warning {
   background: #684b22;
   border-color: rgba(245, 210, 151, 0.24);
+}
+
+body.body--dark .reminder-banner {
+  background: #684b22;
+  border-color: rgba(245, 210, 151, 0.24);
+  color: #f7ead2;
 }
 
 @media (max-width: 599px) {

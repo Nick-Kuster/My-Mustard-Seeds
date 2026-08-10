@@ -35,9 +35,10 @@
         :caption="`${followUps.length} due or coming soon`"
         header-class="text-weight-bold"
         class="rounded-borders bg-white follow-up-section q-mb-sm"
+        data-tour="prayer-followups"
       >
         <q-list separator dense>
-          <q-item v-for="request in followUps" :key="request.id" dense class="follow-up-item">
+          <q-item v-for="request in followUps" :key="request.id" dense class="follow-up-item" data-tour="prayer-followup-item">
             <q-item-section>
               <q-item-label class="text-wrap">{{ request.decryptedContent }}</q-item-label>
               <q-item-label caption :class="followUpStatusClass(request)">
@@ -180,7 +181,7 @@
                       </q-item-section>
                       <q-item-section side class="compact-actions-section">
                         <div class="compact-action-row">
-                          <q-btn flat round dense size="sm" icon="event" @click="openFollowUp(request)">
+                          <q-btn flat round dense size="sm" icon="event" data-tour="prayer-followup-date" @click="openFollowUp(request)">
                             <q-tooltip>Set follow-up date</q-tooltip>
                           </q-btn>
                           <q-btn flat round dense size="sm" icon="check_circle" color="positive" @click="openAnswer(request)">
@@ -245,7 +246,7 @@
                   </q-item-section>
                   <q-item-section side class="compact-actions-section">
                     <div class="compact-action-row">
-                      <q-btn flat round dense size="sm" icon="event" @click="openFollowUp(request)">
+                      <q-btn flat round dense size="sm" icon="event" data-tour="prayer-followup-date" @click="openFollowUp(request)">
                         <q-tooltip>Set follow-up date</q-tooltip>
                       </q-btn>
                       <q-btn flat round dense size="sm" icon="check_circle" color="positive" data-tour="prayer-mark-answered"

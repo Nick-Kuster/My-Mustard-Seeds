@@ -244,6 +244,14 @@ const entryAdditionalContentSteps = [
 
 const prayersDeepDiveSteps = [
   {
+    selector: '[data-tour="prayer-followups"]',
+    page: '/',
+    title: 'Follow up on prayers',
+    description:
+      'When a prayer has a follow-up date due soon, it appears here with quick actions to mark that you prayed, snooze it, reschedule it, or mark it answered.',
+    skipMissingElement: true,
+  },
+  {
     selector: '[data-tour="prayers-manage-btn"]',
     page: '/',
     title: 'Organize your prayers',
@@ -263,6 +271,14 @@ const prayersDeepDiveSteps = [
     page: '/',
     title: 'Quick add',
     description: 'Add a prayer inline, right where you\'re already looking — no separate dialog.',
+    skipMissingElement: true,
+  },
+  {
+    selector: '[data-tour="prayer-followup-date"]',
+    page: '/',
+    title: 'Set a follow-up date',
+    description:
+      'Use the calendar button on any active prayer to choose when you want it to come back to your attention.',
     skipMissingElement: true,
   },
   {
@@ -339,6 +355,13 @@ const printOptionsSteps = [
 ]
 
 const settingsDeepDiveSteps = [
+  {
+    selector: '[data-tour="settings-prayer-reminders"]',
+    page: '/settings',
+    title: 'Prayer reminders',
+    description:
+      'Turn on daily phone reminders for due prayer follow-ups and choose the hour you want to be reminded. On iPhone, this works from the installed Home Screen app.',
+  },
   {
     selector: '[data-tour="settings-tags"]',
     page: '/settings',

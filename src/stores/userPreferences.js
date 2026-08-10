@@ -29,6 +29,11 @@ export const DEFAULT_PRINT_OPTIONS = {
   links: true,
 }
 
+export const DEFAULT_PRAYER_REMINDER_OPTIONS = {
+  enabled: false,
+  hour: 8,
+}
+
 // Per-user app preferences, stored as a single jsonb blob (see
 // sql/User Preferences Table.sql for why a blob over columns or a
 // key/value table) rather than one row/column per setting. Loaded once per
@@ -156,6 +161,12 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
   const printOptions = computed(() => ({ ...DEFAULT_PRINT_OPTIONS, ...(preferences.value.printOptions || {}) }))
   const setPrintOptions = (options) => setPreferences({ printOptions: options })
 
+  const prayerReminderOptions = computed(() => ({
+    ...DEFAULT_PRAYER_REMINDER_OPTIONS,
+    ...(preferences.value.prayerReminderOptions || {}),
+  }))
+  const setPrayerReminderOptions = (options) => setPreferences({ prayerReminderOptions: options })
+
   return {
     preferences,
     loaded,
@@ -172,5 +183,7 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
     setThemeMode,
     printOptions,
     setPrintOptions,
+    prayerReminderOptions,
+    setPrayerReminderOptions,
   }
 })
