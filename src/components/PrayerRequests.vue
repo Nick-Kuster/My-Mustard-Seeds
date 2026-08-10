@@ -362,19 +362,40 @@
             {{ followUpRequest?.decryptedContent }}
           </div>
             <div class="row q-col-gutter-sm">
-              <div class="col-7">
+              <div class="col-12">
                 <q-input v-model="followUpDate" outlined dense type="date" label="Follow up on" />
               </div>
-              <div class="col-5">
+              <div class="col-4">
                 <q-select
-                  v-model="followUpTime"
+                  v-model="followUpHour"
                   outlined
                   dense
-                  clearable
                   emit-value
                   map-options
-                  label="Reminder"
-                  :options="quarterHourOptions"
+                  label="Hour"
+                  :options="reminderHourOptions"
+                />
+              </div>
+              <div class="col-4">
+                <q-select
+                  v-model="followUpMinute"
+                  outlined
+                  dense
+                  emit-value
+                  map-options
+                  label="Minute"
+                  :options="reminderMinuteOptions"
+                />
+              </div>
+              <div class="col-4">
+                <q-select
+                  v-model="followUpPeriod"
+                  outlined
+                  dense
+                  emit-value
+                  map-options
+                  label="AM/PM"
+                  :options="reminderPeriodOptions"
                 />
               </div>
             </div>
@@ -420,19 +441,40 @@
           <div>
             <div class="text-subtitle2 text-weight-bold q-mb-sm">Follow-Up</div>
             <div class="row q-col-gutter-sm">
-              <div class="col-7">
+              <div class="col-12">
                 <q-input v-model="detailsFollowUpDate" outlined dense type="date" label="Date" />
               </div>
-              <div class="col-5">
+              <div class="col-4">
                 <q-select
-                  v-model="detailsFollowUpTime"
+                  v-model="detailsFollowUpHour"
                   outlined
                   dense
-                  clearable
                   emit-value
                   map-options
-                  label="Reminder"
-                  :options="quarterHourOptions"
+                  label="Hour"
+                  :options="reminderHourOptions"
+                />
+              </div>
+              <div class="col-4">
+                <q-select
+                  v-model="detailsFollowUpMinute"
+                  outlined
+                  dense
+                  emit-value
+                  map-options
+                  label="Minute"
+                  :options="reminderMinuteOptions"
+                />
+              </div>
+              <div class="col-4">
+                <q-select
+                  v-model="detailsFollowUpPeriod"
+                  outlined
+                  dense
+                  emit-value
+                  map-options
+                  label="AM/PM"
+                  :options="reminderPeriodOptions"
                 />
               </div>
             </div>
@@ -646,12 +688,15 @@ const formatFollowUpTime = (timeString) => {
   return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
 }
 
-const quarterHourOptions = Array.from({ length: 96 }, (_, index) => {
-  const hour = Math.floor(index / 4)
-  const minute = (index % 4) * 15
-  const value = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
-  return { label: formatFollowUpTime(value), value }
+const reminderHourOptions = Array.from({ length: 12 }, (_, index) => {
+  const value = String(index + 1)
+  return { label: value, value }
 })
+const reminderMinuteOptions = [0, 15, 30, 45].map((minute) => {
+  const value = String(minute).padStart(2, '0')
+  return { label: `:${value}`, value }
+})
+const reminderPeriodOptions = ['AM', 'PM'].map((period) => ({ label: period, value: period }))
 
 const normalizeQuarterHour = (timeString) => {
   if (!timeString) return ''
@@ -667,6 +712,25 @@ const normalizeQuarterHour = (timeString) => {
   }
 
   return `${String(hour).padStart(2, '0')}:${String(roundedMinute).padStart(2, '0')}`
+}
+
+const splitReminderTime = (timeString) => {
+  const normalized = normalizeQuarterHour(timeString)
+  if (!normalized) return { hour: '8', minute: '00', period: 'AM' }
+  const [hour, minute] = normalized.split(':')
+  const hourNumber = Number(hour)
+  const period = hourNumber >= 12 ? 'PM' : 'AM'
+  const displayHour = hourNumber % 12 || 12
+  return { hour: String(displayHour), minute, period }
+}
+
+const combineReminderTime = (hour, minute, period) => {
+  if (!hour || !minute || !period) return null
+  let hourNumber = Number(hour)
+  if (!Number.isFinite(hourNumber)) return null
+  if (period === 'AM' && hourNumber === 12) hourNumber = 0
+  if (period === 'PM' && hourNumber !== 12) hourNumber += 12
+  return normalizeQuarterHour(`${String(hourNumber).padStart(2, '0')}:${minute}`) || null
 }
 
 const formatFollowUpDateTime = (request) => {
@@ -906,7 +970,9 @@ const confirmAnswer = async () => {
 const showFollowUpDialog = ref(false)
 const savingFollowUp = ref(false)
 const followUpDate = ref('')
-const followUpTime = ref('')
+const followUpHour = ref('8')
+const followUpMinute = ref('00')
+const followUpPeriod = ref('AM')
 const followUpRequest = ref(null)
 const followingUpId = ref(null)
 const snoozingId = ref(null)
@@ -914,7 +980,10 @@ const snoozingId = ref(null)
 const openFollowUp = (request) => {
   followUpRequest.value = request
   followUpDate.value = request.follow_up_date || todayDate()
-  followUpTime.value = normalizeQuarterHour(request.follow_up_time?.slice(0, 5))
+  const time = splitReminderTime(request.follow_up_time?.slice(0, 5))
+  followUpHour.value = time.hour
+  followUpMinute.value = time.minute
+  followUpPeriod.value = time.period
   showFollowUpDialog.value = true
 }
 
@@ -926,7 +995,11 @@ const openFollowUpFromFollowUps = (request) => {
 const saveFollowUp = async () => {
   savingFollowUp.value = true
   try {
-    await store.updateFollowUp(followUpRequest.value.id, followUpDate.value, normalizeQuarterHour(followUpTime.value))
+    await store.updateFollowUp(
+      followUpRequest.value.id,
+      followUpDate.value,
+      combineReminderTime(followUpHour.value, followUpMinute.value, followUpPeriod.value),
+    )
     showFollowUpDialog.value = false
     syncGroups()
   } catch {
@@ -977,7 +1050,9 @@ const showDetailsDialog = ref(false)
 const detailsRequest = ref(null)
 const detailsContent = ref('')
 const detailsFollowUpDate = ref('')
-const detailsFollowUpTime = ref('')
+const detailsFollowUpHour = ref('8')
+const detailsFollowUpMinute = ref('00')
+const detailsFollowUpPeriod = ref('AM')
 const detailsAnswerNote = ref('')
 const detailsSaving = ref(false)
 
@@ -985,7 +1060,10 @@ const openDetails = (request) => {
   detailsRequest.value = request
   detailsContent.value = request.decryptedContent || ''
   detailsFollowUpDate.value = request.follow_up_date || ''
-  detailsFollowUpTime.value = normalizeQuarterHour(request.follow_up_time?.slice(0, 5))
+  const time = splitReminderTime(request.follow_up_time?.slice(0, 5))
+  detailsFollowUpHour.value = time.hour
+  detailsFollowUpMinute.value = time.minute
+  detailsFollowUpPeriod.value = time.period
   detailsAnswerNote.value = ''
   showDetailsDialog.value = true
 }
@@ -1010,7 +1088,13 @@ const saveDetails = async () => {
     if (content !== request.decryptedContent) {
       await store.updateContent(request.id, content)
     }
-    await store.updateFollowUp(request.id, detailsFollowUpDate.value || null, normalizeQuarterHour(detailsFollowUpTime.value) || null)
+    await store.updateFollowUp(
+      request.id,
+      detailsFollowUpDate.value || null,
+      detailsFollowUpDate.value
+        ? combineReminderTime(detailsFollowUpHour.value, detailsFollowUpMinute.value, detailsFollowUpPeriod.value)
+        : null,
+    )
     syncGroups()
     refreshDetailsRequest()
     showDetailsDialog.value = false
