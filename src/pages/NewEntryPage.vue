@@ -236,19 +236,20 @@
               <ReferenceShortcutsHint />
               <div class="q-gutter-y-md" data-tour="entry-content">
                 <template v-for="section in regularContentSections" :key="section.id">
-                  <div class="section-container q-mb-md">
+                  <div class="section-container q-mb-md" :data-section-id="section.id">
                     <div class="row items-center q-mb-sm section-header">
                       <q-btn flat round dense size="sm"
                         :icon="isCollapsed(section.id) ? 'chevron_right' : 'expand_more'"
-                        @click="toggleCollapse(section.id)" class="q-mr-xs" />
+                        class="q-mr-xs" @mousedown.prevent @click="toggleCollapse(section.id)" />
                       <div class="col">
-                        <q-input v-model="section.title" label="Section Title" dense />
+                        <q-input v-model="section.title" label="Section Title" dense borderless type="textarea"
+                          autogrow class="section-title-input" />
                       </div>
                       <div class="col-auto">
                         <div class="row items-center no-wrap">
                           <!-- Delete button -->
                           <q-btn v-if="regularContentSections.length > 1" round flat color="negative" icon="delete"
-                            size="sm" @click="removeSection(section)" />
+                            size="sm" @mousedown.prevent @click="removeSection(section)" />
                         </div>
                       </div>
                     </div>
@@ -699,14 +700,45 @@ const openSectionLink = (url) => {
 // Collapse state is purely an editing convenience, not saved with the entry
 const collapsedIds = ref(new Set())
 const isCollapsed = (id) => collapsedIds.value.has(id)
+
+const findSectionElement = (id) =>
+  Array.from(document.querySelectorAll('.section-container'))
+    .find((element) => element.dataset.sectionId === String(id))
+
+const preserveSectionScroll = async (sectionId, update) => {
+  const sectionElement = findSectionElement(sectionId)
+  const previousTop = sectionElement?.getBoundingClientRect().top
+  const previousScrollY = window.scrollY
+  const previousScrollX = window.scrollX
+
+  update()
+  await nextTick()
+
+  const nextSectionElement = findSectionElement(sectionId)
+  if (previousTop != null && nextSectionElement) {
+    window.scrollBy({
+      top: nextSectionElement.getBoundingClientRect().top - previousTop,
+      left: 0,
+      behavior: 'auto',
+    })
+    return
+  }
+
+  window.scrollTo({ top: previousScrollY, left: previousScrollX, behavior: 'auto' })
+}
+
 const toggleCollapse = (id) => {
-  if (collapsedIds.value.has(id)) collapsedIds.value.delete(id)
-  else collapsedIds.value.add(id)
+  preserveSectionScroll(id, () => {
+    if (collapsedIds.value.has(id)) collapsedIds.value.delete(id)
+    else collapsedIds.value.add(id)
+  })
 }
 
 const removeSection = (section) => {
-  const index = contentSections.value.findIndex(item => item.id === section.id)
-  if (index !== -1) contentSections.value.splice(index, 1)
+  preserveSectionScroll(section.id, () => {
+    const index = contentSections.value.findIndex(item => item.id === section.id)
+    if (index !== -1) contentSections.value.splice(index, 1)
+  })
 }
 
 const captureDraft = () => ({
@@ -1449,6 +1481,12 @@ onUnmounted(() => {
   transition: all 0.3s ease;
   border: 1px solid var(--color-border);
   box-shadow: 0 1px 3px var(--color-shadow-light);
+}
+
+.section-title-input :deep(textarea) {
+  line-height: 1.25;
+  font-weight: 650;
+  resize: none;
 }
 
 .entry-additional-panel>div {

@@ -228,7 +228,7 @@ onBeforeUnmount(() => {
    space IS the contenteditable box, so the browser's native click-to-
    position behavior places the cursor at the nearest text for free. */
 .rich-text-body :deep(.ProseMirror) {
-  min-height: 240px;
+  min-height: 140px;
   outline: none;
 }
 

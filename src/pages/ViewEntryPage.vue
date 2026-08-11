@@ -148,6 +148,11 @@
               <FavoriteButton :entry="entry" @updated="entry.is_favorite = $event" />
             </div>
             <div class="col-auto">
+              <q-btn rounded unelevated color="info" icon="content_copy" style="height: 40px" @click="copyEntryAsText">
+                <q-tooltip>Copy note as text</q-tooltip>
+              </q-btn>
+            </div>
+            <div class="col-auto">
               <q-btn rounded unelevated color="primary" icon="edit" style="height: 40px"
                 @click="router.push(`/entry/${entry.id}/edit`)" />
             </div>
@@ -248,6 +253,7 @@ import FavoriteButton from 'components/FavoriteButton.vue'
 import { createDisplayVerse } from 'src/utils/verseUtils'
 import { useResourcesStore } from 'src/stores/resources'
 import { searchRouteForFacet } from 'src/utils/searchRoute'
+import { formatSectionAsText } from 'src/utils/richTextContent'
 
 const TagSelector = defineAsyncComponent(() => import('components/TagSelector.vue'))
 const QuoteSelector = defineAsyncComponent(() => import('components/QuoteSelector.vue'))
@@ -317,6 +323,57 @@ const entryMetadataItems = computed(() => {
     entry.value.tags?.length ? { icon: 'sell', label: `${entry.value.tags.length} tag${entry.value.tags.length === 1 ? '' : 's'}` } : null,
   ].filter(Boolean)
 })
+
+const entryTextForCopy = computed(() => {
+  if (!entry.value) return ''
+  const lines = [
+    entry.value.title,
+    [entry.value.type, formatDate(entry.value.created_at)].filter(Boolean).join(' - '),
+  ].filter(Boolean)
+
+  if (entry.value.resources?.length) {
+    lines.push('', 'Resources', ...entry.value.resources.map((resource) => `- ${getResourceTitle(resource)} (${resource.type})`))
+  }
+
+  const sections = entry.value.decryptedContent?.sections || []
+  const sectionText = sections.map(formatSectionAsText).filter(Boolean)
+  if (sectionText.length) lines.push('', ...sectionText)
+
+  if (linkedVerses.value.length) {
+    lines.push('', 'Linked Verses', ...linkedVerses.value.map((verse) => `- ${verse.display}`))
+  }
+
+  if (entry.value.tags?.length) {
+    lines.push('', 'Tags', entry.value.tags.map((tag) => `#${tag.name}`).join(' '))
+  }
+
+  if (entry.value.quotes?.length) {
+    lines.push('', 'Quotes', ...entry.value.quotes.map((quote) =>
+      `- ${quote.quote}${quote.source ? ` (${quote.source})` : ''}`,
+    ))
+  }
+
+  if (entry.value.links?.length) {
+    lines.push('', 'Links', ...entry.value.links.map((link) => `- ${link.name || link.url}: ${link.url}`))
+  }
+
+  if (entry.value.strongs?.length) {
+    lines.push('', 'Strong\'s Words', ...entry.value.strongs.map((strongs) =>
+      `- ${strongs.strongs_number}${strongs.transliteration ? ` ${strongs.transliteration}` : ''}`,
+    ))
+  }
+
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+})
+
+const copyEntryAsText = async () => {
+  try {
+    await navigator.clipboard.writeText(entryTextForCopy.value)
+    $q.notify({ type: 'positive', message: 'Note copied' })
+  } catch {
+    $q.notify({ type: 'negative', message: 'Could not copy note' })
+  }
+}
 
 const openResourceSearch = (resource) => {
   const title = getResourceTitle(resource)
@@ -562,6 +619,13 @@ const updateFooterActions = () => {
       icon: entry.value?.is_favorite ? 'star' : 'star_border',
       color: 'warning',
       handler: toggleFavorite,
+    },
+    {
+      key: 'copy',
+      label: 'Copy',
+      icon: 'content_copy',
+      color: 'info',
+      handler: copyEntryAsText,
     },
     {
       key: 'edit',

@@ -1,6 +1,12 @@
 <template>
   <div class="content-section q-mb-lg">
-    <div v-if="section.title?.trim()" class="content-section-title q-mb-sm">{{ section.title }}</div>
+    <div class="content-section-header row items-start no-wrap q-mb-sm">
+      <div v-if="section.title?.trim()" class="content-section-title col">{{ section.title }}</div>
+      <q-space v-else />
+      <q-btn flat round dense icon="content_copy" size="sm" class="copy-section-btn" @click="copySection">
+        <q-tooltip>Copy section as text</q-tooltip>
+      </q-btn>
+    </div>
 
     <q-list v-if="section.fieldType === 'list'" dense class="list-view">
       <q-item v-for="(item, i) in listItems" :key="i" class="q-pl-none">
@@ -27,8 +33,10 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { useQuasar } from 'quasar'
 import { useRouter } from 'vue-router'
 import { getListItems } from 'src/utils/sectionListUtils'
+import { formatSectionAsText } from 'src/utils/richTextContent'
 import InlineContent from 'components/InlineContent.vue'
 import RichTextViewer from 'components/richText/RichTextViewer.vue'
 import VerseDisplayModal from 'components/VerseDisplayModal.vue'
@@ -42,8 +50,19 @@ const props = defineProps({
 })
 
 const router = useRouter()
+const $q = useQuasar()
 
 const listItems = computed(() => getListItems(props.section.content).filter((item) => item.trim()))
+const sectionText = computed(() => formatSectionAsText(props.section))
+
+const copySection = async () => {
+  try {
+    await navigator.clipboard.writeText(sectionText.value)
+    $q.notify({ type: 'positive', message: 'Section copied' })
+  } catch {
+    $q.notify({ type: 'negative', message: 'Could not copy section' })
+  }
+}
 
 const showVerseDisplayModal = ref(false)
 const verseDisplay = ref({})
@@ -92,11 +111,19 @@ const onTagClick = (tag) => {
 
 .content-section-title {
   padding-bottom: 6px;
-  border-bottom: 1px solid var(--color-border);
   color: var(--q-primary);
   font-size: 1.05rem;
   font-weight: 800;
   line-height: 1.25;
+}
+
+.content-section-header {
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.copy-section-btn {
+  margin-top: -4px;
 }
 
 @media (max-width: 599px) {

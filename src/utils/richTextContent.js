@@ -1,3 +1,5 @@
+import { getListItems } from 'src/utils/sectionListUtils'
+
 // Shared helpers for the rich-text migration's dual content shape: a
 // `longText` section's `content` is either a legacy plain string (every
 // entry saved before this migration — content is encrypted client-side
@@ -137,4 +139,14 @@ export const formatRichTextAsMarkdown = (content) => {
   if (content == null) return ''
   if (typeof content === 'string') return content
   return renderBlockMarkdown(content).trim()
+}
+
+export const formatSectionAsText = (section) => {
+  if (!section) return ''
+  const title = section.title?.trim()
+  const content = section.fieldType === 'list'
+    ? getListItems(section.content).filter((item) => item.trim()).map((item) => `- ${item}`).join('\n')
+    : formatRichTextAsMarkdown(section.content)
+
+  return [title, content].filter(Boolean).join('\n\n')
 }
