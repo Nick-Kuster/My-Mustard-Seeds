@@ -50,7 +50,12 @@
             <q-icon v-if="isDesktop" :name="isExpanded(group.type) ? 'expand_more' : 'chevron_right'" size="18px"
               class="type-lane-chevron" />
             <q-icon :name="group.icon" size="18px" :style="{ color: groupColor(group) }" />
-            <span class="type-lane-label">{{ group.label }}</span>
+            <span class="type-lane-text">
+              <span class="type-lane-label">{{ group.label }}</span>
+              <span v-if="group.latestEntry" class="type-lane-subtitle">
+                Latest: {{ group.latestEntry.title }} · {{ formatDate(entryDate(group.latestEntry)) }}
+              </span>
+            </span>
             <span class="type-lane-count">{{ group.entries.length }}</span>
           </div>
           <div v-show="isExpanded(group.type)" class="type-lane-list">
@@ -104,7 +109,7 @@
               </q-item>
             </template>
             <q-item
-              v-if="group.hasViewAll"
+              v-if="group.viewAllRoute"
               clickable class="entry-item view-all-item"
               :style="{ borderLeftColor: groupColor(group) }"
               @click="viewAllGroup(group)"
@@ -130,7 +135,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useJournalStore, getResourceTitle } from 'stores/journalData'
@@ -282,9 +287,21 @@ const typeGroups = computed(() => {
     return factor * (new Date(entryDate(a)) - new Date(entryDate(b)))
   }))
 
+  const latestEntry = (list) =>
+    [...(list || [])].sort((a, b) => new Date(entryDate(b)) - new Date(entryDate(a)))[0] || null
+
   const buildGroup = (type, label, icon) => {
     const list = byType.get(type)
-    return { type, label, icon, entries: list, resourceTree: buildResourceTree(list) }
+    return {
+      type,
+      label,
+      icon,
+      entries: list,
+      latestEntry: latestEntry(list),
+      resourceTree: buildResourceTree(list),
+      viewAllLabel: `View all ${label}`,
+      viewAllRoute: searchRouteForFacet('types', type),
+    }
   }
 
   // User-customized order (see stores/userPreferences.js) instead of the
@@ -311,8 +328,8 @@ const typeGroups = computed(() => {
           icon: 'star',
           color: SPECIAL_SECTION_COLORS[HOME_SECTION_IDS.FAVORITES],
           entries: favoriteEntries.slice(0, FAVORITES_LIMIT),
+          latestEntry: latestEntry(favoriteEntries),
           resourceTree: null,
-          hasViewAll: favoriteEntries.length > FAVORITES_LIMIT,
           viewAllLabel: 'View all favorites',
           viewAllRoute: searchRouteForFacet('favorites', 'Favorites'),
         })
@@ -327,7 +344,10 @@ const typeGroups = computed(() => {
         icon: 'schedule',
         color: SPECIAL_SECTION_COLORS[HOME_SECTION_IDS.RECENT],
         entries: sortedEntries.value.slice(0, 10),
+        latestEntry: latestEntry(sortedEntries.value),
         resourceTree: null,
+        viewAllLabel: 'Open in Search',
+        viewAllRoute: { path: '/search' },
       })
       continue
     }
@@ -344,8 +364,8 @@ const typeGroups = computed(() => {
         icon: 'bookmark',
         color: '#8f6f4e',
         entries: matchingEntries.slice(0, SAVED_FILTER_LIMIT),
+        latestEntry: latestEntry(matchingEntries),
         resourceTree: null,
-        hasViewAll: true,
         viewAllLabel: 'Open in Search',
         viewAllRoute: searchRouteForFacets(savedFilter.facets),
       })
@@ -375,8 +395,8 @@ const typeGroups = computed(() => {
         icon: 'bookmark',
         color: '#8f6f4e',
         entries: matchingEntries.slice(0, SAVED_FILTER_LIMIT),
+        latestEntry: latestEntry(matchingEntries),
         resourceTree: null,
-        hasViewAll: true,
         viewAllLabel: 'Open in Search',
         viewAllRoute: searchRouteForFacets(filter.facets),
       }
@@ -389,12 +409,30 @@ const typeGroups = computed(() => {
 // side-by-side swipeable columns — mobile keeps every lane's contents
 // always visible since there's no room for a click-to-expand affordance in
 // a single swiped-to column. Only "Recent" starts open on desktop.
-const isDesktop = computed(() => $q.screen.gt.sm)
-const expandedTypes = reactive(new Set())
+const isDesktop = computed(() => $q.screen.gt.xs)
+const expandedType = ref(null)
+const desktopExpansionSeeded = ref(false)
 if (!isDesktop.value && homeViewState.activeType) {
-  expandedTypes.add(homeViewState.activeType)
+  expandedType.value = homeViewState.activeType
 }
-const isExpanded = (type) => !isDesktop.value || expandedTypes.has(type)
+const isExpanded = (type) => !isDesktop.value || expandedType.value === type
+
+const seedDesktopExpansion = () => {
+  if (!isDesktop.value || desktopExpansionSeeded.value || !typeGroups.value.length) return
+  const remembered = userPreferencesStore.lastHomeSectionId
+  expandedType.value = typeGroups.value.some((group) => group.type === remembered)
+    ? remembered
+    : typeGroups.value[0].type
+  desktopExpansionSeeded.value = true
+}
+
+watch([isDesktop, typeGroups], () => {
+  if (!isDesktop.value) {
+    desktopExpansionSeeded.value = false
+    return
+  }
+  seedDesktopExpansion()
+})
 
 // Mirrors the active type into ?type= (dropped entirely for Recent, the
 // default) — same router.replace-into-query pattern IndexPage.vue already
@@ -410,13 +448,11 @@ const syncTypeToRoute = (type) => {
 }
 
 const toggleType = (type) => {
-  if (expandedTypes.has(type)) {
-    expandedTypes.delete(type)
-  } else {
-    expandedTypes.add(type)
-    homeViewState.setActiveType(type)
-    syncTypeToRoute(type)
-  }
+  expandedType.value = expandedType.value === type ? null : type
+  if (!expandedType.value) return
+  homeViewState.setActiveType(expandedType.value)
+  userPreferencesStore.setLastHomeSectionId(expandedType.value).catch(() => {})
+  syncTypeToRoute(expandedType.value)
 }
 
 // Mobile lanes are a horizontally swiped, one-at-a-time view — track
@@ -477,9 +513,7 @@ onMounted(async () => {
   }
 
   await nextTick()
-  if (!expandedTypes.size && typeGroups.value[0]) {
-    expandedTypes.add(typeGroups.value[0].type)
-  }
+  seedDesktopExpansion()
   if (!isDesktop.value && lanesEl.value && homeViewState.activeType) {
     const index = typeGroups.value.findIndex((g) => g.type === homeViewState.activeType)
     if (index > 0) {
@@ -609,12 +643,29 @@ onMounted(async () => {
   color: var(--color-text-secondary);
 }
 
-.type-lane-label {
+.type-lane-text {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.type-lane-label {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.type-lane-subtitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-secondary);
+  font-size: 0.76rem;
+  font-weight: 550;
 }
 
 .type-lane-count {
@@ -688,6 +739,10 @@ onMounted(async () => {
     border-radius: 0;
     border-left: 0;
     border-right: 0;
+  }
+
+  .type-lane-subtitle {
+    display: none;
   }
 }
 </style>
