@@ -86,6 +86,26 @@
         <q-btn flat round dense icon="close" @click="cancelAddGroup" />
       </div>
 
+      <div v-if="nextFollowUps.length" class="upcoming-followups app-raised-section q-mb-md">
+        <div class="row items-center q-mb-xs">
+          <div class="text-subtitle2 text-weight-bold">Upcoming Follow-Ups</div>
+          <q-space />
+          <q-btn flat dense no-caps size="sm" color="primary" icon="event_note" label="View all"
+            @click="showFollowUpsDialog = true" />
+        </div>
+        <q-list dense>
+          <q-item v-for="request in nextFollowUps" :key="request.id" clickable dense class="upcoming-followup-item"
+            @click="openDetails(request)">
+            <q-item-section>
+              <q-item-label class="text-wrap">{{ request.decryptedContent }}</q-item-label>
+              <q-item-label caption :class="followUpStatusClass(request)">
+                {{ followUpStatusLabel(request) }}
+              </q-item-label>
+            </q-item-section>
+          </q-item>
+        </q-list>
+      </div>
+
       <AppEmptyState
         v-if="active.length === 0 && groupSections.length === 0"
         compact
@@ -341,6 +361,18 @@
                   <q-btn flat round dense size="sm" icon="event" data-tour="prayer-followup-date" @click.stop="openFollowUpFromFollowUps(request)">
                     <q-tooltip>Reschedule follow-up</q-tooltip>
                   </q-btn>
+                  <q-btn
+                    flat
+                    round
+                    dense
+                    size="sm"
+                    icon="event_busy"
+                    color="negative"
+                    :loading="clearingFollowUpId === request.id"
+                    @click.stop="removeFollowUpFromList(request)"
+                  >
+                    <q-tooltip>Remove follow-up</q-tooltip>
+                  </q-btn>
                   <q-btn flat round dense size="sm" icon="check_circle" color="positive" data-tour="prayer-mark-answered" @click.stop="openAnswerFromFollowUps(request)">
                     <q-tooltip>Mark answered</q-tooltip>
                   </q-btn>
@@ -401,7 +433,8 @@
             </div>
         </q-card-section>
         <q-card-actions align="right">
-          <q-btn v-if="followUpRequest?.follow_up_date" flat label="Clear" :loading="savingFollowUp" @click="clearFollowUp" />
+          <q-btn v-if="followUpRequest?.follow_up_date" flat color="negative" icon="event_busy" label="Remove"
+            :loading="savingFollowUp" @click="clearFollowUp" />
           <q-btn flat label="Cancel" v-close-popup />
           <q-btn color="primary" label="Save" :loading="savingFollowUp" @click="saveFollowUp" />
         </q-card-actions>
@@ -608,6 +641,7 @@ const followUps = computed(() =>
       new Date(`${b.follow_up_date}T${b.follow_up_time || '00:00'}`),
     ),
 )
+const nextFollowUps = computed(() => followUps.value.slice(0, 3))
 const followUpsCountLabel = computed(() => (followUps.value.length > 0 ? String(followUps.value.length) : undefined))
 const followUpsTooltip = computed(() =>
   followUps.value.length > 0 ? `${followUps.value.length} follow-up${followUps.value.length === 1 ? '' : 's'}` : 'Follow-ups',
@@ -748,7 +782,7 @@ const followUpStatusLabel = (request) => {
   const diff = daysFromToday(request.follow_up_date)
   const time = formatFollowUpTime(request.follow_up_time)
   const suffix = time ? ` at ${time}` : ''
-  if (diff < 0) return `Overdue by ${Math.abs(diff)} day${Math.abs(diff) === 1 ? '' : 's'}${suffix}`
+  if (diff < 0) return `Ready for follow-up${suffix}`
   if (diff === 0) return `Due today${suffix}`
   if (diff === 1) return `Due tomorrow${suffix}`
   return `Due in ${diff} days${suffix}`
@@ -976,6 +1010,7 @@ const followUpPeriod = ref('AM')
 const followUpRequest = ref(null)
 const followingUpId = ref(null)
 const snoozingId = ref(null)
+const clearingFollowUpId = ref(null)
 
 const openFollowUp = (request) => {
   followUpRequest.value = request
@@ -1019,6 +1054,18 @@ const clearFollowUp = async () => {
     $q.notify({ type: 'negative', message: 'Failed to clear follow-up date' })
   } finally {
     savingFollowUp.value = false
+  }
+}
+
+const removeFollowUpFromList = async (request) => {
+  clearingFollowUpId.value = request.id
+  try {
+    await store.updateFollowUp(request.id, null, null)
+    syncGroups()
+  } catch {
+    $q.notify({ type: 'negative', message: 'Failed to remove follow-up' })
+  } finally {
+    clearingFollowUpId.value = null
   }
 }
 
@@ -1198,6 +1245,15 @@ onMounted(async () => {
 .follow-up-item {
   min-height: 42px;
   padding: 4px 8px;
+}
+
+.upcoming-followups {
+  padding: 10px 12px;
+}
+
+.upcoming-followup-item {
+  min-height: 38px;
+  padding: 2px 0;
 }
 
 .follow-up-item :deep(.q-item__label) {

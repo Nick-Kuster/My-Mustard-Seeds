@@ -42,6 +42,21 @@
           </template>
         </q-input>
 
+        <div v-if="savedFiltersStore.filters.length" class="saved-filter-strip q-mb-md">
+          <div class="row items-center q-mb-xs">
+            <div class="text-subtitle2 text-weight-bold">Saved Searches</div>
+            <q-space />
+            <q-btn flat dense no-caps size="sm" color="primary" icon="filter_list" label="Manage"
+              @click="showFilterModal = true" />
+          </div>
+          <div class="row q-gutter-xs">
+            <q-chip v-for="saved in savedFiltersStore.filters" :key="saved.id" clickable dense outline color="primary"
+              icon="bookmark" @click="applySavedFilter(saved)">
+              {{ saved.name }}
+            </q-chip>
+          </div>
+        </div>
+
         <!-- Results list -->
         <div v-if="loading" class="text-center">
           <q-spinner color="primary" size="2em" />
@@ -99,6 +114,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useJournalStore } from 'src/stores/journalData'
 import { useJournalTypeColorsStore } from 'src/stores/journalTypeColors'
 import { useTutorialStore } from 'src/stores/tutorial'
+import { useSavedFiltersStore } from 'src/stores/savedFilters'
 import FilterModal from 'src/components/FilterModal.vue'
 import PrintOptionsModal from 'src/components/PrintOptionsModal.vue'
 import FavoriteButton from 'src/components/FavoriteButton.vue'
@@ -110,6 +126,7 @@ const route = useRoute()
 const journalStore = useJournalStore()
 const typeColorsStore = useJournalTypeColorsStore()
 const tutorialStore = useTutorialStore()
+const savedFiltersStore = useSavedFiltersStore()
 
 const loading = ref(true)
 const showFilterModal = ref(false)
@@ -184,6 +201,17 @@ const clearSearchCriteria = () => {
   delete query.resourceType
   delete query.resources
   router.replace({ path: '/search', query })
+}
+
+const applySavedFilter = (saved) => {
+  journalStore.clearFacets()
+  FACET_KEYS.forEach((key) => {
+    if (Array.isArray(saved.facets?.[key]) && saved.facets[key].length > 0) {
+      journalStore.updateFacet(key, saved.facets[key])
+    }
+  })
+  searchQuery.value = ''
+  syncFiltersToRoute()
 }
 
 // Reflects the full current facet state into the URL as its own history
@@ -311,9 +339,10 @@ watch(
 
 // Load data
 onMounted(async () => {
-  if (!journalStore.entries.length) {
-    await journalStore.fetchEntries()
-  }
+  await Promise.all([
+    journalStore.entries.length ? Promise.resolve() : journalStore.fetchEntries(),
+    savedFiltersStore.filters.length ? Promise.resolve() : savedFiltersStore.fetchFilters(),
+  ])
   applyRouteFilters()
   loading.value = false
 })
@@ -329,12 +358,25 @@ onMounted(async () => {
 
 <style scoped>
 .search-results-list {
-  margin-left: -24px;
-  margin-right: -24px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   overflow: hidden;
   background: var(--color-surface-alt);
+}
+
+.saved-filter-strip {
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface-alt);
+}
+
+@media (max-width: 599px) {
+  .search-results-list,
+  .saved-filter-strip {
+    margin-left: -6px;
+    margin-right: -6px;
+  }
 }
 
 .entry-item {

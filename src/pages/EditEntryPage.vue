@@ -345,7 +345,7 @@
             </div>
             <div class="col-3">
               <q-btn rounded unelevated color="primary" @click="updateEntry" class="full-width" :loading="saving"
-                style="height: 40px">
+                :disable="!canSaveEntry || saving" style="height: 40px">
                 <span v-if="!saving">
                   <q-icon name="save" class="q-mr-sm" /> Save
                 </span>
@@ -845,6 +845,8 @@ const captureDraft = () => ({
     selectedEpisode: selectedEpisode.value,
   },
 })
+
+const canSaveEntry = computed(() => entryDraftHasContent(captureDraft()))
 
 const restoreDraft = (data) => {
   entryType.value = data.entryType || entryType.value
@@ -1374,6 +1376,21 @@ const handleTouchEnd = () => {
   touchEnd.value = { x: 0, y: 0 }
 }
 
+const handleEditorShortcut = (event) => {
+  if (!(event.ctrlKey || event.metaKey)) return
+
+  if (event.key.toLowerCase() === 's') {
+    event.preventDefault()
+    if (canSaveEntry.value && !saving.value) updateEntry()
+    return
+  }
+
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    addSectionAndFocus(event.shiftKey ? 'list' : 'longText')
+  }
+}
+
 watch(
   [
     entryType,
@@ -1406,6 +1423,7 @@ watch(
 )
 
 onMounted(() => {
+  window.addEventListener('keydown', handleEditorShortcut)
   loadEntry()
 })
 
@@ -1447,12 +1465,14 @@ onMounted(() => {
       icon: 'save',
       color: 'primary',
       loading: computed(() => saving.value),
+      disabled: computed(() => !canSaveEntry.value || saving.value),
       handler: updateEntry,
     },
   ])
 })
 
 onUnmounted(() => {
+  window.removeEventListener('keydown', handleEditorShortcut)
   clearTimeout(autosaveTimer)
   pageActionsStore.clearFooterActions()
 })

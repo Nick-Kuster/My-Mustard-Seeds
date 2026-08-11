@@ -391,7 +391,7 @@ const typeGroups = computed(() => {
 // a single swiped-to column. Only "Recent" starts open on desktop.
 const isDesktop = computed(() => $q.screen.gt.sm)
 const expandedTypes = reactive(new Set())
-if (homeViewState.activeType) {
+if (!isDesktop.value && homeViewState.activeType) {
   expandedTypes.add(homeViewState.activeType)
 }
 const isExpanded = (type) => !isDesktop.value || expandedTypes.has(type)

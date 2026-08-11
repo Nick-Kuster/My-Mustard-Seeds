@@ -31,6 +31,12 @@
                   <div v-else class="text-h5 entry-view-title">{{ entry?.title }}</div>
                 </div>
               </div>
+              <div v-if="entryMetadataItems.length" class="entry-metadata-strip q-mb-lg">
+                <div v-for="item in entryMetadataItems" :key="item.label" class="entry-metadata-item">
+                  <q-icon :name="item.icon" size="16px" />
+                  <span>{{ item.label }}</span>
+                </div>
+              </div>
               <div v-if="entry?.resources?.length > 0" class="q-mb-lg entry-resource-summary">
 
                 <!-- Book -->
@@ -290,6 +296,26 @@ const linkedVerses = computed(() => {
   return entry.value.verses
     .filter(v => !v.main_verse)
     .map(v => ({ ...v, ...createDisplayVerse(v) }))
+})
+
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  return new Date(dateString).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
+const entryMetadataItems = computed(() => {
+  if (!entry.value) return []
+  return [
+    { icon: 'category', label: entry.value.type },
+    { icon: 'event', label: formatDate(entry.value.created_at) },
+    entry.value.is_favorite ? { icon: 'star', label: 'Favorite' } : null,
+    entry.value.resources?.length ? { icon: 'library_books', label: `${entry.value.resources.length} resource${entry.value.resources.length === 1 ? '' : 's'}` } : null,
+    entry.value.tags?.length ? { icon: 'sell', label: `${entry.value.tags.length} tag${entry.value.tags.length === 1 ? '' : 's'}` } : null,
+  ].filter(Boolean)
 })
 
 const openResourceSearch = (resource) => {
@@ -625,6 +651,25 @@ watch(
   font-size: 0.86rem;
   font-weight: 550;
   line-height: 1.45;
+}
+
+.entry-metadata-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.entry-metadata-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-alt);
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 650;
 }
 
 @media (max-width: 599px) {

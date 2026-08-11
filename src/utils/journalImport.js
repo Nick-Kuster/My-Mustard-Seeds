@@ -332,6 +332,9 @@ const buildResourceImportPreview = async (rawEntries, userId) => {
   return {
     reuse: Array.from(reuse.values()).sort((a, b) => a.title.localeCompare(b.title)),
     create: Array.from(create.values()).sort((a, b) => a.title.localeCompare(b.title)),
+    repeated: [...reuse.values(), ...create.values()]
+      .filter((resource) => resource.count > 1)
+      .sort((a, b) => b.count - a.count || a.title.localeCompare(b.title)),
     skipped,
   }
 }

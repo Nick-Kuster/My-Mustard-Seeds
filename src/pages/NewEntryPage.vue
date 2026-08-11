@@ -346,7 +346,7 @@
             </div>
             <div class="col-3">
               <q-btn rounded unelevated color="primary" @click="saveEntry" class="full-width" data-tour="entry-save"
-                :loading="saving" style="height: 40px">
+                :loading="saving" :disable="!canSaveEntry || saving" style="height: 40px">
                 <span v-if="!saving">
                   <q-icon name="save" class="q-mr-sm" /> Save
                 </span>
@@ -738,6 +738,8 @@ const captureDraft = () => ({
     selectedEpisode: selectedEpisode.value,
   },
 })
+
+const canSaveEntry = computed(() => entryDraftHasContent(captureDraft()))
 
 const restoreDraft = (data) => {
   entryType.value = data.entryType || 'Daily Bible Reading'
@@ -1283,7 +1285,24 @@ const handleTouchEnd = () => {
   touchStart.value = { x: 0, y: 0 }
   touchEnd.value = { x: 0, y: 0 }
 }
+
+const handleEditorShortcut = (event) => {
+  if (!(event.ctrlKey || event.metaKey)) return
+
+  if (event.key.toLowerCase() === 's') {
+    event.preventDefault()
+    if (canSaveEntry.value && !saving.value) saveEntry()
+    return
+  }
+
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    addSectionAndFocus(event.shiftKey ? 'list' : 'longText')
+  }
+}
+
 onMounted(() => {
+  window.addEventListener('keydown', handleEditorShortcut)
   const draft = getEntryDraft(draftId)
   resetDraftForm()
   if (draft?.data && entryDraftHasContent(draft.data)) {
@@ -1376,6 +1395,7 @@ onMounted(() => {
       icon: 'save',
       color: 'primary',
       loading: computed(() => saving.value),
+      disabled: computed(() => !canSaveEntry.value || saving.value),
       handler: saveEntry,
       tourKey: 'entry-save',
     },
@@ -1383,6 +1403,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('keydown', handleEditorShortcut)
   clearTimeout(autosaveTimer)
   pageActionsStore.clearFooterActions()
 })

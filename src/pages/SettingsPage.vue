@@ -257,7 +257,7 @@
           </div>
 
           <div class="text-subtitle2 text-weight-bold q-mb-sm">Entries to import</div>
-          <q-list bordered separator class="rounded-borders bg-white q-mb-md">
+          <q-list bordered separator class="rounded-borders import-preview-list q-mb-md">
             <q-item v-for="entry in importPreview.entries" :key="entry.index" dense>
               <q-item-section>
                 <q-item-label>
@@ -320,6 +320,20 @@
               </q-list>
             </div>
           </div>
+
+          <q-banner v-if="importPreview.resources.repeated.length" rounded
+            class="import-result-banner import-result-banner--success q-mb-md">
+            <div class="text-weight-medium">Repeated resource references</div>
+            <div class="text-body2 q-mt-xs">
+              These names appear more than once in the import. The app will use one matching resource instead of
+              creating a separate copy for every entry.
+            </div>
+            <ul class="q-mb-none q-mt-sm">
+              <li v-for="resource in importPreview.resources.repeated" :key="resource.key">
+                {{ resource.title }} — {{ resource.type }}, {{ resource.count }} references
+              </li>
+            </ul>
+          </q-banner>
 
           <q-banner v-if="importPreview.resources.skipped.length" rounded class="import-result-banner import-result-banner--warning">
             <div class="text-weight-medium">Skipped resources</div>
@@ -667,6 +681,10 @@ const runImport = async () => {
 
 .import-preview-body {
   max-height: 70vh;
+}
+
+.import-preview-list {
+  background: var(--color-surface-alt);
 }
 
 .resource-preview-grid {

@@ -153,9 +153,20 @@ body {
   overflow: hidden;
 }
 
+.app-raised-section {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface-alt);
+  box-shadow: 0 1px 3px var(--color-shadow-light);
+}
+
 @media (max-width: 599px) {
   .app-page-card {
     border-radius: 8px;
+  }
+
+  .app-raised-section {
+    border-radius: 10px;
   }
 }
 
