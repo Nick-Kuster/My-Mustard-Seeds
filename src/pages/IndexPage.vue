@@ -2,7 +2,7 @@
   <q-page class="q-pa-md">
     <div class="row justify-center q-col-gutter-md">
       <div class="col-12 content-card">
-        <q-card class="garden-card">
+        <q-card class="garden-card app-page-card">
           <q-tabs v-model="activeTab" dense class="text-grey" active-color="primary" indicator-color="primary"
             align="justify" narrow-indicator>
             <q-tab name="seeds" label="My Seeds" icon="eco" data-tour="tab-seeds" />
@@ -65,8 +65,6 @@ watch(activeTab, (tab) => {
 <style scoped>
 .garden-card {
   backdrop-filter: blur(10px);
-  background-color: var(--color-surface-translucent) !important;
-  border-radius: 12px;
   overflow: hidden;
 }
 
@@ -76,8 +74,5 @@ watch(activeTab, (tab) => {
     padding: 8px !important;
   }
 
-  .garden-card {
-    border-radius: 8px;
-  }
 }
 </style>

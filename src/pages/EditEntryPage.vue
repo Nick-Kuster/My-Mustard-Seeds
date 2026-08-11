@@ -1,13 +1,14 @@
 <template>
-  <q-page class="entry-editor-page q-pa-md q-mt-lg">
+  <q-page class="entry-editor-page q-pa-md">
     <div v-if="loading" class="text-center q-pa-lg">
       <q-spinner color="primary" size="3em" />
     </div>
     <div v-else class="row justify-center">
-      <div class="col-12 content-card entry-editor-card entry-card q-ma-lg q-pa-lg parchment">
+      <div class="col-12 content-card entry-editor-card entry-card q-pa-lg parchment app-page-card">
         <div class="row items-center q-mb-md">
           <div class="col">
             <div class="text-h6">Edit Seed</div>
+            <div v-if="saveStatusLabel" class="text-caption text-grey-7">{{ saveStatusLabel }}</div>
           </div>
         </div>
 
@@ -282,8 +283,8 @@
             </q-tab-panel>
 
             <!-- Additional Content Tab -->
-            <q-tab-panel name="additional" class="q-pt-md q-pl-md">
-              <div class="fit">
+            <q-tab-panel name="additional" class="q-pt-md q-px-none">
+              <div class="fit entry-additional-panel">
                 <!-- Linked Verses -->
                 <div class="q-mb-lg">
                   <LinkedVerses v-model="linkedVerses" />
@@ -424,6 +425,8 @@ const entryId = route.params.id
 const draftId = `edit-entry:${entryId}`
 let autosaveTimer = null
 const autosaveReady = ref(false)
+const lastAutosavedAt = ref(null)
+const savedAt = ref(null)
 
 // Cancel was previously a hardcoded push to the view page — reachable
 // from Home/Search/another entry now, so a plain "Cancel" push always
@@ -878,9 +881,35 @@ const scheduleDraftSave = () => {
   clearTimeout(autosaveTimer)
   autosaveTimer = setTimeout(() => {
     const draft = captureDraft()
-    if (entryDraftHasContent(draft)) saveEntryDraft(draftId, draft)
-    else deleteEntryDraft(draftId)
+    if (entryDraftHasContent(draft)) {
+      saveEntryDraft(draftId, draft)
+      lastAutosavedAt.value = new Date()
+    } else {
+      deleteEntryDraft(draftId)
+      lastAutosavedAt.value = null
+    }
   }, 800)
+}
+
+const richTextHasText = (content) => JSON.stringify(content || '').includes('"text"')
+
+const formatTime = (date) => date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+
+const saveStatusLabel = computed(() => {
+  if (saving.value) return 'Saving...'
+  if (savedAt.value) return `Saved ${formatTime(savedAt.value)}`
+  if (lastAutosavedAt.value) return `Autosaved ${formatTime(lastAutosavedAt.value)}`
+  return ''
+})
+
+const sectionHasContent = (section) => {
+  if (section.headerProperty) return true
+  if (section.fieldType === 'list') return getListItems(section.content).some((item) => item.trim())
+  return richTextHasText(section.content)
+}
+
+const cleanEmptySections = () => {
+  contentSections.value = contentSections.value.filter(sectionHasContent)
 }
 
 // Collapse state is purely an editing convenience, not saved with the entry
@@ -1037,6 +1066,7 @@ const updateEntry = async () => {
       Object.values(richTextEditorRefs).map((el) => el.flushPendingReferences())
     )
     await inlineResolver.resolveAllInlineReferences(contentSections.value)
+    cleanEmptySections()
 
     // Generate title if needed
     title.value = generateTitle()
@@ -1277,6 +1307,8 @@ const updateEntry = async () => {
     // so it would otherwise hand the stale pre-save copy right back to
     // whichever page (typically ViewEntryPage) loads next.
     await journalStore.refreshEntry(entryId)
+    savedAt.value = new Date()
+    lastAutosavedAt.value = null
     deleteEntryDraft(draftId)
 
     $q.notify({
@@ -1440,28 +1472,34 @@ onUnmounted(() => {
 
 @media (max-width: 599px) {
   .entry-editor-page {
-    padding-left: 0;
-    padding-right: 0;
+    padding: 4px 2px !important;
   }
 
   .entry-card {
-    margin: 0 !important;
-    padding: 8px !important;
+    padding: 8px 6px !important;
   }
 
   .section-container {
-    padding: 4px 0;
-    background: transparent;
+    padding: 8px 6px;
   }
 }
 
 /* Keep all your existing styles */
 .section-container {
   padding: 12px;
-  border-radius: 8px;
-  background: var(--color-surface);
+  border-radius: 12px;
+  background: var(--color-surface-alt);
   transition: all 0.3s ease;
-  border: 1px solid transparent;
+  border: 1px solid var(--color-border);
+  box-shadow: 0 1px 3px var(--color-shadow-light);
+}
+
+.entry-additional-panel>div {
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface-alt);
+  box-shadow: 0 1px 3px var(--color-shadow-light);
 }
 
 .dragging-section {

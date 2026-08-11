@@ -36,6 +36,19 @@
             </router-link>
           </div>
 
+          <q-btn
+            v-if="$q.screen.lt.md"
+            flat
+            dense
+            round
+            icon="inventory_2"
+            data-tour="nav-resources"
+            aria-label="Resources"
+            :class="['header-icon-btn', { 'header-icon-btn--active': route.path === '/resources' }]"
+            @click="router.push('/resources')"
+          >
+            <q-tooltip>Resources</q-tooltip>
+          </q-btn>
           <q-btn flat dense round :icon="themeIcon" data-tour="theme-toggle" aria-label="Toggle theme"
             @click="toggleTheme">
             <q-tooltip>{{ themeLabel }} — click to change</q-tooltip>
@@ -59,7 +72,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useThemeMode } from 'src/composables/useThemeMode'
 import { useAuthStore } from 'src/stores/auth'
@@ -71,6 +84,7 @@ import AppLogoMark from 'components/AppLogoMark.vue'
 
 const $q = useQuasar()
 const router = useRouter()
+const route = useRoute()
 const { themeIcon, themeLabel, initTheme, toggleTheme } = useThemeMode()
 const authStore = useAuthStore()
 const profileStore = useProfileStore()
@@ -214,6 +228,15 @@ body.body--dark .app-header {
 .header-nav-btn--active {
   color: #ffffff;
   background: rgba(255, 255, 255, 0.15);
+}
+
+.header-icon-btn {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.header-icon-btn--active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .content-wrapper {

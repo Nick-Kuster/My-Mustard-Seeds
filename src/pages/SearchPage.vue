@@ -1,7 +1,7 @@
 <template>
-  <q-page class="q-pa-md q-mt-lg">
-    <div class="row q-col-gutter-md justify-center ">
-      <div class="col-12 content-card q-pa-lg rounded-borders parchment">
+  <q-page class="search-page q-pa-md">
+    <div class="row justify-center">
+      <div class="col-12 content-card q-pa-lg parchment app-page-card">
         <!-- Header with search info -->
         <div class="text-h6 text-center q-mb-sm">Search Results</div>
         <div class="row items-center q-mb-md">
@@ -61,17 +61,15 @@
           secondary-to="/entry/new"
           @primary="hasSearchCriteria && clearSearchCriteria()"
         />
-        <q-list v-else bordered separator>
+        <q-list v-else class="search-results-list">
           <q-item v-for="entry in paginatedEntries" :key="entry.id" clickable class="entry-item"
             :style="{ borderLeftColor: typeColorsStore.getColor(entry.type) }" @click="viewEntry(entry.id)">
             <q-item-section>
-              <q-item-label>
+              <q-item-label class="text-wrap">
                 <q-icon v-if="entry.is_favorite" name="star" color="warning" size="16px" class="q-mr-xs" />
                 {{ entry.title }}
               </q-item-label>
-              <q-item-label caption>
-                {{ formatDate(entry.updated_at || entry.created_at) }} • {{ entry.type }}
-              </q-item-label>
+              <q-item-label caption class="text-wrap">{{ formatDate(entry.updated_at || entry.created_at) }}</q-item-label>
             </q-item-section>
             <q-item-section side>
               <div class="row items-center no-wrap">
@@ -322,7 +320,39 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+@media (max-width: 599px) {
+  .search-page {
+    padding: 8px !important;
+  }
+}
+</style>
+
+<style scoped>
+.search-results-list {
+  margin-left: -24px;
+  margin-right: -24px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--color-surface-alt);
+}
+
 .entry-item {
+  min-height: 60px;
+  border-bottom: 1px solid var(--color-border);
   border-left: 3px solid transparent;
+}
+
+.entry-item:last-child {
+  border-bottom: none;
+}
+
+.text-wrap {
+  white-space: normal !important;
+  word-break: break-word;
+}
+
+.q-item-section {
+  min-width: 0;
 }
 </style>

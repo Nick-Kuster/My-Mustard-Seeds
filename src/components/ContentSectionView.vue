@@ -1,6 +1,6 @@
 <template>
   <div class="content-section q-mb-lg">
-    <div class="text-subtitle1 text-weight-medium q-mb-sm">{{ section.title || 'Untitled Section' }}</div>
+    <div v-if="section.title?.trim()" class="content-section-title q-mb-sm">{{ section.title }}</div>
 
     <q-list v-if="section.fieldType === 'list'" dense class="list-view">
       <q-item v-for="(item, i) in listItems" :key="i" class="q-pl-none">
@@ -80,6 +80,33 @@ const onTagClick = (tag) => {
 .list-view :deep(.q-item) {
   padding-left: 0;
   min-height: 28px;
+}
+
+.content-section {
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface-alt);
+  box-shadow: 0 1px 3px var(--color-shadow-light);
+}
+
+.content-section-title {
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--q-primary);
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+@media (max-width: 599px) {
+  .content-section {
+    padding: 10px 6px;
+  }
+
+  .content-section-title {
+    font-size: 1rem;
+  }
 }
 
 .list-bullet-col {

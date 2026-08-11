@@ -1,7 +1,7 @@
 <template>
-  <q-page class="q-pt-xl q-px-md q-pb-md">
-    <div class="row q-col-gutter-md justify-center">
-      <div class="col-12 content-card q-pa-lg parchment">
+  <q-page class="entry-view-page q-pa-md">
+    <div class="row justify-center">
+      <div class="col-12 content-card q-pa-lg parchment app-page-card entry-view-card">
         <div v-if="loading" class="text-center q-pa-lg">
           <q-spinner color="primary" size="3em" />
         </div>
@@ -17,7 +17,7 @@
                     <div v-if="mainVerse" class="q-mb-md">
                       <div class="row items-center q-mb-sm">
                         <div class="col">
-                          <a href="#" class="verse-link text-h5 text-primary text-weight-medium"
+                          <a href="#" class="verse-link text-h5 text-primary text-weight-medium entry-view-title"
                             style="text-decoration: none; line-height: 1.5"
                             @click.prevent="showVerseDisplayModal = true">
                             {{ mainVerse.display }}
@@ -28,10 +28,10 @@
                         :startVerse="mainVerse.startVerse" :endVerse="mainVerse.endVerse" />
                     </div>
                   </div>
-                  <div v-else class="text-h5">{{ entry?.title }}</div>
+                  <div v-else class="text-h5 entry-view-title">{{ entry?.title }}</div>
                 </div>
               </div>
-              <div v-if="entry?.resources?.length > 0" class="q-mb-lg">
+              <div v-if="entry?.resources?.length > 0" class="q-mb-lg entry-resource-summary">
 
                 <!-- Book -->
                 <div v-if="entry?.type === 'Book'" class="q-mb-lg">
@@ -160,7 +160,7 @@
           <q-tab-panels v-model="activeTab" animated class="bg-transparent" @touchstart="handleTouchStart"
             @touchmove="handleTouchMove" @touchend="handleTouchEnd">
             <!-- Main Content Tab -->
-            <q-tab-panel name="main" class="q-pa-md">
+            <q-tab-panel name="main" class="q-pa-none">
               <div class="q-mb-xl">
                 <template v-if="entry?.decryptedContent?.sections">
                   <ContentSectionView v-for="(section, index) in entry.decryptedContent.sections"
@@ -170,8 +170,8 @@
               </div>
             </q-tab-panel>
             <!-- Additional Content Tab -->
-            <q-tab-panel name="additional" class="q-pa-md">
-              <div data-tour="view-additional-content">
+            <q-tab-panel name="additional" class="q-pa-none">
+              <div class="entry-view-additional-panel" data-tour="view-additional-content">
                 <!-- Linked Verses -->
                 <div class="q-mb-lg">
                   <LinkedVerses v-model="linkedVerses" :display-only="true" />
@@ -588,6 +588,59 @@ watch(
 </script>
 
 <style scoped>
+.entry-view-card {
+  min-height: calc(100vh - 180px);
+}
+
+.entry-view-additional-panel>div {
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface-alt);
+  box-shadow: 0 1px 3px var(--color-shadow-light);
+}
+
+.entry-view-title {
+  color: var(--color-text);
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.entry-resource-summary {
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface-alt);
+  box-shadow: 0 1px 3px var(--color-shadow-light);
+}
+
+.entry-resource-summary .text-body1 {
+  color: var(--color-text);
+  font-weight: 650;
+}
+
+.entry-resource-summary .text-caption {
+  color: var(--color-text-secondary) !important;
+  font-size: 0.86rem;
+  font-weight: 550;
+  line-height: 1.45;
+}
+
+@media (max-width: 599px) {
+  .entry-view-page {
+    padding: 4px 2px !important;
+  }
+
+  .entry-view-card {
+    padding: 8px 6px !important;
+  }
+
+  .entry-view-title {
+    font-size: 1.35rem;
+  }
+}
+
 .verse-link {
   display: block;
   padding: 8px 0;

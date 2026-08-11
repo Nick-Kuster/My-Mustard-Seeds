@@ -324,6 +324,41 @@ export const useResourcesStore = defineStore('resources', () => {
     }
   }
 
+  const setResourceFavorite = async (id, isFavorite) => {
+    loading.value = true
+    error.value = null
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session) throw new Error('No active session')
+
+      const { data, error: supabaseError } = await supabase
+        .from('resources')
+        .update({ is_favorite: isFavorite })
+        .eq('id', id)
+        .eq('user_id', session.user.id)
+        .select()
+        .single()
+
+      if (supabaseError) throw supabaseError
+
+      const index = resources.value.findIndex((r) => r.id === id)
+      if (index !== -1) {
+        resources.value[index] = data
+        await updateCache()
+      }
+
+      return data
+    } catch (err) {
+      console.error('Error updating resource favorite:', err)
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   const addChildResource = async (parentId, childType, childMetadata) => {
     loading.value = true
     error.value = null
@@ -460,6 +495,7 @@ export const useResourcesStore = defineStore('resources', () => {
     addResource,
     deleteResource,
     updateResource,
+    setResourceFavorite,
     addChildResource,
     clearCache,
     reset,

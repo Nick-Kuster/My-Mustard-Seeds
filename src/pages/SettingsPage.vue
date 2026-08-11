@@ -1,5 +1,5 @@
 <template>
-  <q-page class="q-pa-md q-mt-lg">
+  <q-page class="q-pa-md">
     <div class="row q-col-gutter-md justify-center">
       <!-- Preferences -->
       <div class="col-12 content-card">
@@ -616,7 +616,15 @@ const runImport = async () => {
 
 <style scoped>
 .settings-card {
+  background-color: var(--color-parchment) !important;
   border-radius: 12px;
+  overflow: hidden;
+}
+
+@media (max-width: 599px) {
+  .settings-card {
+    border-radius: 8px;
+  }
 }
 
 .order-section {

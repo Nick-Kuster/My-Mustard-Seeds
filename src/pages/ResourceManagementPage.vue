@@ -1,7 +1,7 @@
 <template>
-  <q-page class="q-pa-md q-mt-lg">
-    <div class="row q-col-gutter-md justify-center">
-      <div class="col-12 wide-content-card q-pa-lg parchment">
+  <q-page class="resources-page q-pa-md">
+    <div class="row justify-center">
+      <div class="col-12 wide-content-card q-pa-lg parchment app-page-card">
         <div class="row items-center q-mb-md" data-tour="resources-heading">
           <div class="col text-h6 text-center">Manage Resources</div>
         </div>
@@ -32,14 +32,18 @@
           <q-list v-else separator bordered class="rounded-borders bg-white">
             <q-item v-for="resource in searchResults" :key="resource.id">
               <q-item-section>
-                <q-item-label>{{ displayTitle(resource) }}</q-item-label>
+                <q-item-label>
+                  <q-icon v-if="resource.is_favorite" name="star" color="warning" size="16px" class="q-mr-xs" />
+                  {{ displayTitle(resource) }}
+                </q-item-label>
                 <q-item-label caption>
                   {{ typeLabel(resource.type) }}
                   <span v-if="parentOf(resource.id)"> · Under: {{ displayTitle(parentOf(resource.id)) }}</span>
                 </q-item-label>
               </q-item-section>
               <q-item-section side>
-                <q-btn flat round dense icon="more_vert" :loading="viewingNotesId === resource.id"
+                <q-btn flat round dense icon="more_vert"
+                  :loading="viewingNotesId === resource.id || togglingFavoriteId === resource.id"
                   aria-label="Resource actions">
                   <q-menu anchor="bottom right" self="top right">
                     <q-list style="min-width: 220px">
@@ -50,6 +54,12 @@
                         <q-item-section>
                           {{ isLeafType(resource.type) ? 'View Journal Entries' : 'Browse Entries Under This' }}
                         </q-item-section>
+                      </q-item>
+                      <q-item clickable v-close-popup @click="toggleResourceFavorite(resource)">
+                        <q-item-section avatar>
+                          <q-icon :name="resource.is_favorite ? 'star' : 'star_border'" color="warning" />
+                        </q-item-section>
+                        <q-item-section>{{ resource.is_favorite ? 'Remove Favorite' : 'Favorite' }}</q-item-section>
                       </q-item>
                       <q-item v-if="childTypeLabel(resource.type)" clickable v-close-popup
                         @click="openAddChild(resource)">
@@ -131,11 +141,15 @@
                   </div>
                 </q-item-section>
                 <q-item-section>
-                  <q-item-label>{{ displayTitle(row.resource) }}</q-item-label>
+                  <q-item-label>
+                    <q-icon v-if="row.resource.is_favorite" name="star" color="warning" size="16px" class="q-mr-xs" />
+                    {{ displayTitle(row.resource) }}
+                  </q-item-label>
                   <q-item-label v-if="row.depth > 0" caption>{{ typeLabel(row.resource.type) }}</q-item-label>
                 </q-item-section>
                 <q-item-section side>
-                  <q-btn flat round dense icon="more_vert" :loading="viewingNotesId === row.resource.id"
+                  <q-btn flat round dense icon="more_vert"
+                    :loading="viewingNotesId === row.resource.id || togglingFavoriteId === row.resource.id"
                     aria-label="Resource actions" data-tour="resources-item-menu" @click.stop>
                     <q-menu anchor="bottom right" self="top right">
                       <q-list style="min-width: 220px">
@@ -145,6 +159,14 @@
                           </q-item-section>
                           <q-item-section>
                             {{ isLeafType(row.resource.type) ? 'View Journal Entries' : 'Browse Entries Under This' }}
+                          </q-item-section>
+                        </q-item>
+                        <q-item clickable v-close-popup @click="toggleResourceFavorite(row.resource)">
+                          <q-item-section avatar>
+                            <q-icon :name="row.resource.is_favorite ? 'star' : 'star_border'" color="warning" />
+                          </q-item-section>
+                          <q-item-section>
+                            {{ row.resource.is_favorite ? 'Remove Favorite' : 'Favorite' }}
                           </q-item-section>
                         </q-item>
                         <q-item v-if="childTypeLabel(row.resource.type)" clickable v-close-popup
@@ -298,6 +320,10 @@ const typeLabel = (type) => {
   }
 }
 
+const sortResources = (a, b) =>
+  Number(Boolean(b.is_favorite)) - Number(Boolean(a.is_favorite)) ||
+  displayTitle(a).localeCompare(displayTitle(b))
+
 // child id -> parent id, from the current relationship set
 const parentIdMap = computed(() => {
   const map = new Map()
@@ -315,7 +341,7 @@ const childrenMap = computed(() => {
     if (!map.has(rel.parent_resource_id)) map.set(rel.parent_resource_id, [])
     map.get(rel.parent_resource_id).push(child)
   })
-  map.forEach((list) => list.sort((a, b) => displayTitle(a).localeCompare(displayTitle(b))))
+  map.forEach((list) => list.sort(sortResources))
   return map
 })
 
@@ -327,7 +353,7 @@ const parentOf = (resourceId) => {
 const roots = computed(() => {
   const list = resourcesStore.resources.filter((r) => !parentIdMap.value.has(r.id))
   return list.sort(
-    (a, b) => typeLabel(a.type).localeCompare(typeLabel(b.type)) || displayTitle(a).localeCompare(displayTitle(b)),
+    (a, b) => typeLabel(a.type).localeCompare(typeLabel(b.type)) || sortResources(a, b),
   )
 })
 
@@ -411,7 +437,7 @@ const searchResults = computed(() => {
   if (!search) return []
   return resourcesStore.resources
     .filter((r) => displayTitle(r).toLowerCase().includes(search))
-    .sort((a, b) => displayTitle(a).localeCompare(displayTitle(b)))
+    .sort(sortResources)
 })
 
 const loadRelationships = async () => {
@@ -440,6 +466,7 @@ const editingConfig = computed(() =>
 )
 const editForm = ref({})
 const saving = ref(false)
+const togglingFavoriteId = ref(null)
 
 const openEdit = (resource) => {
   editingResource.value = resource
@@ -457,6 +484,22 @@ const saveEdit = async () => {
     $q.notify({ type: 'negative', message: error.message || 'Failed to save' })
   } finally {
     saving.value = false
+  }
+}
+
+const toggleResourceFavorite = async (resource) => {
+  togglingFavoriteId.value = resource.id
+  const nextValue = !resource.is_favorite
+  try {
+    await resourcesStore.setResourceFavorite(resource.id, nextValue)
+    $q.notify({
+      type: 'positive',
+      message: nextValue ? 'Resource favorited' : 'Resource unfavorited',
+    })
+  } catch (error) {
+    $q.notify({ type: 'negative', message: error.message || 'Failed to update favorite' })
+  } finally {
+    togglingFavoriteId.value = null
   }
 }
 
@@ -621,5 +664,11 @@ const confirmDelete = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+@media (max-width: 599px) {
+  .resources-page {
+    padding: 8px !important;
+  }
 }
 </style>

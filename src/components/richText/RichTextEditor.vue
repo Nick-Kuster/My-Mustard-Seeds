@@ -198,9 +198,10 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .rich-text-editor {
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
+  border: 0;
+  border-radius: 10px;
   padding: 4px 8px;
+  background: transparent;
 }
 
 .rich-text-scroll-area {
@@ -212,7 +213,7 @@ onBeforeUnmount(() => {
   position: sticky;
   top: 0;
   z-index: 2;
-  background: var(--color-parchment);
+  background: var(--color-surface-alt);
   margin-bottom: 8px;
 }
 

@@ -52,7 +52,7 @@ export const usePrayerRequestsStore = defineStore('prayerRequests', () => {
     }
   }
 
-  const addRequest = async (content, groupId) => {
+  const addRequest = async (content, groupId, followUpDate = null, followUpTime = null) => {
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -69,6 +69,8 @@ export const usePrayerRequestsStore = defineStore('prayerRequests', () => {
         user_id: session.user.id,
         content: encryptedContent,
         group_id: groupId || null,
+        follow_up_date: followUpDate || null,
+        follow_up_time: followUpDate ? followUpTime || null : null,
         position,
       })
       .select()

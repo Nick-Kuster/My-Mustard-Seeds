@@ -1,10 +1,11 @@
 <template>
-  <q-page class="entry-editor-page q-pa-md q-mt-lg q-ml-sm">
+  <q-page class="entry-editor-page q-pa-md">
     <div class="row justify-center">
-      <div class="col-12 content-card entry-editor-card entry-card q-pa-lg parchment">
+      <div class="col-12 content-card entry-editor-card entry-card q-pa-lg parchment app-page-card">
         <div class="row items-center q-mb-md">
           <div class="col">
             <div class="text-h6">Plant a New Seed</div>
+            <div v-if="saveStatusLabel" class="text-caption text-grey-7">{{ saveStatusLabel }}</div>
           </div>
         </div>
 
@@ -282,8 +283,8 @@
             </q-tab-panel>
 
             <!-- Additional Content Tab -->
-            <q-tab-panel name="additional" class="q-pt-md q-pl-md">
-              <div class="fit">
+            <q-tab-panel name="additional" class="q-pt-md q-px-none">
+              <div class="fit entry-additional-panel">
                 <!-- Linked Verses -->
                 <div class="q-mb-lg" data-tour="entry-linked-verses">
                   <LinkedVerses v-model="linkedVerses" />
@@ -491,6 +492,8 @@ const activeTab = ref('main')
 const draftId = 'new-entry'
 let autosaveTimer = null
 const autosaveReady = ref(false)
+const lastAutosavedAt = ref(null)
+const savedAt = ref(null)
 const draftToRestore = ref(null)
 const showDraftRestoreDialog = ref(false)
 
@@ -799,12 +802,36 @@ const scheduleDraftSave = () => {
   clearTimeout(autosaveTimer)
   autosaveTimer = setTimeout(() => {
     const draft = captureDraft()
-    if (entryDraftHasContent(draft)) saveEntryDraft(draftId, draft)
-    else deleteEntryDraft(draftId)
+    if (entryDraftHasContent(draft)) {
+      saveEntryDraft(draftId, draft)
+      lastAutosavedAt.value = new Date()
+    } else {
+      deleteEntryDraft(draftId)
+      lastAutosavedAt.value = null
+    }
   }, 800)
 }
 
 const richTextHasText = (content) => JSON.stringify(content || '').includes('"text"')
+
+const formatTime = (date) => date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+
+const saveStatusLabel = computed(() => {
+  if (saving.value) return 'Saving...'
+  if (savedAt.value) return `Saved ${formatTime(savedAt.value)}`
+  if (lastAutosavedAt.value) return `Autosaved ${formatTime(lastAutosavedAt.value)}`
+  return ''
+})
+
+const sectionHasContent = (section) => {
+  if (section.headerProperty) return true
+  if (section.fieldType === 'list') return getListItems(section.content).some((item) => item.trim())
+  return richTextHasText(section.content)
+}
+
+const cleanEmptySections = () => {
+  contentSections.value = contentSections.value.filter(sectionHasContent)
+}
 
 const draftSummary = computed(() => {
   const draft = draftToRestore.value
@@ -999,6 +1026,7 @@ const saveEntry = async () => {
       Object.values(richTextEditorRefs).map((el) => el.flushPendingReferences())
     )
     await inlineResolver.resolveAllInlineReferences(contentSections.value)
+    cleanEmptySections()
 
     // This will generate the title if there is a special type, otherwise it remains the same.
     title.value = generateTitle();
@@ -1196,6 +1224,8 @@ const saveEntry = async () => {
 
     const newEntry = await journalStore.getEntry(entry.id);
     await journalStore.addEntry(newEntry)
+    savedAt.value = new Date()
+    lastAutosavedAt.value = null
     deleteEntryDraft(draftId)
 
     router.push('/')
@@ -1374,18 +1404,15 @@ onUnmounted(() => {
 
 @media (max-width: 599px) {
   .entry-editor-page {
-    padding-left: 0;
-    padding-right: 0;
-    margin-left: 0;
+    padding: 4px 2px !important;
   }
 
   .entry-card {
-    padding: 8px !important;
+    padding: 8px 6px !important;
   }
 
   .section-container {
-    padding: 4px 0;
-    background: transparent;
+    padding: 8px 6px;
   }
 }
 
@@ -1396,10 +1423,19 @@ onUnmounted(() => {
 
 .section-container {
   padding: 12px;
-  border-radius: 8px;
-  background: var(--color-surface);
+  border-radius: 12px;
+  background: var(--color-surface-alt);
   transition: all 0.3s ease;
-  border: 1px solid transparent;
+  border: 1px solid var(--color-border);
+  box-shadow: 0 1px 3px var(--color-shadow-light);
+}
+
+.entry-additional-panel>div {
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface-alt);
+  box-shadow: 0 1px 3px var(--color-shadow-light);
 }
 
 /* Style for the section being dragged */

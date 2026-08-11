@@ -147,6 +147,18 @@ body {
   background-color: var(--color-parchment);
 }
 
+.app-page-card {
+  background-color: var(--color-parchment) !important;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+@media (max-width: 599px) {
+  .app-page-card {
+    border-radius: 8px;
+  }
+}
+
 // Page-content cards used to be capped at a Quasar column fraction (e.g.
 // col-md-6) that never grew past the "md" breakpoint, so on any screen wider
 // than a small laptop the card stayed roughly phone-width with empty space

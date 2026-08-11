@@ -44,8 +44,9 @@ const introSteps = [
   {
     selector: '[data-tour="nav-plant"]',
     page: '/',
-    title: 'Plant a Seed',
-    description: 'Start a new entry in one tap. Let\'s walk through creating one.',
+    title: 'Quick Add',
+    description:
+      'Use this to plant a new journal entry or quickly add a prayer, including an optional reminder. Let\'s walk through creating an entry.',
   },
 ]
 
@@ -80,7 +81,8 @@ const homeReturnSteps = [
     selector: '[data-tour="tab-prayers"]',
     page: '/',
     title: 'Prayers',
-    description: 'Track prayer requests, organize them into groups, and mark prayers answered as God works.',
+    description:
+      'Track prayer requests, organize them into groups, set follow-up reminders, and mark prayers answered as God works.',
     waitForElement: 1000,
   },
   {
@@ -102,7 +104,8 @@ const resourcesSteps = [
     selector: '[data-tour="nav-resources"]',
     page: '/',
     title: 'Resources',
-    description: 'The books, sermons, podcasts, and people you reference — let\'s take a look.',
+    description:
+      'The books, sermons, podcasts, and people you reference. On mobile, Resources lives in the header; on desktop, it stays in the top navigation.',
   },
   {
     selector: '[data-tour="resources-heading"]',
