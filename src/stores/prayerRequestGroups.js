@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { supabase } from 'src/boot/supabase'
+import { getEncryptionKey, encryptData, decryptData } from 'src/utils/encryption'
+import { isV2 } from 'src/utils/cryptoPrimitives'
 import { demoModeActive } from 'src/utils/demoMode'
 
 // Real, persisted prayer request groups (see sql/Prayer Request Groups
@@ -11,6 +13,40 @@ import { demoModeActive } from 'src/utils/demoMode'
 export const usePrayerRequestGroupsStore = defineStore('prayerRequestGroups', () => {
   const groups = ref([])
   const loading = ref(false)
+
+  const decryptGroupRow = async (row, encryptionKey) => {
+    if (!row?.name) return { ...row, name: '' }
+    if (!isV2(row.name)) return { ...row, encryptedName: row.name }
+    return {
+      ...row,
+      encryptedName: row.name,
+      name: (await decryptData(row.name, encryptionKey)) || '',
+    }
+  }
+
+  const migratePlaintextGroupNames = async (rows, encryptionKey) => {
+    const plaintextRows = rows.filter((row) => row.encryptedName && !isV2(row.encryptedName))
+    if (plaintextRows.length === 0) return
+
+    await Promise.all(
+      plaintextRows.map(async (row) => {
+        const encryptedName = await encryptData(row.name, encryptionKey)
+        const { error } = await supabase
+          .from('prayer_request_groups')
+          .update({ name: encryptedName, updated_at: new Date().toISOString() })
+          .eq('id', row.id)
+        if (error) throw error
+        row.encryptedName = encryptedName
+      }),
+    )
+  }
+
+  const groupNameExists = (name, exceptId = null) => {
+    const normalized = name.trim().toLowerCase()
+    return groups.value.some((group) =>
+      group.id !== exceptId && group.name.trim().toLowerCase() === normalized,
+    )
+  }
 
   const fetchGroups = async () => {
     // See usePrayerRequestsStore().fetchRequests()'s identical guard — the
@@ -30,7 +66,10 @@ export const usePrayerRequestGroupsStore = defineStore('prayerRequestGroups', ()
         .order('position', { ascending: true })
 
       if (error) throw error
-      groups.value = data
+      const encryptionKey = await getEncryptionKey(session.user.id)
+      const decryptedRows = await Promise.all((data || []).map((row) => decryptGroupRow(row, encryptionKey)))
+      groups.value = decryptedRows
+      await migratePlaintextGroupNames(decryptedRows, encryptionKey)
     } catch (error) {
       console.error('Error fetching prayer request groups:', error)
       throw error
@@ -42,35 +81,61 @@ export const usePrayerRequestGroupsStore = defineStore('prayerRequestGroups', ()
   // New groups append after existing ones, matching the previous UX where
   // "New Group" landed right before Miscellaneous.
   const addGroup = async (name) => {
+    if (groupNameExists(name)) {
+      const error = new Error('A group with that name already exists')
+      error.code = '23505'
+      throw error
+    }
+
     const {
       data: { session },
     } = await supabase.auth.getSession()
     if (!session) throw new Error('No active session')
 
+    const encryptionKey = await getEncryptionKey(session.user.id)
+    const encryptedName = await encryptData(name, encryptionKey)
     const position = groups.value.length ? Math.max(...groups.value.map((g) => g.position)) + 1 : 0
 
     const { data, error } = await supabase
       .from('prayer_request_groups')
-      .insert({ user_id: session.user.id, name, position })
+      .insert({ user_id: session.user.id, name: encryptedName, position })
       .select()
       .single()
 
     if (error) throw error
 
-    groups.value.push(data)
-    return data
+    const group = { ...data, encryptedName, name }
+    groups.value.push(group)
+    return group
   }
 
   const renameGroup = async (id, name) => {
+    if (groupNameExists(name, id)) {
+      const error = new Error('A group with that name already exists')
+      error.code = '23505'
+      throw error
+    }
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    if (!session) throw new Error('No active session')
+
+    const encryptionKey = await getEncryptionKey(session.user.id)
+    const encryptedName = await encryptData(name, encryptionKey)
+
     const { error } = await supabase
       .from('prayer_request_groups')
-      .update({ name, updated_at: new Date().toISOString() })
+      .update({ name: encryptedName, updated_at: new Date().toISOString() })
       .eq('id', id)
 
     if (error) throw error
 
     const group = groups.value.find((g) => g.id === id)
-    if (group) group.name = name
+    if (group) {
+      group.name = name
+      group.encryptedName = encryptedName
+    }
   }
 
   const reorderGroups = async (orderedIds) => {
