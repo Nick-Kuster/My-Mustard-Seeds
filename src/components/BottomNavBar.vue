@@ -188,6 +188,9 @@ import { useQuasar } from 'quasar'
 import { usePageActionsStore } from 'stores/pageActions'
 import { usePrayerRequestsStore } from 'stores/prayerRequests'
 import { usePrayerRequestGroupsStore } from 'stores/prayerRequestGroups'
+import { useSharedPrayerContextsStore } from 'stores/sharedPrayerContexts'
+import { useSharedPrayerRequestsStore } from 'stores/sharedPrayerRequests'
+import { useSharedPrayerRequestGroupsStore } from 'stores/sharedPrayerRequestGroups'
 
 const router = useRouter()
 const route = useRoute()
@@ -195,6 +198,9 @@ const $q = useQuasar()
 const { footerActions: contextualActions } = storeToRefs(usePageActionsStore())
 const prayerRequestsStore = usePrayerRequestsStore()
 const prayerGroupsStore = usePrayerRequestGroupsStore()
+const sharedPrayerContextsStore = useSharedPrayerContextsStore()
+const sharedPrayerRequestsStore = useSharedPrayerRequestsStore()
+const sharedPrayerGroupsStore = useSharedPrayerRequestGroupsStore()
 
 const showQuickPrayerDialog = ref(false)
 const quickPrayerInputRef = ref(null)
@@ -207,6 +213,10 @@ const quickPrayerReminderHour = ref('8')
 const quickPrayerReminderMinute = ref('00')
 const quickPrayerReminderPeriod = ref('AM')
 const savingQuickPrayer = ref(false)
+const isSharedPrayerContext = computed(() => !sharedPrayerContextsStore.isPersonalContext)
+const activePrayerGroupsStore = computed(() =>
+  isSharedPrayerContext.value ? sharedPrayerGroupsStore : prayerGroupsStore,
+)
 
 const dateInputValue = (date) => {
   const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
@@ -235,12 +245,12 @@ const combineReminderTime = (hour, minute, period) => {
 }
 
 const groupOptions = computed(() =>
-  prayerGroupsStore.groups.map((group) => ({ label: group.name, value: group.id, group })),
+  activePrayerGroupsStore.value.groups.map((group) => ({ label: group.name, value: group.id, group })),
 )
 
 const findGroupByName = (name) => {
   const normalizedName = name.trim().toLowerCase()
-  return prayerGroupsStore.groups.find((group) => group.name.trim().toLowerCase() === normalizedName)
+  return activePrayerGroupsStore.value.groups.find((group) => group.name.trim().toLowerCase() === normalizedName)
 }
 
 const resolveQuickPrayerGroupId = async () => {
@@ -252,14 +262,14 @@ const resolveQuickPrayerGroupId = async () => {
   const existingGroup = findGroupByName(typedGroupName)
   if (existingGroup) return existingGroup.id
 
-  const newGroup = await prayerGroupsStore.addGroup(typedGroupName)
+  const newGroup = await activePrayerGroupsStore.value.addGroup(typedGroupName)
   return newGroup.id
 }
 
 const openQuickPrayer = async () => {
-  if (!prayerGroupsStore.groups.length) {
+  if (!activePrayerGroupsStore.value.groups.length) {
     try {
-      await prayerGroupsStore.fetchGroups()
+      await activePrayerGroupsStore.value.fetchGroups()
     } catch {
       // Group loading is optional; the prayer can still be saved to Miscellaneous.
     }
@@ -291,7 +301,7 @@ const createQuickPrayerGroupOption = async (inputValue, done) => {
   }
 
   try {
-    const newGroup = await prayerGroupsStore.addGroup(groupName)
+    const newGroup = await activePrayerGroupsStore.value.addGroup(groupName)
     done({ label: newGroup.name, value: newGroup.id, group: newGroup })
   } catch {
     done()
@@ -306,7 +316,8 @@ const saveQuickPrayer = async () => {
   savingQuickPrayer.value = true
   try {
     const groupId = await resolveQuickPrayerGroupId()
-    await prayerRequestsStore.addRequest(
+    const targetStore = isSharedPrayerContext.value ? sharedPrayerRequestsStore : prayerRequestsStore
+    await targetStore.addRequest(
       text,
       groupId,
       quickPrayerReminderEnabled.value ? quickPrayerReminderDate.value : null,

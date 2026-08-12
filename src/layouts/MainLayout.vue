@@ -57,6 +57,62 @@
             flat
             dense
             round
+            icon="groups"
+            aria-label="Prayer context"
+            :loading="sharedPrayerContextsStore.loading"
+          >
+            <q-tooltip>Prayer context: {{ activePrayerContextLabel }}</q-tooltip>
+            <q-menu anchor="bottom right" self="top right">
+              <q-list class="context-menu">
+                <q-item-label header>Prayer Context</q-item-label>
+                <q-item
+                  v-for="option in prayerContextOptions"
+                  :key="option.id"
+                  clickable
+                  v-close-popup
+                  :active="option.id === sharedPrayerContextsStore.activeContextId"
+                  active-class="translation-menu-item--active"
+                  @click="setPrayerContext(option.id)"
+                >
+                  <q-item-section avatar>
+                    <q-icon :name="option.icon" color="primary" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>{{ option.label }}</q-item-label>
+                    <q-item-label caption>{{ option.description }}</q-item-label>
+                  </q-item-section>
+                  <q-item-section v-if="option.id === sharedPrayerContextsStore.activeContextId" side>
+                    <q-icon name="check" color="primary" />
+                  </q-item-section>
+                </q-item>
+                <q-separator />
+                <q-item clickable v-close-popup @click="showCreateSharedGroupDialog = true">
+                  <q-item-section avatar>
+                    <q-icon name="group_add" color="primary" />
+                  </q-item-section>
+                  <q-item-section>Create Shared Group</q-item-section>
+                </q-item>
+                <q-item
+                  v-if="canCopyInviteLink"
+                  clickable
+                  v-close-popup
+                  @click="copyActiveInviteLink"
+                >
+                  <q-item-section avatar>
+                    <q-icon name="link" color="primary" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>Copy Invite Link</q-item-label>
+                    <q-item-label caption>{{ sharedPrayerContextsStore.activeGroup?.name }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </q-menu>
+          </q-btn>
+          <q-btn
+            flat
+            dense
+            round
             icon="menu_book"
             aria-label="Bible translation"
             :loading="savingBibleTranslation"
@@ -100,6 +156,38 @@
   </q-layout>
 
   <TutorialStartDialog v-model="showWelcomeDialog" ask-name />
+
+  <q-dialog v-model="showCreateSharedGroupDialog">
+    <q-card style="width: 92vw; max-width: 420px">
+      <q-card-section>
+        <div class="text-h6">Create Shared Prayer Group</div>
+        <div class="text-body2 text-grey-7 q-mt-xs">
+          Anyone with the invite link can join this shared prayer context.
+        </div>
+      </q-card-section>
+      <q-card-section class="q-pt-none">
+        <q-input
+          v-model="newSharedGroupName"
+          outlined
+          dense
+          label="Group name"
+          autofocus
+          @keyup.enter="createSharedGroup"
+        />
+      </q-card-section>
+      <q-card-actions align="right">
+        <q-btn flat label="Cancel" v-close-popup />
+        <q-btn
+          color="primary"
+          label="Create"
+          icon="group_add"
+          :loading="creatingSharedGroup"
+          :disable="!newSharedGroupName.trim()"
+          @click="createSharedGroup"
+        />
+      </q-card-actions>
+    </q-card>
+  </q-dialog>
 </template>
 
 <script setup>
@@ -109,6 +197,7 @@ import { useQuasar } from 'quasar'
 import { useThemeMode } from 'src/composables/useThemeMode'
 import { useAuthStore } from 'src/stores/auth'
 import { useUserPreferencesStore } from 'src/stores/userPreferences'
+import { useSharedPrayerContextsStore } from 'stores/sharedPrayerContexts'
 import { useProfileStore } from 'stores/profile'
 import { useTutorialStore } from 'stores/tutorial'
 import {
@@ -126,14 +215,28 @@ const route = useRoute()
 const { themeIcon, themeLabel, initTheme, toggleTheme } = useThemeMode()
 const authStore = useAuthStore()
 const userPreferencesStore = useUserPreferencesStore()
+const sharedPrayerContextsStore = useSharedPrayerContextsStore()
 const profileStore = useProfileStore()
 const tutorialStore = useTutorialStore()
 
 const showWelcomeDialog = ref(false)
 const savingBibleTranslation = ref(false)
+const showCreateSharedGroupDialog = ref(false)
+const newSharedGroupName = ref('')
+const creatingSharedGroup = ref(false)
 const bibleTranslationOptions = BIBLE_TRANSLATION_OPTIONS
 const activeBibleTranslation = computed(() =>
   findBibleTranslationOption(userPreferencesStore.bibleTranslation),
+)
+const prayerContextOptions = computed(() => sharedPrayerContextsStore.contextOptions)
+const activePrayerContextLabel = computed(() =>
+  sharedPrayerContextsStore.isPersonalContext
+    ? 'Personal'
+    : sharedPrayerContextsStore.activeGroup?.name || 'Shared',
+)
+const canCopyInviteLink = computed(() =>
+  !!sharedPrayerContextsStore.activeGroup
+  && ['owner', 'admin'].includes(sharedPrayerContextsStore.activeMembership?.role),
 )
 
 const navLinks = [
@@ -180,6 +283,45 @@ const setBibleTranslation = async (option) => {
   }
 }
 
+const setPrayerContext = (contextId) => {
+  sharedPrayerContextsStore.setActiveContext(contextId)
+  if (route.path === '/') {
+    router.replace({ path: '/', query: { ...route.query, tab: 'prayers' } })
+  }
+}
+
+const copyInviteLink = async (group) => {
+  const url = sharedPrayerContextsStore.inviteUrlForGroup(group)
+  if (!url) return
+  try {
+    await navigator.clipboard.writeText(url)
+    $q.notify({ type: 'positive', message: 'Invite link copied' })
+  } catch {
+    $q.notify({ type: 'warning', message: 'Invite link ready', caption: url })
+  }
+}
+
+const copyActiveInviteLink = () => copyInviteLink(sharedPrayerContextsStore.activeGroup)
+
+const createSharedGroup = async () => {
+  const name = newSharedGroupName.value.trim()
+  if (!name) return
+
+  creatingSharedGroup.value = true
+  try {
+    const group = await sharedPrayerContextsStore.createGroup(name)
+    showCreateSharedGroupDialog.value = false
+    newSharedGroupName.value = ''
+    $q.notify({ type: 'positive', message: `${group.name} created` })
+    await copyInviteLink(group)
+    router.push({ path: '/', query: { tab: 'prayers' } })
+  } catch (error) {
+    $q.notify({ type: 'negative', message: error.message || 'Failed to create shared group' })
+  } finally {
+    creatingSharedGroup.value = false
+  }
+}
+
 // MainLayout mounts on every full page load/refresh (Vue Router doesn't
 // remount it for in-app navigation), so gating on sessionStorage rather
 // than just "did this component mount" keeps the greeting to once per
@@ -189,6 +331,7 @@ const WELCOME_TOAST_KEY = 'welcomeToastShown'
 
 onMounted(async () => {
   initTheme()
+  sharedPrayerContextsStore.loadGroups()
 
   try {
     await profileStore.fetchProfile()
@@ -302,7 +445,8 @@ body.body--dark .app-header {
   background: rgba(255, 255, 255, 0.16);
 }
 
-.translation-menu {
+.translation-menu,
+.context-menu {
   min-width: 260px;
 }
 

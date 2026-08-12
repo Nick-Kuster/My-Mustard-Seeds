@@ -38,6 +38,11 @@ const routes = [
         component: () => import('pages/SettingsPage.vue'),
         meta: { requiresAuth: true },
       },
+      {
+        path: 'join-prayer/:inviteCode',
+        component: () => import('pages/JoinSharedPrayerPage.vue'),
+        meta: { requiresAuth: true },
+      },
     ],
   },
   {

@@ -17,7 +17,9 @@ onMounted(async () => {
     if (error) throw error
 
     if (session) {
-      router.push('/')
+      const redirect = sessionStorage.getItem('postLoginRedirect') || '/'
+      sessionStorage.removeItem('postLoginRedirect')
+      router.push(redirect)
     } else {
       router.push('/login')
     }

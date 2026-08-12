@@ -5,13 +5,15 @@
     </div>
 
     <AppEmptyState
-      v-else-if="requests.length === 0 && groupsStore.groups.length === 0 && !addingGroup"
+      v-else-if="requests.length === 0 && groupsStore.groups.length === 0 && !addingGroup && !addPrayerSection"
       icon="front_hand"
-      title="Start a prayer list"
-      message="Keep the people and needs you are praying over in one place, then mark answers as they come."
+      :title="isSharedContext ? `Start ${activePrayerContextName}` : 'Start a prayer list'"
+      :message="isSharedContext
+        ? 'Create a group for this shared prayer list, then add prayers under it.'
+        : 'Keep the people and needs you are praying over in one place, then mark answers as they come.'"
       primary-label="New Group"
       primary-icon="create_new_folder"
-      @primary="startAddGroup"
+      @primary="handleEmptyPrimary"
     />
 
     <template v-else>
@@ -107,7 +109,7 @@
       </div>
 
       <AppEmptyState
-        v-if="active.length === 0 && groupSections.length === 0"
+        v-if="active.length === 0 && groupSections.length === 0 && !addPrayerSection"
         compact
         icon="check_circle"
         title="No active prayers right now"
@@ -585,16 +587,28 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import draggable from 'vuedraggable'
 import { usePrayerRequestsStore } from 'stores/prayerRequests'
 import { usePrayerRequestGroupsStore } from 'stores/prayerRequestGroups'
+import { useSharedPrayerContextsStore } from 'stores/sharedPrayerContexts'
+import { useSharedPrayerRequestsStore } from 'stores/sharedPrayerRequests'
+import { useSharedPrayerRequestGroupsStore } from 'stores/sharedPrayerRequestGroups'
 import AppEmptyState from './AppEmptyState.vue'
 
 const $q = useQuasar()
-const store = usePrayerRequestsStore()
-const groupsStore = usePrayerRequestGroupsStore()
+const personalStore = usePrayerRequestsStore()
+const personalGroupsStore = usePrayerRequestGroupsStore()
+const sharedPrayerContextsStore = useSharedPrayerContextsStore()
+const sharedStore = useSharedPrayerRequestsStore()
+const sharedGroupsStore = useSharedPrayerRequestGroupsStore()
+const isSharedContext = computed(() => !sharedPrayerContextsStore.isPersonalContext)
+const activePrayerContextName = computed(() => sharedPrayerContextsStore.activeGroup?.name || 'Shared Prayers')
+const activeStore = computed(() => (isSharedContext.value ? sharedStore : personalStore))
+const activeGroupsStore = computed(() => (isSharedContext.value ? sharedGroupsStore : personalGroupsStore))
+const store = new Proxy({}, { get: (_target, prop) => activeStore.value[prop] })
+const groupsStore = new Proxy({}, { get: (_target, prop) => activeGroupsStore.value[prop] })
 const MISC_KEY = '__misc__'
 const NO_EDIT_GROUP_KEY = '__none__'
 
@@ -610,7 +624,12 @@ const collapseSeededGroups = reactive(new Set())
 const allSectionsForDisplay = computed(() => {
   const sections = [...groupSections.value]
   if (miscItems.value.length > 0) {
-    sections.push({ key: null, mapKey: MISC_KEY, label: 'Miscellaneous', items: miscItems.value })
+    sections.push({
+      key: null,
+      mapKey: MISC_KEY,
+      label: 'Miscellaneous',
+      items: miscItems.value,
+    })
   }
   return sections
 })
@@ -864,6 +883,10 @@ const startAddGroup = async () => {
   addingGroup.value = true
   await nextTick()
   newGroupInputRef.value?.focus()
+}
+
+const handleEmptyPrimary = async () => {
+  await startAddGroup()
 }
 
 const cancelAddGroup = () => {
@@ -1210,15 +1233,31 @@ const confirmDelete = async () => {
   }
 }
 
-onMounted(async () => {
+const loadPrayerContext = async () => {
+  loading.value = true
   try {
+    await sharedPrayerContextsStore.loadGroups()
     await Promise.all([store.fetchRequests(), groupsStore.fetchGroups()])
+    addPrayerSection.value = null
+    collapsedGroups.clear()
+    collapseSeededGroups.clear()
     syncGroups()
   } catch {
     $q.notify({ type: 'negative', message: 'Failed to load prayer requests' })
   } finally {
     loading.value = false
   }
+}
+
+watch(
+  () => sharedPrayerContextsStore.activeContextId,
+  () => {
+    loadPrayerContext()
+  },
+)
+
+onMounted(async () => {
+  await loadPrayerContext()
 })
 
 </script>

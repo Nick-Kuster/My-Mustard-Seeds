@@ -16,11 +16,11 @@ export default route(function (/* { store, ssrContext } */) {
     } = await supabase.auth.getSession()
 
     if (to.meta.requiresAuth && !session) {
-      return { path: '/login' }
+      return { path: '/login', query: { redirect: to.fullPath } }
     }
 
     if (to.path === '/login' && session) {
-      return { path: '/' }
+      return typeof to.query.redirect === 'string' ? to.query.redirect : '/'
     }
   })
 

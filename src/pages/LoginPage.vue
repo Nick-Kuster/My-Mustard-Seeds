@@ -83,7 +83,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from 'src/stores/auth'
 import { useQuasar } from 'quasar'
 import AppLogoMark from 'components/AppLogoMark.vue'
@@ -91,14 +91,17 @@ import AppLogoMark from 'components/AppLogoMark.vue'
 const auth = useAuthStore()
 const $q = useQuasar()
 const router = useRouter()
+const route = useRoute()
 const loading = ref(false)
 const email = ref('')
 const emailCode = ref('')
 const codeSent = ref(false)
+const redirectAfterLogin = () => typeof route.query.redirect === 'string' ? route.query.redirect : '/'
 
 const handleGoogleSignIn = async () => {
   try {
     loading.value = true
+    sessionStorage.setItem('postLoginRedirect', redirectAfterLogin())
     await auth.signInWithGoogle()
   } catch (error) {
     $q.notify({
@@ -134,7 +137,7 @@ const handleVerifyEmailCode = async () => {
   try {
     loading.value = true
     await auth.verifyEmailSignInCode(email.value, emailCode.value)
-    router.push('/')
+    router.push(redirectAfterLogin())
   } catch (error) {
     $q.notify({
       type: 'negative',
