@@ -53,6 +53,38 @@
             @click="toggleTheme">
             <q-tooltip>{{ themeLabel }} — click to change</q-tooltip>
           </q-btn>
+          <q-btn
+            flat
+            dense
+            round
+            icon="menu_book"
+            aria-label="Bible translation"
+            :loading="savingBibleTranslation"
+          >
+            <q-tooltip>Bible translation: {{ activeBibleTranslation.abbreviation }}</q-tooltip>
+            <q-menu anchor="bottom right" self="top right">
+              <q-list class="translation-menu">
+                <q-item-label header>Passage Translation</q-item-label>
+                <q-item
+                  v-for="option in bibleTranslationOptions"
+                  :key="bibleOptionKey(option)"
+                  clickable
+                  v-close-popup
+                  :active="bibleOptionKey(option) === bibleOptionKey(activeBibleTranslation)"
+                  active-class="translation-menu-item--active"
+                  @click="setBibleTranslation(option)"
+                >
+                  <q-item-section>
+                    <q-item-label>{{ option.abbreviation }}</q-item-label>
+                    <q-item-label caption>{{ option.description }}</q-item-label>
+                  </q-item-section>
+                  <q-item-section v-if="bibleOptionKey(option) === bibleOptionKey(activeBibleTranslation)" side>
+                    <q-icon name="check" color="primary" />
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </q-menu>
+          </q-btn>
           <q-btn flat dense round icon="logout" aria-label="Logout" @click="handleSignOut" />
         </div>
       </q-toolbar>
@@ -71,13 +103,19 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useThemeMode } from 'src/composables/useThemeMode'
 import { useAuthStore } from 'src/stores/auth'
+import { useUserPreferencesStore } from 'src/stores/userPreferences'
 import { useProfileStore } from 'stores/profile'
 import { useTutorialStore } from 'stores/tutorial'
+import {
+  BIBLE_TRANSLATION_OPTIONS,
+  bibleOptionKey,
+  findBibleTranslationOption,
+} from 'src/constants/bibleTranslations'
 import BottomNavBar from 'components/BottomNavBar.vue'
 import TutorialStartDialog from 'components/TutorialStartDialog.vue'
 import AppLogoMark from 'components/AppLogoMark.vue'
@@ -87,10 +125,16 @@ const router = useRouter()
 const route = useRoute()
 const { themeIcon, themeLabel, initTheme, toggleTheme } = useThemeMode()
 const authStore = useAuthStore()
+const userPreferencesStore = useUserPreferencesStore()
 const profileStore = useProfileStore()
 const tutorialStore = useTutorialStore()
 
 const showWelcomeDialog = ref(false)
+const savingBibleTranslation = ref(false)
+const bibleTranslationOptions = BIBLE_TRANSLATION_OPTIONS
+const activeBibleTranslation = computed(() =>
+  findBibleTranslationOption(userPreferencesStore.bibleTranslation),
+)
 
 const navLinks = [
   { to: '/', icon: 'home', label: 'Home', tour: 'nav-home' },
@@ -114,6 +158,25 @@ const handleSignOut = async () => {
       message: 'Error signing out',
       caption: error.message
     })
+  }
+}
+
+const setBibleTranslation = async (option) => {
+  if (bibleOptionKey(option) === bibleOptionKey(activeBibleTranslation.value)) return
+
+  savingBibleTranslation.value = true
+  try {
+    await userPreferencesStore.setBibleTranslation({
+      provider: option.provider,
+      bibleId: option.bibleId,
+      label: option.label,
+      abbreviation: option.abbreviation,
+    })
+    $q.notify({ type: 'positive', message: `${option.abbreviation} selected` })
+  } catch {
+    $q.notify({ type: 'negative', message: 'Failed to save Bible translation' })
+  } finally {
+    savingBibleTranslation.value = false
   }
 }
 
@@ -237,6 +300,15 @@ body.body--dark .app-header {
 .header-icon-btn--active {
   color: #ffffff;
   background: rgba(255, 255, 255, 0.16);
+}
+
+.translation-menu {
+  min-width: 260px;
+}
+
+.translation-menu-item--active {
+  background: var(--color-surface-muted);
+  color: var(--color-text);
 }
 
 .content-wrapper {

@@ -34,6 +34,13 @@ export const DEFAULT_PRAYER_REMINDER_OPTIONS = {
   hour: 8,
 }
 
+export const DEFAULT_BIBLE_TRANSLATION = {
+  provider: 'local',
+  bibleId: null,
+  label: 'BSB',
+  abbreviation: 'BSB',
+}
+
 // Per-user app preferences, stored as a single jsonb blob (see
 // sql/User Preferences Table.sql for why a blob over columns or a
 // key/value table) rather than one row/column per setting. Loaded once per
@@ -170,6 +177,12 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
   }))
   const setPrayerReminderOptions = (options) => setPreferences({ prayerReminderOptions: options })
 
+  const bibleTranslation = computed(() => ({
+    ...DEFAULT_BIBLE_TRANSLATION,
+    ...(preferences.value.bibleTranslation || {}),
+  }))
+  const setBibleTranslation = (translation) => setPreferences({ bibleTranslation: translation })
+
   return {
     preferences,
     loaded,
@@ -190,5 +203,7 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
     setPrintOptions,
     prayerReminderOptions,
     setPrayerReminderOptions,
+    bibleTranslation,
+    setBibleTranslation,
   }
 })
