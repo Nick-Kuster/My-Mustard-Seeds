@@ -10,6 +10,22 @@
  */
 export const formatVerseReference = (verse) => {
   const { start_chapter, end_chapter, start_verse, end_verse, book } = verse
+  const startChapter = Number(start_chapter)
+  const endChapter = Number(end_chapter)
+  const startVerse = Number(start_verse)
+  const endVerse = Number(end_verse)
+  const endChapterVerseCount = Number(
+    verse.end_chapter_verse_count ?? verse.chapter_verse_count ?? verse.verse_count,
+  )
+
+  if (
+    startChapter === endChapter &&
+    startVerse === 1 &&
+    Number.isFinite(endChapterVerseCount) &&
+    endVerse === endChapterVerseCount
+  ) {
+    return `${book} ${start_chapter}`
+  }
 
   if (start_chapter === end_chapter && start_verse === end_verse) {
     return `${book} ${start_chapter}:${start_verse}`

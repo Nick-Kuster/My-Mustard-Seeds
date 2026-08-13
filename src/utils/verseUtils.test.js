@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseFullVerseReference } from './verseUtils'
+import { formatVerseReference, parseFullVerseReference } from './verseUtils'
 
 describe('parseFullVerseReference', () => {
   it('keeps bare book references opt-in', () => {
@@ -21,5 +21,29 @@ describe('parseFullVerseReference', () => {
       endChapter: 3,
       endVerse: 16,
     })
+  })
+})
+
+describe('formatVerseReference', () => {
+  it('collapses whole single-chapter ranges to the chapter label', () => {
+    expect(formatVerseReference({
+      book: 'John',
+      start_chapter: 3,
+      start_verse: 1,
+      end_chapter: 3,
+      end_verse: 36,
+      end_chapter_verse_count: 36,
+    })).toBe('John 3')
+  })
+
+  it('keeps partial chapter ranges expanded', () => {
+    expect(formatVerseReference({
+      book: 'John',
+      start_chapter: 3,
+      start_verse: 1,
+      end_chapter: 3,
+      end_verse: 35,
+      end_chapter_verse_count: 36,
+    })).toBe('John 3:1-35')
   })
 })

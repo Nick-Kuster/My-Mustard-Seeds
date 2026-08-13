@@ -409,6 +409,7 @@ import { openSafeExternalUrl } from 'src/utils/urlUtils'
 import { useInlineReferenceResolver } from 'src/composables/useInlineReferenceResolver'
 import { EMPTY_RICH_DOC } from 'src/utils/richTextContent'
 import { deleteEntryDraft, entryDraftHasContent, getEntryDraft, saveEntryDraft } from 'src/utils/entryDrafts'
+import { formatVerseReference } from 'src/utils/verseUtils'
 
 const TagSelector = defineAsyncComponent(() => import('src/components/TagSelector.vue'))
 const QuoteSelector = defineAsyncComponent(() => import('src/components/QuoteSelector.vue'))
@@ -526,6 +527,31 @@ const getTodayDate = () => {
   return `${month}-${day}-${year}`
 }
 
+const getChapterVerseCount = async (book, chapter) => {
+  const { data } = await supabase
+    .from('bible_glossary')
+    .select('verse_count')
+    .eq('book', book)
+    .eq('chapter', chapter)
+    .single()
+  return data?.verse_count
+}
+
+const buildEndpointVerseDisplay = async (startVerse, endVerse) => {
+  const endChapterVerseCount = startVerse.chapter === endVerse.chapter
+    ? await getChapterVerseCount(startVerse.book, endVerse.chapter)
+    : null
+
+  return formatVerseReference({
+    book: startVerse.book,
+    start_chapter: startVerse.chapter,
+    start_verse: startVerse.verse,
+    end_chapter: endVerse.chapter,
+    end_verse: endVerse.verse,
+    end_chapter_verse_count: endChapterVerseCount,
+  })
+}
+
 // Computed property to filter header sections
 const headerSections = computed(() => {
   return contentSections.value.filter(section => section.headerProperty)
@@ -584,14 +610,7 @@ const loadEntry = async () => {
           const startVerse = verseDetails[0]
           const endVerse = verseDetails.length > 1 ? verseDetails[1] : verseDetails[0]
 
-          let displayText = ''
-          if (startVerse.chapter === endVerse.chapter && startVerse.verse === endVerse.verse) {
-            displayText = `${startVerse.book} ${startVerse.chapter}:${startVerse.verse}`
-          } else if (startVerse.chapter === endVerse.chapter) {
-            displayText = `${startVerse.book} ${startVerse.chapter}:${startVerse.verse}-${endVerse.verse}`
-          } else {
-            displayText = `${startVerse.book} ${startVerse.chapter}:${startVerse.verse}-${endVerse.chapter}:${endVerse.verse}`
-          }
+          const displayText = await buildEndpointVerseDisplay(startVerse, endVerse)
 
           mainVerse.value = {
             startVerseId: mainVerseData.start_verse_id,
@@ -621,14 +640,7 @@ const loadEntry = async () => {
           const startVerse = verseDetails[0]
           const endVerse = verseDetails.length > 1 ? verseDetails[1] : verseDetails[0]
 
-          let displayText = ''
-          if (startVerse.chapter === endVerse.chapter && startVerse.verse === endVerse.verse) {
-            displayText = `${startVerse.book} ${startVerse.chapter}:${startVerse.verse}`
-          } else if (startVerse.chapter === endVerse.chapter) {
-            displayText = `${startVerse.book} ${startVerse.chapter}:${startVerse.verse}-${endVerse.verse}`
-          } else {
-            displayText = `${startVerse.book} ${startVerse.chapter}:${startVerse.verse}-${endVerse.chapter}:${endVerse.verse}`
-          }
+          const displayText = await buildEndpointVerseDisplay(startVerse, endVerse)
 
           return {
             startVerseId: verse.start_verse_id,

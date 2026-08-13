@@ -1,101 +1,82 @@
 <!-- FilterModal.vue -->
 <template>
-  <q-dialog v-model="isOpen">
-    <q-card class="filter-card">
-      <q-card-section class="row items-center q-pb-none">
-        <div class="text-h6">Filter Seeds</div>
+  <q-dialog v-model="isOpen" :maximized="$q.screen.lt.sm" :position="$q.screen.lt.sm ? 'bottom' : undefined">
+    <q-card class="filter-card" :class="{ 'filter-card--mobile': $q.screen.lt.sm }">
+      <q-card-section class="filter-header row items-center q-pb-none">
+        <div>
+          <div class="text-h6">Filter Seeds</div>
+          <div v-if="$q.screen.lt.sm" class="text-caption text-grey-7">
+            {{ getSelectedCount() ? `${getSelectedCount()} selected` : 'Narrow your search' }}
+          </div>
+        </div>
         <q-space />
         <q-btn icon="close" flat round dense v-close-popup />
       </q-card-section>
 
-      <q-card-section class="scroll filter-body q-pt-sm q-px-none">
-        <q-list separator>
-          <!-- Saved Filters -->
-          <q-expansion-item v-if="savedFiltersStore.filters.length" label="Saved Filters" data-tour="filter-saved"
-            :caption="`${savedFiltersStore.filters.length} saved`" icon="bookmark" default-opened>
-            <q-list dense class="q-pb-sm">
-              <q-item v-for="saved in savedFiltersStore.filters" :key="saved.id" clickable
-                @click="applySavedFilter(saved)">
-                <q-item-section v-if="editingSavedFilterId !== saved.id">
-                  {{ saved.name }}
-                </q-item-section>
-                <q-item-section v-else @click.stop>
-                  <q-input v-model="editSavedFilterName" dense outlined autofocus
-                    @keyup.enter="confirmRenameSavedFilter(saved)" @keyup.esc="cancelRenameSavedFilter" />
-                </q-item-section>
-                <q-item-section side>
-                  <div class="row no-wrap q-gutter-xs">
-                    <template v-if="editingSavedFilterId === saved.id">
-                      <q-btn flat round dense icon="check" color="primary" size="sm"
-                        :loading="savingSavedFilterEdit" :disable="!editSavedFilterName.trim()"
-                        @click.stop="confirmRenameSavedFilter(saved)" />
-                      <q-btn flat round dense icon="close" size="sm" @click.stop="cancelRenameSavedFilter" />
-                    </template>
-                    <template v-else>
-                      <q-btn flat round dense icon="edit" size="sm" @click.stop="startRenameSavedFilter(saved)">
-                        <q-tooltip>Rename</q-tooltip>
-                      </q-btn>
-                      <q-btn flat round dense icon="delete" size="sm" color="negative"
-                        @click.stop="openDeleteSavedFilter(saved)">
-                        <q-tooltip>Delete</q-tooltip>
-                      </q-btn>
-                    </template>
-                  </div>
-                </q-item-section>
-              </q-item>
-            </q-list>
-          </q-expansion-item>
+      <q-tabs
+        v-model="filterTab"
+        dense
+        no-caps
+        align="justify"
+        active-color="primary"
+        indicator-color="primary"
+        class="filter-tabs"
+      >
+        <q-tab name="essentials" icon="tune" label="Basics" />
+        <q-tab name="bible" icon="auto_stories" label="Bible" />
+        <q-tab name="resources" icon="library_books" label="Resources" />
+        <q-tab name="saved" icon="bookmark" label="Saved" />
+      </q-tabs>
 
-          <!-- Journal Types -->
-          <q-expansion-item v-if="availableFacets.types.length" label="Journal Types" data-tour="filter-types"
-            :caption="selectionCaption(selectedTypes)" icon="category">
-            <div class="q-px-md q-pb-md row q-col-gutter-x-md items-center">
-              <div v-for="type in availableFacets.types" :key="type" class="col-auto">
-                <q-checkbox v-model="selectedTypes" :val="type" :label="type" dense />
+      <q-card-section class="filter-body q-pa-none" :class="{ 'filter-body--mobile': $q.screen.lt.sm }">
+        <q-tab-panels
+          v-model="filterTab"
+          animated
+          :swipeable="$q.screen.lt.sm"
+          class="filter-tab-panels"
+        >
+          <q-tab-panel name="essentials" class="filter-tab-panel">
+            <div class="filter-section">
+              <div class="filter-section-title">Entry Type</div>
+              <q-input v-if="availableFacets.types.length" v-model="facetSearch.types" dense outlined clearable
+                placeholder="Find type..." class="filter-facet-search" />
+              <div v-if="filteredTypes.length" class="filter-chip-grid">
+                <q-checkbox v-for="type in filteredTypes" :key="type" v-model="selectedTypes" :val="type"
+                  :label="type" dense class="filter-choice" />
+              </div>
+              <div v-else class="text-caption text-grey-7">
+                {{ availableFacets.types.length ? 'No matching types.' : 'No entry types available yet.' }}
               </div>
             </div>
-          </q-expansion-item>
 
-          <!-- Tags -->
-          <q-expansion-item v-if="availableFacets.tags.length" label="Tags" data-tour="filter-tags"
-            :caption="selectionCaption(selectedTags)" icon="sell">
-            <div class="q-px-md q-pb-md row q-col-gutter-x-md items-center">
-              <div v-for="tag in availableFacets.tags" :key="tag" class="col-auto">
-                <q-checkbox v-model="selectedTags" :val="tag" :label="tag" dense />
+            <div v-if="availableFacets.tags.length" class="filter-section">
+              <div class="filter-section-title">Tags</div>
+              <q-input v-model="facetSearch.tags" dense outlined clearable placeholder="Find tag..."
+                class="filter-facet-search" />
+              <div v-if="filteredTags.length" class="filter-chip-grid">
+                <q-checkbox v-for="tag in filteredTags" :key="tag" v-model="selectedTags" :val="tag"
+                  :label="tag" dense class="filter-choice" />
               </div>
+              <div v-else class="text-caption text-grey-7">No matching tags.</div>
             </div>
-          </q-expansion-item>
+          </q-tab-panel>
 
-          <!-- Book of the Bible -->
-          <q-expansion-item v-if="availableFacets.books.length" label="Book of the Bible"
-            :caption="selectionCaption(selectedBooks)" icon="menu_book">
-            <div class="q-px-md q-pb-md row q-col-gutter-x-md items-center">
-              <div v-for="book in sortedBooks" :key="book" class="col-auto">
-                <q-checkbox v-model="selectedBooks" :val="book" :label="book" dense />
-              </div>
-            </div>
-          </q-expansion-item>
-
-          <!-- Bible Verses -->
-          <q-expansion-item v-if="availableFacets.books.length" label="Bible Verses" data-tour="filter-verses"
-            :caption="selectionCaption(selectedVerseRanges)" icon="auto_stories">
-            <div class="q-px-md q-pb-md">
+          <q-tab-panel name="bible" class="filter-tab-panel">
+            <div v-if="availableFacets.books.length" class="filter-section">
+              <div class="filter-section-title">Passage</div>
               <div class="row q-col-gutter-sm items-start">
                 <div class="col">
-                  <q-input v-model="versePassageText" label="Passage" placeholder="e.g. John, John 3, John 3:16"
+                  <q-input v-model="versePassageText" label="Passage" placeholder="John, John 3, John 3:16"
                     outlined dense hide-bottom-space
                     :error="!!versePassageText.trim() && !resolvedVerseFilterRange"
                     error-message="book, chapter, verse, or range" @keyup.enter="addVerseRange" />
                 </div>
-                <div class="col-2 col-sm-1 flex items-center justify-center verse-add-btn-col">
-                  <q-btn round dense outline color="primary" icon="add" :disable="!canAddVerseRange"
+                <div class="col-auto flex items-center">
+                  <q-btn round dense color="primary" icon="add" :disable="!canAddVerseRange"
                     @click="addVerseRange">
-                    <q-tooltip>Add verse filter</q-tooltip>
+                    <q-tooltip>Add passage</q-tooltip>
                   </q-btn>
                 </div>
-              </div>
-              <div class="text-caption text-grey q-mt-xs">
-                Use the same passage format as content shortcuts, without needing the shortcut prefix.
               </div>
               <div v-if="selectedVerseRanges.length" class="q-mt-sm">
                 <q-chip v-for="range in selectedVerseRanges" :key="range.label" removable dense color="primary"
@@ -104,22 +85,33 @@
                 </q-chip>
               </div>
             </div>
-          </q-expansion-item>
 
-          <!-- Resource Types -->
-          <q-expansion-item v-if="availableFacets.resourceTypes.length" label="Resource Types"
-            :caption="selectionCaption(selectedResourceTypes)" icon="folder">
-            <div class="q-px-md q-pb-md row q-col-gutter-x-md items-center">
-              <div v-for="type in availableFacets.resourceTypes" :key="type" class="col-auto">
-                <q-checkbox v-model="selectedResourceTypes" :val="type" :label="type" dense />
+            <div v-if="availableFacets.books.length" class="filter-section">
+              <div class="filter-section-title">Books</div>
+              <q-input v-model="facetSearch.books" dense outlined clearable placeholder="Find book..."
+                class="filter-facet-search" />
+              <div v-if="filteredBooks.length" class="filter-chip-grid">
+                <q-checkbox v-for="book in filteredBooks" :key="book" v-model="selectedBooks" :val="book"
+                  :label="book" dense class="filter-choice" />
               </div>
+              <div v-else class="text-caption text-grey-7">No matching books.</div>
             </div>
-          </q-expansion-item>
+          </q-tab-panel>
 
-          <!-- Resources, grouped by type; options narrow to the other selections -->
-          <q-expansion-item v-if="resourceTypeSections.length || flatSelectedResources.length" label="Resources"
-            data-tour="filter-resources" :caption="selectionCaption(flatSelectedResources)" icon="library_books">
-            <div class="q-px-md q-pb-md">
+          <q-tab-panel name="resources" class="filter-tab-panel">
+            <div v-if="availableFacets.resourceTypes.length" class="filter-section">
+              <div class="filter-section-title">Resource Type</div>
+              <q-input v-model="facetSearch.resourceTypes" dense outlined clearable placeholder="Find resource type..."
+                class="filter-facet-search" />
+              <div v-if="filteredResourceTypes.length" class="filter-chip-grid">
+                <q-checkbox v-for="type in filteredResourceTypes" :key="type"
+                  v-model="selectedResourceTypes" :val="type" :label="type" dense class="filter-choice" />
+              </div>
+              <div v-else class="text-caption text-grey-7">No matching resource types.</div>
+            </div>
+
+            <div v-if="resourceTypeSections.length || flatSelectedResources.length" class="filter-section">
+              <div class="filter-section-title">Specific Resources</div>
               <q-select v-for="section in resourceTypeSections" :key="section.type"
                 :model-value="selectedResourcesByType[section.type] || []"
                 @update:model-value="(v) => setResourceSelection(section.type, v)"
@@ -127,29 +119,63 @@
                 multiple outlined dense use-chips stack-label :label="section.label" options-dense
                 use-input input-debounce="0" @filter="(val, update) => filterResourceSection(section, val, update)"
                 class="q-mb-sm" />
-              <div class="text-caption text-grey">
-                Options narrow to match your other selected filters
+            </div>
+          </q-tab-panel>
+
+          <q-tab-panel name="saved" class="filter-tab-panel">
+            <div class="filter-section">
+              <div class="filter-section-title">Saved Filters</div>
+              <q-input v-if="savedFiltersStore.filters.length" v-model="facetSearch.savedFilters" dense outlined
+                clearable placeholder="Find saved filter..." class="filter-facet-search" />
+              <q-list v-if="filteredSavedFilters.length" bordered separator class="rounded-borders">
+                <q-item v-for="saved in filteredSavedFilters" :key="saved.id" clickable
+                  @click="applySavedFilter(saved)">
+                  <q-item-section v-if="editingSavedFilterId !== saved.id">
+                    <q-item-label>{{ saved.name }}</q-item-label>
+                  </q-item-section>
+                  <q-item-section v-else @click.stop>
+                    <q-input v-model="editSavedFilterName" dense outlined autofocus
+                      @keyup.enter="confirmRenameSavedFilter(saved)" @keyup.esc="cancelRenameSavedFilter" />
+                  </q-item-section>
+                  <q-item-section side>
+                    <div class="row no-wrap q-gutter-xs">
+                      <template v-if="editingSavedFilterId === saved.id">
+                        <q-btn flat round dense icon="check" color="primary" size="sm"
+                          :loading="savingSavedFilterEdit" :disable="!editSavedFilterName.trim()"
+                          @click.stop="confirmRenameSavedFilter(saved)" />
+                        <q-btn flat round dense icon="close" size="sm" @click.stop="cancelRenameSavedFilter" />
+                      </template>
+                      <template v-else>
+                        <q-btn flat round dense icon="edit" size="sm" @click.stop="startRenameSavedFilter(saved)" />
+                        <q-btn flat round dense icon="delete" size="sm" color="negative"
+                          @click.stop="openDeleteSavedFilter(saved)" />
+                      </template>
+                    </div>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+              <div v-else class="text-caption text-grey-7">
+                {{ savedFiltersStore.filters.length ? 'No matching saved filters.' : 'Saved filters will appear here.' }}
               </div>
             </div>
-          </q-expansion-item>
-        </q-list>
+
+            <div class="filter-section">
+              <div class="filter-section-title">Save Current Selection</div>
+              <div class="row items-center q-gutter-sm">
+                <q-input v-model="newFilterName" dense outlined :disable="!hasActiveFilters"
+                  placeholder="Name this filter" class="col" @keyup.enter="saveCurrentFilter" />
+                <q-btn outline dense no-caps color="primary" icon="bookmark_add" label="Save"
+                  :disable="!hasActiveFilters || !newFilterName.trim()" :loading="savingFilter"
+                  @click="saveCurrentFilter" />
+              </div>
+            </div>
+          </q-tab-panel>
+        </q-tab-panels>
       </q-card-section>
 
       <q-separator />
 
-      <q-card-section class="q-py-sm" data-tour="filter-save-row">
-        <div class="row items-center q-gutter-sm">
-          <q-input v-model="newFilterName" dense outlined :disable="!hasActiveFilters"
-            placeholder="Save current selection as..." class="col" @keyup.enter="saveCurrentFilter" />
-          <q-btn outline dense no-caps color="primary" icon="bookmark_add" label="Save Filter"
-            :disable="!hasActiveFilters || !newFilterName.trim()" :loading="savingFilter"
-            @click="saveCurrentFilter" />
-        </div>
-      </q-card-section>
-
-      <q-separator />
-
-      <q-card-actions class="q-pa-md">
+      <q-card-actions class="filter-actions q-pa-md">
         <div class="row items-center full-width">
           <div class="col">
             <div class="text-grey text-caption">
@@ -223,6 +249,20 @@ const selectedQuotes = ref([...journalStore.selectedFacets.quotes])
 const selectedLinks = ref([...journalStore.selectedFacets.links])
 const selectedStrongs = ref([...journalStore.selectedFacets.strongs])
 const selectedFavorites = ref([...journalStore.selectedFacets.favorites])
+const filterTab = ref('essentials')
+const facetSearch = reactive({
+  types: '',
+  tags: '',
+  books: '',
+  resourceTypes: '',
+  savedFilters: '',
+})
+
+const filterByText = (items, search) => {
+  const needle = String(search || '').trim().toLowerCase()
+  if (!needle) return items
+  return items.filter((item) => String(item || '').toLowerCase().includes(needle))
+}
 
 // Verse range builder inputs — free-text "chapter:verse" (e.g. "1:1"),
 // same trust-the-user pattern as VerseSelectionModal
@@ -250,6 +290,16 @@ const sortedBooks = computed(() => {
   if (!bibleDataStore.books.length) return books
   const order = new Map(bibleDataStore.books.map((b, i) => [b.book ?? b.name ?? b, i]))
   return [...books].sort((a, b) => (order.get(a) ?? 999) - (order.get(b) ?? 999))
+})
+
+const filteredTypes = computed(() => filterByText(availableFacets.value.types, facetSearch.types))
+const filteredTags = computed(() => filterByText(availableFacets.value.tags, facetSearch.tags))
+const filteredBooks = computed(() => filterByText(sortedBooks.value, facetSearch.books))
+const filteredResourceTypes = computed(() => filterByText(availableFacets.value.resourceTypes, facetSearch.resourceTypes))
+const filteredSavedFilters = computed(() => {
+  const needle = facetSearch.savedFilters.trim().toLowerCase()
+  if (!needle) return savedFiltersStore.filters
+  return savedFiltersStore.filters.filter((filter) => filter.name.toLowerCase().includes(needle))
 })
 
 // Type-ahead filtering for the verse-range book select — kept in sync with
@@ -371,9 +421,6 @@ watch(() => props.modelValue, (newVal) => {
     Object.keys(filteredResourceOptionsByType).forEach((key) => delete filteredResourceOptionsByType[key])
   }
 })
-
-const selectionCaption = (selected) =>
-  selected.length > 0 ? `${selected.length} selected` : undefined
 
 const addVerseRange = () => {
   if (!canAddVerseRange.value) return
@@ -594,12 +641,94 @@ onMounted(() => {
 
 <style scoped>
 .filter-card {
-  width: 640px;
+  width: 680px;
   max-width: 95vw;
+  display: flex;
+  flex-direction: column;
+}
+
+.filter-card--mobile {
+  width: 100vw;
+  height: 100vh;
+  max-width: 100vw;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.filter-header {
+  flex: 0 0 auto;
 }
 
 .filter-body {
-  max-height: 65vh;
+  height: clamp(360px, 58vh, 520px);
+  max-height: none;
+  overflow: hidden;
+}
+
+.filter-body--mobile {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow: hidden;
+}
+
+.filter-tabs {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.filter-tab-panels {
+  background: transparent;
+  height: 100%;
+  min-height: 0;
+}
+
+.filter-tab-panel {
+  height: 100%;
+  max-height: none;
+  overflow-y: auto;
+  padding: 16px 18px;
+}
+
+.filter-card--mobile .filter-tab-panels {
+  height: 100%;
+  min-height: 0;
+}
+
+.filter-card--mobile .filter-tab-panel {
+  height: 100%;
+  max-height: none;
+  padding: 14px;
+}
+
+.filter-section {
+  margin-bottom: 18px;
+}
+
+.filter-section-title {
+  margin-bottom: 8px;
+  color: var(--color-text);
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.filter-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+
+.filter-choice {
+  min-height: 32px;
+}
+
+.filter-facet-search {
+  margin-bottom: 8px;
+}
+
+.filter-actions {
+  flex: 0 0 auto;
 }
 
 /* Matches the sibling columns' full height (their 8px gutter padding-top

@@ -48,12 +48,14 @@ BEGIN
                    'end_verse', end_bv.verse,
                    'start_chapter', start_bv.chapter,
                    'end_chapter', end_bv.chapter,
+                   'end_chapter_verse_count', bg.verse_count,
                    'book', start_bv.book
                )
            ) as verses_data
        FROM journal_verses jv
        JOIN bible_verses start_bv ON start_bv.id = jv.start_verse_id
        JOIN bible_verses end_bv ON end_bv.id = jv.end_verse_id
+       LEFT JOIN bible_glossary bg ON bg.book = end_bv.book AND bg.chapter = end_bv.chapter
        GROUP BY jv.journal_id
    ),
    tags_json AS (

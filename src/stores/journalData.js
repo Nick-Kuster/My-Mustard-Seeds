@@ -23,6 +23,51 @@ export const getVerseDisplay = (verse) => {
   }
 }
 
+const chapterCountKey = (book, chapter) => `${book}::${chapter}`
+
+const enrichVerseChapterCounts = async (entriesToEnrich) => {
+  const books = new Set()
+  entriesToEnrich.forEach((entry) => {
+    entry.verses?.forEach((verse) => {
+      if (verse?.book) books.add(verse.book)
+    })
+  })
+
+  if (!books.size) return entriesToEnrich
+  if (
+    entriesToEnrich.every((entry) =>
+      entry.verses?.every((verse) => verse.end_chapter_verse_count != null) ?? true,
+    )
+  ) return entriesToEnrich
+
+  const { data, error } = await supabase
+    .from('bible_glossary')
+    .select('book, chapter, verse_count')
+    .in('book', Array.from(books))
+
+  if (error || !data) return entriesToEnrich
+
+  const chapterCounts = new Map(
+    data.map((chapter) => [
+      chapterCountKey(chapter.book, Number(chapter.chapter)),
+      Number(chapter.verse_count),
+    ]),
+  )
+
+  return entriesToEnrich.map((entry) => ({
+    ...entry,
+    verses: entry.verses?.map((verse) => ({
+      ...verse,
+      start_chapter_verse_count:
+        verse.start_chapter_verse_count ??
+        chapterCounts.get(chapterCountKey(verse.book, Number(verse.start_chapter))),
+      end_chapter_verse_count:
+        verse.end_chapter_verse_count ??
+        chapterCounts.get(chapterCountKey(verse.book, Number(verse.end_chapter))),
+    })),
+  }))
+}
+
 // section.content is a plain string for legacy/list sections, or a
 // TipTap rich-doc object for a migrated longText section (see the rich
 // text migration) — getSectionSearchText handles both shapes; calling
@@ -390,7 +435,7 @@ export const useJournalStore = defineStore('journalData', () => {
 
       if (error) throw error
 
-      entries.value = data.map((item) => ({
+      entries.value = await enrichVerseChapterCounts(data.map((item) => ({
         ...item.entry_data,
         verses: item.verses_data,
         tags: item.tags_data,
@@ -398,7 +443,7 @@ export const useJournalStore = defineStore('journalData', () => {
         quotes: item.quotes_data,
         links: item.links_data,
         strongs: item.strongs_data,
-      }))
+      })))
 
       await decryptEntries()
     } catch (error) {
@@ -435,12 +480,13 @@ export const useJournalStore = defineStore('journalData', () => {
       links: data[0].links_data,
       strongs: data[0].strongs_data,
     }
+    const [entryWithChapterCounts] = await enrichVerseChapterCounts([entry])
 
     const encryptionKey = await getEncryptionKey(session.user.id)
-    const decryptedContent = await decryptData(entry.content, encryptionKey)
+    const decryptedContent = await decryptData(entryWithChapterCounts.content, encryptionKey)
 
     return {
-      ...entry,
+      ...entryWithChapterCounts,
       decryptedContent,
     }
   }
