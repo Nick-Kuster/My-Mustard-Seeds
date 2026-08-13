@@ -44,7 +44,7 @@ import StrongsDisplayModal from 'components/StrongsDisplayModal.vue'
 // resolver's debounce) was tuned for that other system's much simpler
 // job (just re-scanning text), not for someone pausing mid-reference to
 // decide on a range.
-const DEBOUNCE_MS = 2500
+const DEBOUNCE_MS = 500
 
 const props = defineProps({
   modelValue: { type: [String, Object], default: () => EMPTY_RICH_DOC },

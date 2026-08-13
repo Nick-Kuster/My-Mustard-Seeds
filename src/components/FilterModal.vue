@@ -81,22 +81,11 @@
             :caption="selectionCaption(selectedVerseRanges)" icon="auto_stories">
             <div class="q-px-md q-pb-md">
               <div class="row q-col-gutter-sm items-start">
-                <div class="col-12 col-sm-5">
-                  <q-select v-model="verseBook" :options="filteredVerseBooks" label="Book" outlined dense clearable
-                    options-dense hide-bottom-space use-input fill-input hide-selected input-debounce="0"
-                    @filter="filterVerseBooks" />
-                </div>
-                <div class="col-5 col-sm-3">
-                  <q-input v-model="verseFromText" label="From" placeholder="e.g. 1:1 or 1" outlined dense
-                    hide-bottom-space :disable="!verseBook"
-                    :error="!!verseFromText && !parseVerseFilterRef(verseFromText)"
-                    error-message="chapter:verse or chapter" />
-                </div>
-                <div class="col-5 col-sm-3">
-                  <q-input v-model="verseToText" label="To" placeholder="e.g. 2:3 or 2" outlined dense
-                    hide-bottom-space :disable="!verseBook || !verseFromText"
-                    :error="!!verseToText && !parseVerseFilterRef(verseToText)"
-                    error-message="chapter:verse or chapter" />
+                <div class="col">
+                  <q-input v-model="versePassageText" label="Passage" placeholder="e.g. John, John 3, John 3:16"
+                    outlined dense hide-bottom-space
+                    :error="!!versePassageText.trim() && !resolvedVerseFilterRange"
+                    error-message="book, chapter, verse, or range" @keyup.enter="addVerseRange" />
                 </div>
                 <div class="col-2 col-sm-1 flex items-center justify-center verse-add-btn-col">
                   <q-btn round dense outline color="primary" icon="add" :disable="!canAddVerseRange"
@@ -106,7 +95,7 @@
                 </div>
               </div>
               <div class="text-caption text-grey q-mt-xs">
-                Book alone matches the whole book; add a chapter or verse (e.g. 1 or 1:1) to narrow it
+                Use the same passage format as content shortcuts, without needing the shortcut prefix.
               </div>
               <div v-if="selectedVerseRanges.length" class="q-mt-sm">
                 <q-chip v-for="range in selectedVerseRanges" :key="range.label" removable dense color="primary"
@@ -201,7 +190,7 @@ import { useQuasar } from 'quasar'
 import { useJournalStore, getResourceTitle } from 'stores/journalData'
 import { useBibleDataStore } from 'stores/bibleData'
 import { useSavedFiltersStore } from 'stores/savedFilters'
-import { verseMatchesRange, buildVerseRangeLabel, parseVerseFilterRef } from 'src/utils/verseUtils'
+import { verseMatchesRange, buildVerseRangeLabel, parseFullVerseReference } from 'src/utils/verseUtils'
 import { getResourceConfig, pluralizeTitle } from 'src/configs/resourceConfigs'
 import { RESOURCE_TYPES } from 'src/constants/resourceTypes'
 import { FACET_KEYS } from 'src/utils/searchRoute'
@@ -237,26 +226,23 @@ const selectedFavorites = ref([...journalStore.selectedFacets.favorites])
 
 // Verse range builder inputs — free-text "chapter:verse" (e.g. "1:1"),
 // same trust-the-user pattern as VerseSelectionModal
-const verseBook = ref(null)
-const verseFromText = ref('')
-const verseToText = ref('')
+const versePassageText = ref('')
 
-const canAddVerseRange = computed(() => {
-  if (!verseBook.value) return false
-  if (verseFromText.value && !parseVerseFilterRef(verseFromText.value)) return false
-  if (verseToText.value && !parseVerseFilterRef(verseToText.value)) return false
-  return true
+const parsedVerseFilterPassage = computed(() => parseFullVerseReference(versePassageText.value, { allowBookOnly: true }))
+
+const resolvedVerseFilterRange = computed(() => {
+  const parsed = parsedVerseFilterPassage.value
+  if (!parsed) return null
+  const book = sortedBooks.value.find((b) => b.toLowerCase() === parsed.book.toLowerCase())
+  return book ? { ...parsed, book } : null
 })
+
+const canAddVerseRange = computed(() => !!resolvedVerseFilterRange.value)
 
 // Mirror "From" into "To" as the user types, so a single-verse filter
 // doesn't require retyping the same reference twice — but once "To" is
 // edited independently, stop overwriting it (unless "From" changes again
 // while "To" still matches what was last auto-filled).
-watch(verseFromText, (newVal, oldVal) => {
-  if (!verseToText.value || verseToText.value === oldVal) {
-    verseToText.value = newVal
-  }
-})
 
 // Books that appear in entries, in canonical order when known
 const sortedBooks = computed(() => {
@@ -269,20 +255,6 @@ const sortedBooks = computed(() => {
 // Type-ahead filtering for the verse-range book select — kept in sync with
 // sortedBooks (not just set once) since it can change while the dialog is
 // open (entries/facets loading in).
-const filteredVerseBooks = ref([])
-watch(sortedBooks, (books) => { filteredVerseBooks.value = books }, { immediate: true })
-
-const filterVerseBooks = (val, update) => {
-  update(() => {
-    if (!val) {
-      filteredVerseBooks.value = sortedBooks.value
-      return
-    }
-    const needle = val.toLowerCase()
-    filteredVerseBooks.value = sortedBooks.value.filter((b) => b.toLowerCase().includes(needle))
-  })
-}
-
 // Type-ahead filtering for the per-resource-type multi-selects, keyed by
 // section.type since each renders its own q-select instance. Cleared
 // whenever the dialog reopens so a stale filtered list from a previous
@@ -406,30 +378,34 @@ const selectionCaption = (selected) =>
 const addVerseRange = () => {
   if (!canAddVerseRange.value) return
 
-  const fromRef = parseVerseFilterRef(verseFromText.value)
+  let {
+    book,
+    startChapter,
+    startVerse,
+    endChapter,
+    endVerse,
+  } = resolvedVerseFilterRange.value
   // Blank "to" means a single-verse (or single-chapter) selection, same as "from"
-  const toRef = verseToText.value.trim() ? parseVerseFilterRef(verseToText.value) : fromRef
-
-  let start = fromRef
-  let end = toRef
+  
 
   // Normalize a reversed range — verse is only compared when both sides have one
-  if (start && end) {
-    const chapterDiff = end.chapter - start.chapter
+  if (startChapter != null && endChapter != null) {
+    const chapterDiff = endChapter - startChapter
     const shouldSwap =
       chapterDiff < 0 ||
-      (chapterDiff === 0 && start.verse != null && end.verse != null && end.verse < start.verse)
+      (chapterDiff === 0 && startVerse != null && endVerse != null && endVerse < startVerse)
     if (shouldSwap) {
-      ;[start, end] = [end, start]
+      ;[startChapter, endChapter] = [endChapter, startChapter]
+      ;[startVerse, endVerse] = [endVerse, startVerse]
     }
   }
 
   const range = {
-    book: verseBook.value,
-    startChapter: start?.chapter ?? null,
-    startVerse: start?.verse ?? null,
-    endChapter: end?.chapter ?? null,
-    endVerse: end?.verse ?? null,
+    book,
+    startChapter,
+    startVerse,
+    endChapter,
+    endVerse,
   }
   range.label = buildVerseRangeLabel(range)
 
@@ -437,9 +413,7 @@ const addVerseRange = () => {
     selectedVerseRanges.value = [...selectedVerseRanges.value, range]
   }
 
-  verseBook.value = null
-  verseFromText.value = ''
-  verseToText.value = ''
+  versePassageText.value = ''
 }
 
 const removeVerseRange = (range) => {

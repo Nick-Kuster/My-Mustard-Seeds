@@ -95,12 +95,17 @@ export const parseVerseFilterRef = (text) => {
  * comparison in this app) only understands one contiguous start/end pair,
  * not a set of individually-cited verses.
  * @param {string} text
+ * @param {{allowBookOnly?: boolean}} [options]
  * @returns {{book: string, startChapter: number, startVerse: number|null, endChapter: number, endVerse: number|null}|null}
  */
 const FULL_REF_PATTERN = /^\s*(.+?)\s+(\d+)(?::(\d+)((?:\s*,\s*\d+)*))?(?:\s*-\s*(?:(\d+)\s*:\s*)?(\d+))?\s*$/
 
-export const parseFullVerseReference = (text) => {
-  const match = FULL_REF_PATTERN.exec(text || '')
+export const parseFullVerseReference = (text, options = {}) => {
+  const cleaned = String(text || '').trim().replace(/^(::|@)\s*/, '')
+  const match = FULL_REF_PATTERN.exec(cleaned)
+  if (!match && options.allowBookOnly && cleaned) {
+    return { book: cleaned, startChapter: null, startVerse: null, endChapter: null, endVerse: null }
+  }
   if (!match) return null
   const [, book, chapter, verse, commaList, endChapter, trailingNum] = match
 

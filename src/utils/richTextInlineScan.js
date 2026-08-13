@@ -17,18 +17,20 @@ export const scanEditorForTriggers = (editorState) => {
   let str = ''
   let isFirstBlock = true
 
-  editorState.doc.forEach((blockNode, blockOffset) => {
+  editorState.doc.descendants((node, pos) => {
+    if (!node.isTextblock) return true
+
     if (!isFirstBlock) str += '\n'
     isFirstBlock = false
 
-    if (!blockNode.isTextblock) return
-
-    const contentStart = blockOffset + 1
-    blockNode.forEach((child, childOffset) => {
+    const contentStart = pos + 1
+    node.forEach((child, childOffset) => {
       if (!child.isText) return
       runs.push({ strStart: str.length, pmPos: contentStart + childOffset, length: child.text.length })
       str += child.text
     })
+
+    return false
   })
 
   const mapOffsetToPos = (offset) => {

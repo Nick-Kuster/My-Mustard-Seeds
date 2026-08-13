@@ -79,14 +79,30 @@
       </q-card-section>
     </q-card>
   </q-page>
+  <InstallPwaPromptDialog
+    v-model="showInstallPrompt"
+    :can-install-directly="canInstallDirectly"
+    :is-ios="isIos"
+    :is-safari="isSafari"
+  />
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from 'src/stores/auth'
 import { useQuasar } from 'quasar'
 import AppLogoMark from 'components/AppLogoMark.vue'
+import InstallPwaPromptDialog from 'components/InstallPwaPromptDialog.vue'
+import {
+  isIOSSafari,
+  isIOSDevice,
+  isInstallPromptDismissed,
+  isMobileDevice,
+  isStandalonePwa,
+  pwaInstallPromptState,
+  registerPwaInstallPromptListeners,
+} from 'src/utils/pwaInstallPrompt'
 
 const auth = useAuthStore()
 const $q = useQuasar()
@@ -96,7 +112,33 @@ const loading = ref(false)
 const email = ref('')
 const emailCode = ref('')
 const codeSent = ref(false)
+const showInstallPrompt = ref(false)
+const { promptAvailable } = pwaInstallPromptState()
+const isIos = ref(false)
+const isSafari = ref(false)
+const canInstallDirectly = computed(() => promptAvailable.value && !isIos.value)
 const redirectAfterLogin = () => typeof route.query.redirect === 'string' ? route.query.redirect : '/'
+
+const shouldShowInstallPrompt = () =>
+  !isStandalonePwa() &&
+  !isInstallPromptDismissed() &&
+  (isMobileDevice() || promptAvailable.value || import.meta.env.DEV) &&
+  (isIos.value || promptAvailable.value || import.meta.env.DEV)
+
+const maybeShowInstallPrompt = () => {
+  if (shouldShowInstallPrompt()) showInstallPrompt.value = true
+}
+
+onMounted(() => {
+  registerPwaInstallPromptListeners()
+  isIos.value = isIOSDevice()
+  isSafari.value = isIOSSafari()
+  maybeShowInstallPrompt()
+})
+
+watch(promptAvailable, () => {
+  maybeShowInstallPrompt()
+})
 
 const handleGoogleSignIn = async () => {
   try {

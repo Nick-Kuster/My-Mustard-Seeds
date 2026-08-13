@@ -31,8 +31,25 @@
       <q-btn flat dense round size="sm" :ripple="false" icon="strikethrough_s" :color="isActive('strike') ? 'primary' : undefined"
         @mousedown.prevent @click="editor.chain().focus().toggleStrike().run()" />
       <q-btn flat dense round size="sm" :ripple="false" icon="format_list_bulleted"
-        :color="isActive('bulletList') || isActive('orderedList') ? 'primary' : undefined"
-        @mousedown.prevent @click="showListDialog = true" />
+        :color="isActive('bulletList') ? 'primary' : undefined"
+        @mousedown.prevent @click="editor.chain().focus().toggleBulletList().run()">
+        <q-tooltip>Bullet list</q-tooltip>
+      </q-btn>
+      <q-btn flat dense round size="sm" :ripple="false" icon="format_list_numbered"
+        :color="isActive('orderedList') ? 'primary' : undefined"
+        @mousedown.prevent @click="editor.chain().focus().toggleOrderedList().run()">
+        <q-tooltip>Numbered list</q-tooltip>
+      </q-btn>
+      <q-btn flat dense round size="sm" :ripple="false" icon="format_indent_increase"
+        :disable="!canSinkListItem()"
+        @mousedown.prevent @click="editor.chain().focus().sinkListItem('listItem').run()">
+        <q-tooltip>Indent list item</q-tooltip>
+      </q-btn>
+      <q-btn flat dense round size="sm" :ripple="false" icon="format_indent_decrease"
+        :disable="!canLiftListItem()"
+        @mousedown.prevent @click="editor.chain().focus().liftListItem('listItem').run()">
+        <q-tooltip>Outdent list item</q-tooltip>
+      </q-btn>
 
       <!-- Reunited into the main row after confirming the SVG-icon fix
            (below) also resolves click-routing here, not just the glyph
@@ -81,7 +98,6 @@
       @select="onTextColorSelect" @clear="editor.chain().focus().unsetColor().run()" />
     <GlyphPickerDialog v-model="showGlyphDialog" @select="onGlyphSelect" @select-glyph="onGlyphNodeSelect" />
     <TextStyleDialog v-model="showTextStyleDialog" :editor="editor" />
-    <ListOptionsDialog v-model="showListDialog" :editor="editor" />
   </div>
 </template>
 
@@ -91,7 +107,6 @@ import { Notify } from 'quasar'
 import ColorPickerDialog from './ColorPickerDialog.vue'
 import GlyphPickerDialog from './GlyphPickerDialog.vue'
 import TextStyleDialog from './TextStyleDialog.vue'
-import ListOptionsDialog from './ListOptionsDialog.vue'
 import { useImageUpload } from 'src/composables/useImageUpload'
 
 const props = defineProps({
@@ -125,7 +140,6 @@ const showHighlightDialog = ref(false)
 const showTextColorDialog = ref(false)
 const showGlyphDialog = ref(false)
 const showTextStyleDialog = ref(false)
-const showListDialog = ref(false)
 
 const fileInputRef = ref(null)
 const { uploading, uploadImage } = useImageUpload()
@@ -193,6 +207,16 @@ const canUndo = () => {
 const canRedo = () => {
   void revision.value // establish reactive dependency
   return props.editor.can().redo()
+}
+
+const canSinkListItem = () => {
+  void revision.value // establish reactive dependency
+  return props.editor.can().sinkListItem('listItem')
+}
+
+const canLiftListItem = () => {
+  void revision.value // establish reactive dependency
+  return props.editor.can().liftListItem('listItem')
 }
 </script>
 

@@ -2,36 +2,29 @@
   <q-dialog v-model="isOpen">
     <q-card class="verse-selection-modal">
       <q-card-section class="row items-center">
-        <div class="text-h6">Select Verse Range</div>
+        <div class="text-h6">Select Passage</div>
         <q-space />
         <q-btn icon="close" flat round dense v-close-popup />
       </q-card-section>
 
       <q-card-section class="verse-selection-content">
-        <q-select v-model="selectedBook" :options="filteredBooks" option-label="book" label="Book" dense
-          use-input fill-input hide-selected input-debounce="0" @filter="filterBooks"
-          menu-self="top start" menu-anchor="bottom start" popup-content-class="verse-select-menu" />
+        <q-input
+          v-model="passageText"
+          label="Passage"
+          placeholder="e.g. John, John 3, John 3:16, John 3:16-18"
+          dense
+          autofocus
+          :error="!!passageText.trim() && !resolvedRange"
+          error-message="Type a book, chapter, verse, or range, e.g. John 3:16"
+          @keyup.enter="confirmSelection"
+        />
 
-        <div class="row q-col-gutter-sm q-mt-md">
-          <div class="col">
-            <q-input v-model="fromText" label="From" placeholder="e.g. 1:1 or 1" dense :disable="!selectedBook"
-              :error="!!fromText && !fromRef" error-message="Use chapter:verse or just chapter, e.g. 1:1 or 1" />
-            <div v-if="fromText && fromRef" class="verse-preview">
-              {{ fromPreview || 'Verse not found' }}
-            </div>
-          </div>
-          <div class="col">
-            <q-input v-model="toText" label="To" placeholder="e.g. 2:3 or 2" dense :disable="!fromRef"
-              :error="!!toText && !parseVerseFilterRef(toText)"
-              error-message="Use chapter:verse or just chapter, e.g. 2:3 or 2" />
-            <div v-if="toText && parseVerseFilterRef(toText)" class="verse-preview">
-              {{ toPreview || 'Verse not found' }}
-            </div>
-          </div>
+        <div v-if="passageText.trim() && resolvedRange" class="verse-preview">
+          {{ previewText }}
         </div>
 
         <div class="text-caption text-grey q-mt-sm">
-          Leave "To" blank to select a single verse; type just a chapter number for the whole chapter
+          Use the same passage format as content shortcuts, without needing the shortcut prefix.
         </div>
       </q-card-section>
 
@@ -46,62 +39,33 @@
 import { ref, watch, computed, onMounted } from 'vue'
 import { useBibleDataStore } from 'stores/bibleData'
 import { supabase } from 'src/boot/supabase'
-import { parseVerseFilterRef } from 'src/utils/verseUtils'
+import { parseFullVerseReference } from 'src/utils/verseUtils'
 
 const props = defineProps({
-  modelValue: Boolean
+  modelValue: Boolean,
 })
 
 const emit = defineEmits(['update:modelValue', 'select'])
 
 const bibleData = useBibleDataStore()
-const selectedBook = ref(null)
-const fromText = ref('')
-const toText = ref('')
-const fromPreview = ref('')
-const toPreview = ref('')
-const filteredBooks = ref([])
-
-const filterBooks = (val, update) => {
-  update(() => {
-    if (!val) {
-      filteredBooks.value = bibleData.books
-      return
-    }
-    const needle = val.toLowerCase()
-    filteredBooks.value = bibleData.books.filter((b) => b.book.toLowerCase().includes(needle))
-  })
-}
+const passageText = ref('')
+const previewText = ref('')
 
 const isOpen = computed({
   get: () => props.modelValue,
-  set: (value) => emit('update:modelValue', value)
+  set: (value) => emit('update:modelValue', value),
 })
 
-// A bare chapter number (no colon) parses to { chapter, verse: null } —
-// resolved to the chapter's first/last verse in confirmSelection()
-const fromRef = computed(() => parseVerseFilterRef(fromText.value))
-// Blank "to" means a single-verse (or single-chapter) selection, same as "from"
-const toRef = computed(() => (toText.value.trim() ? parseVerseFilterRef(toText.value) : fromRef.value))
+const parsedPassage = computed(() => parseFullVerseReference(passageText.value, { allowBookOnly: true }))
 
-const canConfirm = computed(() => !!(selectedBook.value && fromRef.value && toRef.value))
-
-watch(selectedBook, () => {
-  fromText.value = ''
-  toText.value = ''
-  fromPreview.value = ''
-  toPreview.value = ''
+const resolvedRange = computed(() => {
+  const parsed = parsedPassage.value
+  if (!parsed) return null
+  const book = bibleData.books.find((b) => b.book.toLowerCase() === parsed.book.toLowerCase())
+  return book ? { ...parsed, book: book.book } : null
 })
 
-// Mirror "From" into "To" as the user types, so a single-verse selection
-// doesn't require retyping the reference twice — but once "To" is edited
-// independently, stop overwriting it (unless "From" changes again while
-// "To" still matches what was last auto-filled).
-watch(fromText, (newVal, oldVal) => {
-  if (!toText.value || toText.value === oldVal) {
-    toText.value = newVal
-  }
-})
+const canConfirm = computed(() => !!resolvedRange.value)
 
 const fetchVerseContent = async (book, chapter, verse) => {
   const { data } = await supabase
@@ -114,104 +78,134 @@ const fetchVerseContent = async (book, chapter, verse) => {
   return data?.content || ''
 }
 
-watch(fromRef, async (ref) => {
-  if (!ref || !selectedBook.value) {
-    fromPreview.value = ''
+const getLastChapter = async (book) => {
+  const chapters = await bibleData.getChapters(book)
+  const chapterNumbers = chapters
+    .map((chapter) => Number(chapter?.chapter ?? chapter?.number ?? chapter))
+    .filter(Number.isFinite)
+  return chapterNumbers.length ? Math.max(...chapterNumbers) : 1
+}
+
+const getLastVerse = async (book, chapter) => {
+  const verses = await bibleData.getVerses(book, chapter)
+  return verses.length ? Math.max(...verses) : 1
+}
+
+watch(resolvedRange, async (range) => {
+  if (!range) {
+    previewText.value = ''
     return
   }
-  if (ref.verse == null) {
-    fromPreview.value = `(Whole chapter ${ref.chapter})`
+
+  if (range.startChapter == null) {
+    previewText.value = `Whole book: ${range.book}`
     return
   }
-  fromPreview.value = await fetchVerseContent(selectedBook.value.book, ref.chapter, ref.verse)
+
+  if (range.startVerse == null && range.endVerse == null) {
+    previewText.value = range.startChapter === range.endChapter
+      ? `Whole chapter: ${range.book} ${range.startChapter}`
+      : `Chapter range: ${range.book} ${range.startChapter}-${range.endChapter}`
+    return
+  }
+
+  const content = await fetchVerseContent(range.book, range.startChapter, range.startVerse)
+  previewText.value = content || 'Verse not found'
 })
 
-watch(toRef, async (ref) => {
-  if (!ref || !selectedBook.value || !toText.value.trim()) {
-    toPreview.value = ''
-    return
+const resolveVerseNumber = async (book, chapter, verse, isEnd) => {
+  if (verse != null) return verse
+  if (!isEnd) return 1
+  return getLastVerse(book, chapter)
+}
+
+const resolveSelectionRange = async (range) => {
+  const book = range.book
+  let startChapter = range.startChapter
+  let endChapter = range.endChapter
+  let startVerse = range.startVerse
+  let endVerse = range.endVerse
+  const isWholeBook = startChapter == null
+
+  if (isWholeBook) {
+    startChapter = 1
+    endChapter = await getLastChapter(book)
   }
-  if (ref.verse == null) {
-    toPreview.value = `(Whole chapter ${ref.chapter})`
-    return
+  if (endChapter == null) endChapter = startChapter
+
+  const chapterDiff = endChapter - startChapter
+  const shouldSwap =
+    chapterDiff < 0 ||
+    (chapterDiff === 0 && startVerse != null && endVerse != null && endVerse < startVerse)
+  if (shouldSwap) {
+    ;[startChapter, endChapter] = [endChapter, startChapter]
+    ;[startVerse, endVerse] = [endVerse, startVerse]
   }
-  toPreview.value = await fetchVerseContent(selectedBook.value.book, ref.chapter, ref.verse)
+
+  const startVerseNum = await resolveVerseNumber(book, startChapter, startVerse, false)
+  const endVerseNum = await resolveVerseNumber(book, endChapter, endVerse, true)
+  if (![startChapter, endChapter, startVerseNum, endVerseNum].every(Number.isFinite)) return null
+
+  return { book, startChapter, startVerse, endChapter, endVerse, startVerseNum, endVerseNum, isWholeBook }
+}
+
+const buildDisplayText = (range) => {
+  const { book, startChapter, startVerse, endChapter, endVerse, startVerseNum, endVerseNum, isWholeBook } = range
+
+  if (isWholeBook) return book
+  if (startVerse == null && endVerse == null) {
+    return startChapter === endChapter
+      ? `${book} ${startChapter}`
+      : `${book} ${startChapter}-${endChapter}`
+  }
+  if (startChapter === endChapter && startVerseNum === endVerseNum) {
+    return `${book} ${startChapter}:${startVerseNum}`
+  }
+  if (startChapter === endChapter) {
+    return `${book} ${startChapter}:${startVerseNum}-${endVerseNum}`
+  }
+  return `${book} ${startChapter}:${startVerseNum}-${endChapter}:${endVerseNum}`
+}
+
+const reset = () => {
+  passageText.value = ''
+  previewText.value = ''
+}
+
+watch(isOpen, (open) => {
+  if (!open) reset()
 })
 
 const confirmSelection = async () => {
   if (!canConfirm.value) return
 
-  const book = selectedBook.value.book
-  let start = fromRef.value
-  let end = toRef.value
-
-  // Normalize a reversed range — verse is only compared when both sides have one
-  if (start && end) {
-    const chapterDiff = end.chapter - start.chapter
-    const shouldSwap =
-      chapterDiff < 0 ||
-      (chapterDiff === 0 && start.verse != null && end.verse != null && end.verse < start.verse)
-    if (shouldSwap) {
-      ;[start, end] = [end, start]
-    }
-  }
-
-  // A bare chapter number resolves to that chapter's first verse (as the
-  // start) or last verse (as the end), so "3" alone means the whole chapter
-  const resolveVerseNumber = async (ref, isEnd) => {
-    if (ref.verse != null) return ref.verse
-    if (!isEnd) return 1
-    const verses = await bibleData.getVerses(book, ref.chapter)
-    return verses.length ? Math.max(...verses) : 1
-  }
-  const startVerseNum = await resolveVerseNumber(start, false)
-  const endVerseNum = await resolveVerseNumber(end, true)
+  const selectionRange = await resolveSelectionRange(resolvedRange.value)
+  if (!selectionRange) return
+  const { book, startChapter, endChapter, startVerseNum, endVerseNum } = selectionRange
 
   const [{ data: startVerseData }, { data: endVerseData }] = await Promise.all([
     supabase.from('bible_verses').select('id, verse_number')
-      .eq('book', book).eq('chapter', start.chapter).eq('verse', startVerseNum).single(),
+      .eq('book', book).eq('chapter', startChapter).eq('verse', startVerseNum).single(),
     supabase.from('bible_verses').select('id, verse_number')
-      .eq('book', book).eq('chapter', end.chapter).eq('verse', endVerseNum).single(),
+      .eq('book', book).eq('chapter', endChapter).eq('verse', endVerseNum).single(),
   ])
 
-  // A typed reference that doesn't exist (e.g. a chapter the book doesn't
-  // have) — leave the dialog open so the "Verse not found" preview stays visible
   if (!startVerseData || !endVerseData) return
-
-  // Both ends were typed as bare chapters — show it as a chapter reference,
-  // not the verse range it happens to resolve to
-  let displayText
-  if (start.verse == null && end.verse == null) {
-    displayText = start.chapter === end.chapter
-      ? `${book} ${start.chapter}`
-      : `${book} ${start.chapter}-${end.chapter}`
-  } else if (start.chapter === end.chapter && startVerseNum === endVerseNum) {
-    displayText = `${book} ${start.chapter}:${startVerseNum}`
-  } else if (start.chapter === end.chapter) {
-    displayText = `${book} ${start.chapter}:${startVerseNum}-${endVerseNum}`
-  } else {
-    displayText = `${book} ${start.chapter}:${startVerseNum}-${end.chapter}:${endVerseNum}`
-  }
 
   emit('select', {
     startVerseId: startVerseData.id,
     startVerse: startVerseData.verse_number,
     endVerseId: endVerseData.id,
     endVerse: endVerseData.verse_number,
-    display: displayText
+    display: buildDisplayText(selectionRange),
   })
 
-  selectedBook.value = null
-  fromText.value = ''
-  toText.value = ''
-  fromPreview.value = ''
-  toPreview.value = ''
+  reset()
   isOpen.value = false
 }
 
 onMounted(async () => {
   await bibleData.loadBooks()
-  filteredBooks.value = bibleData.books
 })
 </script>
 
@@ -233,12 +227,6 @@ onMounted(async () => {
   padding: 8px;
   border-radius: 4px;
   font-size: 0.85em;
-  margin-top: 4px;
-}
-
-/* Target the select menu globally */
-:global(.verse-select-menu) {
-  max-height: 300px !important;
-  z-index: 10000 !important;
+  margin-top: 12px;
 }
 </style>

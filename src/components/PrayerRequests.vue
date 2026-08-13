@@ -4,24 +4,71 @@
       <q-spinner color="primary" size="2em" />
     </div>
 
-    <AppEmptyState
-      v-else-if="requests.length === 0 && groupsStore.groups.length === 0 && !addingGroup && !addPrayerSection"
-      icon="front_hand"
-      :title="isSharedContext ? `Start ${activePrayerContextName}` : 'Start a prayer list'"
-      :message="isSharedContext
-        ? 'Create a group for this shared prayer list, then add prayers under it.'
-        : 'Keep the people and needs you are praying over in one place, then mark answers as they come.'"
-      primary-label="New Group"
-      primary-icon="create_new_folder"
-      @primary="handleEmptyPrimary"
-    />
-
     <template v-else>
       <div class="prayer-section-header" data-tour="prayer-groups-area">
         <div class="text-subtitle2 text-weight-bold text-grey-8 prayer-section-title">
           Active Prayers ({{ active.length }})
         </div>
         <div class="prayer-toolbar">
+          <q-btn
+            dense
+            unelevated
+            text-color="primary"
+            icon="groups"
+            :label="activePrayerContextLabel"
+            size="sm"
+            class="prayer-toolbar-btn prayer-toolbar-btn--secondary prayer-context-btn"
+            aria-label="Prayer context"
+            :loading="sharedPrayerContextsStore.loading"
+          >
+            <q-tooltip>Prayer context</q-tooltip>
+            <q-menu anchor="bottom right" self="top right">
+              <q-list class="context-menu">
+                <q-item-label header>Prayer Context</q-item-label>
+                <q-item
+                  v-for="option in prayerContextOptions"
+                  :key="option.id"
+                  clickable
+                  v-close-popup
+                  :active="option.id === sharedPrayerContextsStore.activeContextId"
+                  active-class="context-menu-item--active"
+                  @click="setPrayerContext(option.id)"
+                >
+                  <q-item-section avatar>
+                    <q-icon :name="option.icon" color="primary" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>{{ option.label }}</q-item-label>
+                    <q-item-label caption>{{ option.description }}</q-item-label>
+                  </q-item-section>
+                  <q-item-section v-if="option.id === sharedPrayerContextsStore.activeContextId" side>
+                    <q-icon name="check" color="primary" />
+                  </q-item-section>
+                </q-item>
+                <q-separator />
+                <q-item clickable v-close-popup @click="showCreateSharedGroupDialog = true">
+                  <q-item-section avatar>
+                    <q-icon name="group_add" color="primary" />
+                  </q-item-section>
+                  <q-item-section>Create Shared Group</q-item-section>
+                </q-item>
+                <q-item
+                  v-if="canCopyInviteLink"
+                  clickable
+                  v-close-popup
+                  @click="copyActiveInviteLink"
+                >
+                  <q-item-section avatar>
+                    <q-icon name="link" color="primary" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>Copy Invite Link</q-item-label>
+                    <q-item-label caption>{{ sharedPrayerContextsStore.activeGroup?.name }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </q-menu>
+          </q-btn>
           <q-btn
             dense
             unelevated
@@ -109,11 +156,20 @@
       </div>
 
       <AppEmptyState
-        v-if="active.length === 0 && groupSections.length === 0 && !addPrayerSection"
-        compact
-        icon="check_circle"
-        title="No active prayers right now"
-        message="Answered prayers stay below. Add a prayer under any group when you are ready."
+        v-if="active.length === 0 && groupSections.length === 0 && !addingGroup && !addPrayerSection"
+        :compact="requests.length > 0 || groupsStore.groups.length > 0"
+        :icon="requests.length === 0 && groupsStore.groups.length === 0 ? 'front_hand' : 'check_circle'"
+        :title="requests.length === 0 && groupsStore.groups.length === 0
+          ? (isSharedContext ? `Start ${activePrayerContextName}` : 'Start a prayer list')
+          : 'No active prayers right now'"
+        :message="requests.length === 0 && groupsStore.groups.length === 0
+          ? (isSharedContext
+            ? 'Create a group for this shared prayer list, then add prayers under it.'
+            : 'Keep the people and needs you are praying over in one place, then mark answers as they come.')
+          : 'Answered prayers stay below. Add a prayer under any group when you are ready.'"
+        primary-label="New Group"
+        primary-icon="create_new_folder"
+        @primary="handleEmptyPrimary"
       />
 
       <div v-else>
@@ -254,6 +310,38 @@
         </q-list>
       </q-expansion-item>
     </template>
+
+    <q-dialog v-model="showCreateSharedGroupDialog">
+      <q-card style="width: 92vw; max-width: 420px">
+        <q-card-section>
+          <div class="text-h6">Create Shared Prayer Group</div>
+          <div class="text-body2 text-grey-7 q-mt-xs">
+            Anyone with the invite link can join this shared prayer context.
+          </div>
+        </q-card-section>
+        <q-card-section class="q-pt-none">
+          <q-input
+            v-model="newSharedGroupName"
+            outlined
+            dense
+            label="Group name"
+            autofocus
+            @keyup.enter="createSharedGroup"
+          />
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" v-close-popup />
+          <q-btn
+            color="primary"
+            label="Create"
+            icon="group_add"
+            :loading="creatingSharedGroup"
+            :disable="!newSharedGroupName.trim()"
+            @click="createSharedGroup"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
 
     <q-dialog v-model="showAnswerDialog">
       <q-card style="min-width: 350px">
@@ -605,6 +693,16 @@ const sharedStore = useSharedPrayerRequestsStore()
 const sharedGroupsStore = useSharedPrayerRequestGroupsStore()
 const isSharedContext = computed(() => !sharedPrayerContextsStore.isPersonalContext)
 const activePrayerContextName = computed(() => sharedPrayerContextsStore.activeGroup?.name || 'Shared Prayers')
+const activePrayerContextLabel = computed(() =>
+  sharedPrayerContextsStore.isPersonalContext
+    ? 'Personal'
+    : sharedPrayerContextsStore.activeGroup?.name || 'Shared',
+)
+const prayerContextOptions = computed(() => sharedPrayerContextsStore.contextOptions)
+const canCopyInviteLink = computed(() =>
+  !!sharedPrayerContextsStore.activeGroup
+  && ['owner', 'admin'].includes(sharedPrayerContextsStore.activeMembership?.role),
+)
 const activeStore = computed(() => (isSharedContext.value ? sharedStore : personalStore))
 const activeGroupsStore = computed(() => (isSharedContext.value ? sharedGroupsStore : personalGroupsStore))
 const store = new Proxy({}, { get: (_target, prop) => activeStore.value[prop] })
@@ -613,6 +711,9 @@ const MISC_KEY = '__misc__'
 const NO_EDIT_GROUP_KEY = '__none__'
 
 const loading = ref(true)
+const showCreateSharedGroupDialog = ref(false)
+const newSharedGroupName = ref('')
+const creatingSharedGroup = ref(false)
 const requests = computed(() => store.requests)
 const active = computed(() => requests.value.filter((r) => r.status !== 'answered'))
 const answered = computed(() => requests.value.filter((r) => r.status === 'answered'))
@@ -666,6 +767,41 @@ const followUpsTooltip = computed(() =>
   followUps.value.length > 0 ? `${followUps.value.length} follow-up${followUps.value.length === 1 ? '' : 's'}` : 'Follow-ups',
 )
 const showFollowUpsDialog = ref(false)
+
+const setPrayerContext = (contextId) => {
+  sharedPrayerContextsStore.setActiveContext(contextId)
+}
+
+const copyInviteLink = async (group) => {
+  const url = sharedPrayerContextsStore.inviteUrlForGroup(group)
+  if (!url) return
+  try {
+    await navigator.clipboard.writeText(url)
+    $q.notify({ type: 'positive', message: 'Invite link copied' })
+  } catch {
+    $q.notify({ type: 'warning', message: 'Invite link ready', caption: url })
+  }
+}
+
+const copyActiveInviteLink = () => copyInviteLink(sharedPrayerContextsStore.activeGroup)
+
+const createSharedGroup = async () => {
+  const name = newSharedGroupName.value.trim()
+  if (!name) return
+
+  creatingSharedGroup.value = true
+  try {
+    const group = await sharedPrayerContextsStore.createGroup(name)
+    showCreateSharedGroupDialog.value = false
+    newSharedGroupName.value = ''
+    $q.notify({ type: 'positive', message: `${group.name} created` })
+    await copyInviteLink(group)
+  } catch (error) {
+    $q.notify({ type: 'negative', message: error.message || 'Failed to create shared group' })
+  } finally {
+    creatingSharedGroup.value = false
+  }
+}
 
 const isGroupCollapsed = (key) => collapsedGroups.has(key)
 
@@ -1326,12 +1462,14 @@ onMounted(async () => {
 
 .prayer-section-title {
   flex: 0 0 auto;
+  min-width: 0;
 }
 
 .prayer-toolbar {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 4px;
 }
 
@@ -1353,6 +1491,30 @@ onMounted(async () => {
 
 .prayer-toolbar-btn--secondary:hover {
   background: var(--color-surface-muted);
+}
+
+.prayer-context-btn {
+  max-width: 150px;
+}
+
+.prayer-context-btn :deep(.q-btn__content) {
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+.prayer-context-btn :deep(.q-btn__content > span) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.context-menu {
+  min-width: 260px;
+}
+
+.context-menu-item--active {
+  background: var(--color-surface-muted);
+  color: var(--color-text);
 }
 
 .delete-group-options > :deep(div) {
@@ -1549,6 +1711,10 @@ onMounted(async () => {
 
   .prayer-toolbar {
     justify-content: flex-end;
+  }
+
+  .prayer-context-btn {
+    max-width: 118px;
   }
 
   .details-grid {
