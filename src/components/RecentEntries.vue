@@ -76,6 +76,9 @@
                     <q-icon v-if="entry.is_favorite" name="star" color="warning" size="16px" class="q-mr-xs" />
                     {{ entry.title }}
                   </q-item-label>
+                  <q-item-label v-if="entryResourceContext(entry)" caption class="text-wrap entry-resource-context">
+                    {{ entryResourceContext(entry) }}
+                  </q-item-label>
                   <q-item-label caption class="text-wrap">{{ formatDate(entryDate(entry)) }}</q-item-label>
                 </q-item-section>
                 <q-item-section side>
@@ -97,6 +100,9 @@
                   <q-item-label class="text-wrap">
                     <q-icon v-if="entry.is_favorite" name="star" color="warning" size="16px" class="q-mr-xs" />
                     {{ entry.title }}
+                  </q-item-label>
+                  <q-item-label v-if="entryResourceContext(entry)" caption class="text-wrap entry-resource-context">
+                    {{ entryResourceContext(entry) }}
                   </q-item-label>
                   <q-item-label caption class="text-wrap">{{ formatDate(entryDate(entry)) }}</q-item-label>
                 </q-item-section>
@@ -178,6 +184,14 @@ const entries = computed(() => journalStore.entries || [])
 // migration/backfill ran (see sql/Journal Entries Updated At Column.sql)
 // and for demo-tour entries, which have no updated_at column at all.
 const entryDate = (entry) => entry.updated_at || entry.created_at
+
+const entryResourceContext = (entry) => {
+  if (entry?.type !== 'Devotional') return ''
+
+  const devotional = entry.resources?.find((resource) => resource.type === 'Devotional')
+  const title = devotional ? getResourceTitle(devotional) : ''
+  return title ? `From ${title}` : ''
+}
 
 const sortedEntries = computed(() => {
   const factor = sortOrder.value === 'desc' ? -1 : 1
@@ -578,6 +592,12 @@ onMounted(async () => {
 .text-wrap {
   white-space: normal !important;
   word-break: break-word;
+}
+
+.entry-resource-context {
+  color: var(--color-text-secondary);
+  font-size: 0.74rem;
+  font-weight: 500;
 }
 
 .q-item-section {

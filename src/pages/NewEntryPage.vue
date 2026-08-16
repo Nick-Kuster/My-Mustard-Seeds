@@ -228,7 +228,7 @@
             <q-tab name="additional" label="Additional Content" data-tour="entry-additional-tab" />
           </q-tabs>
 
-          <q-tab-panels v-model="activeTab" animated class="bg-transparent">
+          <q-tab-panels v-model="activeTab" animated class="bg-transparent entry-tab-panels">
             <!-- Main Content Tab -->
             <q-tab-panel name="main" class="q-pa-none">
               <!-- Dynamic Sections -->
@@ -1419,6 +1419,16 @@ onUnmounted(() => {
   min-height: calc(100vh - 180px);
 }
 
+.entry-editor-card.app-page-card {
+  overflow: visible;
+}
+
+.entry-tab-panels,
+.entry-tab-panels :deep(.q-panel),
+.entry-tab-panels :deep(.q-tab-panel) {
+  overflow: visible;
+}
+
 @media (max-width: 599px) {
   .entry-editor-page {
     padding: 4px 2px !important;
@@ -1445,6 +1455,26 @@ onUnmounted(() => {
   transition: all 0.3s ease;
   border: 1px solid var(--color-border);
   box-shadow: 0 1px 3px var(--color-shadow-light);
+}
+
+.section-header {
+  position: sticky;
+  top: 60px;
+  z-index: 30;
+  margin: -4px -4px 0 !important;
+  padding: 4px 4px 2px;
+  border-bottom: 1px solid var(--color-border);
+  background: inherit;
+}
+
+.section-header::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -8px;
+  height: 8px;
+  background: inherit;
 }
 
 .section-title-input :deep(textarea) {

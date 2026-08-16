@@ -308,7 +308,7 @@ body {
   pointer-events: none;
   z-index: -1;
   color: var(--shape-overlay-color, currentColor);
-  opacity: 0.58;
+  opacity: var(--shape-overlay-opacity, 0.58);
 }
 
 .shape-overlay--triangle::after {
@@ -334,6 +334,21 @@ body {
   border-radius: 0.12em;
 }
 
+.shape-overlay--cloud::after {
+  content: "";
+  left: 50%;
+  top: 50%;
+  width: 2.45em;
+  height: 1.18em;
+  border: 2px solid currentColor;
+  border-radius: 999px;
+  box-shadow:
+    -0.52em -0.18em 0 -0.28em currentColor,
+    0 -0.34em 0 -0.24em currentColor,
+    0.52em -0.16em 0 -0.3em currentColor;
+  transform: translate(-50%, -48%);
+}
+
 .shape-overlay--x-overlay::after {
   content: "X";
   left: 50%;
@@ -343,6 +358,26 @@ body {
   line-height: 1;
   transform: translate(-50%, -54%);
   opacity: 0.5;
+}
+
+.shape-overlay--custom-symbol::after {
+  content: attr(data-shape-overlay-symbol);
+  left: 50%;
+  top: 50%;
+  font-size: var(--shape-overlay-size, 1.6em);
+  font-weight: 800;
+  line-height: 1;
+  transform: translate(-50%, calc(-54% + var(--shape-overlay-offset-y, 0em)));
+}
+
+.shape-overlay--custom-drawing::after {
+  content: "";
+  left: 50%;
+  top: 50%;
+  width: calc(var(--shape-overlay-size, 1.6em) * 2.6);
+  height: calc(var(--shape-overlay-size, 1.6em) * 1.3);
+  background: var(--shape-overlay-drawing) center / contain no-repeat;
+  transform: translate(-50%, calc(-50% + var(--shape-overlay-offset-y, 0em)));
 }
 
 .shape-overlay--swoop-underline,

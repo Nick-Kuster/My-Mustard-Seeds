@@ -36,19 +36,7 @@
             </router-link>
           </div>
 
-          <q-btn
-            v-if="$q.screen.lt.md"
-            flat
-            dense
-            round
-            icon="inventory_2"
-            data-tour="nav-resources"
-            aria-label="Resources"
-            :class="['header-icon-btn', { 'header-icon-btn--active': route.path === '/resources' }]"
-            @click="router.push('/resources')"
-          >
-            <q-tooltip>Resources</q-tooltip>
-          </q-btn>
+          <div v-if="$q.screen.gt.sm" class="header-actions">
           <q-btn flat dense round :icon="themeIcon" data-tour="theme-toggle" aria-label="Toggle theme"
             @click="toggleTheme">
             <q-tooltip>{{ themeLabel }} — click to change</q-tooltip>
@@ -86,6 +74,80 @@
             </q-menu>
           </q-btn>
           <q-btn flat dense round icon="logout" aria-label="Logout" @click="handleSignOut" />
+          </div>
+
+          <q-btn
+            v-if="$q.screen.lt.md"
+            flat
+            dense
+            round
+            icon="menu"
+            class="header-icon-btn"
+            aria-label="Open menu"
+          >
+            <q-tooltip>Menu</q-tooltip>
+            <q-menu anchor="bottom right" self="top right">
+              <q-list class="header-mobile-menu">
+                <q-item
+                  clickable
+                  v-close-popup
+                  data-tour="nav-resources"
+                  :active="route.path === '/resources'"
+                  active-class="header-mobile-menu-item--active"
+                  @click="router.push('/resources')"
+                >
+                  <q-item-section avatar>
+                    <q-icon name="inventory_2" />
+                  </q-item-section>
+                  <q-item-section>Resources</q-item-section>
+                </q-item>
+
+                <q-item clickable v-close-popup data-tour="theme-toggle" @click="toggleTheme">
+                  <q-item-section avatar>
+                    <q-icon :name="themeIcon" />
+                  </q-item-section>
+                  <q-item-section>{{ themeLabel }}</q-item-section>
+                </q-item>
+
+                <q-expansion-item
+                  dense
+                  expand-separator
+                  class="header-mobile-translation"
+                  icon="menu_book"
+                  label="Bible translation"
+                  :caption="activeBibleTranslation.abbreviation"
+                  :disable="savingBibleTranslation"
+                >
+                  <q-item
+                    v-for="option in bibleTranslationOptions"
+                    :key="bibleOptionKey(option)"
+                    clickable
+                    v-close-popup
+                    :active="bibleOptionKey(option) === bibleOptionKey(activeBibleTranslation)"
+                    active-class="translation-menu-item--active"
+                    @click="setBibleTranslation(option)"
+                  >
+                    <q-item-section>
+                      <q-item-label>{{ option.abbreviation }}</q-item-label>
+                      <q-item-label caption>{{ option.description }}</q-item-label>
+                    </q-item-section>
+                    <q-item-section v-if="bibleOptionKey(option) === bibleOptionKey(activeBibleTranslation)" side>
+                      <q-icon name="check" color="primary" />
+                    </q-item-section>
+                  </q-item>
+                </q-expansion-item>
+
+                <q-separator />
+
+                <q-item clickable v-close-popup @click="handleSignOut">
+                  <q-item-section avatar>
+                    <q-icon name="logout" />
+                  </q-item-section>
+                  <q-item-section>Logout</q-item-section>
+                </q-item>
+              </q-list>
+            </q-menu>
+          </q-btn>
         </div>
       </q-toolbar>
     </q-header>
@@ -282,6 +344,12 @@ body.body--dark .app-header {
   margin-right: 12px;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
 .header-nav-btn {
   color: rgba(255, 255, 255, 0.85);
   font-size: 0.8rem;
@@ -304,6 +372,20 @@ body.body--dark .app-header {
 
 .translation-menu {
   min-width: 260px;
+}
+
+.header-mobile-menu {
+  min-width: min(320px, calc(100vw - 32px));
+  color: var(--color-text);
+}
+
+.header-mobile-translation {
+  margin-bottom: 10px;
+}
+
+.header-mobile-menu-item--active {
+  background: var(--color-surface-muted);
+  color: var(--color-text);
 }
 
 .translation-menu-item--active {

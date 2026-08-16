@@ -246,13 +246,6 @@ onBeforeUnmount(() => {
   overflow: visible;
 }
 
-.rich-text-toolbar-pinned {
-  position: sticky;
-  top: 60px;
-  z-index: 6;
-  margin-bottom: 8px;
-}
-
 .rich-text-body {
   padding: 8px 0 4px;
 }

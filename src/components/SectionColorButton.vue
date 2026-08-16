@@ -17,6 +17,16 @@
         >
           <q-tooltip>{{ swatch.label }}</q-tooltip>
         </button>
+        <label
+          class="section-color-swatch section-color-swatch--custom"
+          :class="{ selected: isCustomBackgroundSelected }"
+          :style="{ backgroundColor: customBackgroundInput }"
+          aria-label="Custom background color"
+        >
+          <q-icon name="palette" size="18px" />
+          <input type="color" :value="customBackgroundInput" @input="selectColor($event.target.value)" />
+          <q-tooltip>Custom background</q-tooltip>
+        </label>
         <q-btn flat dense no-caps color="negative" label="Remove background" class="section-color-clear"
           v-close-popup @click="clearColor" />
 
@@ -34,6 +44,16 @@
         >
           <q-tooltip>{{ swatch.label }}</q-tooltip>
         </button>
+        <label
+          class="section-color-swatch section-color-swatch--custom"
+          :class="{ selected: isCustomTextSelected }"
+          :style="{ backgroundColor: customTextInput }"
+          aria-label="Custom text color"
+        >
+          <q-icon name="palette" size="18px" />
+          <input type="color" :value="customTextInput" @input="selectTextColor($event.target.value)" />
+          <q-tooltip>Custom text</q-tooltip>
+        </label>
         <q-btn flat dense no-caps color="negative" label="Use default text" class="section-color-clear"
           v-close-popup @click="clearTextColor" />
       </div>
@@ -60,6 +80,11 @@ const emit = defineEmits(['update:modelValue', 'update:textColor'])
 
 const selectedBackground = computed(() => normalizeSectionBackgroundColor(props.modelValue))
 const selectedText = computed(() => normalizeSectionTextColor(props.textColor))
+const isHexColor = (value) => /^#[0-9a-f]{6}$/i.test(value)
+const isCustomBackgroundSelected = computed(() => isHexColor(selectedBackground.value))
+const isCustomTextSelected = computed(() => isHexColor(selectedText.value))
+const customBackgroundInput = computed(() => (isHexColor(selectedBackground.value) ? selectedBackground.value : '#e5edf4'))
+const customTextInput = computed(() => (isHexColor(selectedText.value) ? selectedText.value : '#1f2937'))
 
 const buttonStyle = computed(() => getSectionStyle({ color: props.modelValue, textColor: props.textColor }))
 const menuSurfaceStyle = computed(() => {
@@ -106,17 +131,39 @@ const clearTextColor = () => {
 }
 
 .section-color-swatch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 34px;
   height: 34px;
   border: 1px solid var(--color-border, rgba(0, 0, 0, 0.16));
   border-radius: 50%;
+  color: currentColor;
   cursor: pointer;
   padding: 0;
+  overflow: hidden;
 }
 
 .section-color-swatch.selected {
   outline: 2px solid var(--q-primary);
   outline-offset: 2px;
+}
+
+.section-color-swatch--custom {
+  background:
+    linear-gradient(135deg, transparent 46%, var(--color-border) 47%, var(--color-border) 53%, transparent 54%),
+    var(--color-surface);
+}
+
+.section-color-swatch--custom input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  cursor: pointer;
+  opacity: 0;
 }
 
 .section-color-clear {

@@ -12,24 +12,6 @@
       <q-btn flat dense round size="sm" :ripple="false" icon="title"
         :color="isActive('heading') ? 'primary' : undefined"
         @mousedown.prevent @click="showTextStyleDialog = true" />
-      <q-btn flat dense round size="sm" :ripple="false"
-        :color="isActive('blockquote') ? 'primary' : undefined"
-        @mousedown.prevent @click="editor.chain().focus().toggleBlockquote().run()">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-          <line x1="4" y1="4" x2="4" y2="20" />
-          <line x1="9" y1="7" x2="20" y2="7" />
-          <line x1="9" y1="12" x2="16" y2="12" />
-          <line x1="9" y1="17" x2="19" y2="17" />
-        </svg>
-      </q-btn>
-      <q-btn flat dense round size="sm" :ripple="false" icon="format_bold" :color="isActive('bold') ? 'primary' : undefined"
-        @mousedown.prevent @click="editor.chain().focus().toggleBold().run()" />
-      <q-btn flat dense round size="sm" :ripple="false" icon="format_italic" :color="isActive('italic') ? 'primary' : undefined"
-        @mousedown.prevent @click="editor.chain().focus().toggleItalic().run()" />
-      <q-btn flat dense round size="sm" :ripple="false" icon="format_underlined" :color="isActive('underline') ? 'primary' : undefined"
-        @mousedown.prevent @click="editor.chain().focus().toggleUnderline().run()" />
-      <q-btn flat dense round size="sm" :ripple="false" icon="strikethrough_s" :color="isActive('strike') ? 'primary' : undefined"
-        @mousedown.prevent @click="editor.chain().focus().toggleStrike().run()" />
       <q-btn flat dense round size="sm" :ripple="false" icon="format_list_bulleted"
         :color="isActive('bulletList') ? 'primary' : undefined"
         @mousedown.prevent @click="editor.chain().focus().toggleBulletList().run()">
@@ -51,27 +33,6 @@
         <q-tooltip>Outdent list item</q-tooltip>
       </q-btn>
 
-      <!-- Reunited into the main row after confirming the SVG-icon fix
-           (below) also resolves click-routing here, not just the glyph
-           painting in the separated row2 layout — if this regresses
-           (Bold/Italic/Underline/Strike misrouting to Highlight again),
-           the fix is to split these back into their own row/container,
-           which is the one thing that's reliably worked before. -->
-      <q-btn flat dense round size="sm" :ripple="false" :color="isActive('highlight') ? 'primary' : undefined"
-        @mousedown.prevent @click="showHighlightDialog = true">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 11l4 4" />
-          <path d="M4 20l3-1 9-9a1.9 1.9 0 0 0-3-3l-9 9-1 3z" />
-        </svg>
-      </q-btn>
-      <q-btn flat dense round size="sm" :ripple="false" :color="isActive('textStyle') ? 'primary' : undefined"
-        @mousedown.prevent @click="showTextColorDialog = true">
-        <svg viewBox="0 0 24 24" width="18" height="18">
-          <text x="12" y="16" font-size="14" text-anchor="middle" fill="currentColor" font-family="sans-serif">A</text>
-          <rect x="4" y="19" width="16" height="3" fill="currentColor" />
-        </svg>
-      </q-btn>
       <q-btn flat dense round size="sm" :ripple="false" data-tour="rich-text-glyph-btn"
         @mousedown.prevent @click="showGlyphDialog = true">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
@@ -92,12 +53,6 @@
       <input ref="fileInputRef" type="file" accept="image/*" class="rich-text-file-input" @change="onFileSelected" />
     </div>
 
-    <ColorPickerDialog v-model="showHighlightDialog" title="Highlight color" :swatches="HIGHLIGHT_SWATCHES"
-      :card-style="toolbarSurfaceStyle"
-      @select="onHighlightSelect" @clear="editor.chain().focus().unsetHighlight().run()" />
-    <ColorPickerDialog v-model="showTextColorDialog" title="Text color" :swatches="TEXT_COLOR_SWATCHES"
-      :card-style="toolbarSurfaceStyle"
-      @select="onTextColorSelect" @clear="editor.chain().focus().unsetColor().run()" />
     <GlyphPickerDialog v-model="showGlyphDialog" @select="onGlyphSelect" @select-glyph="onGlyphNodeSelect" />
     <TextStyleDialog v-model="showTextStyleDialog" :editor="editor" />
   </div>
@@ -106,7 +61,6 @@
 <script setup>
 import { computed, ref, onBeforeUnmount, onMounted } from 'vue'
 import { Notify } from 'quasar'
-import ColorPickerDialog from './ColorPickerDialog.vue'
 import GlyphPickerDialog from './GlyphPickerDialog.vue'
 import TextStyleDialog from './TextStyleDialog.vue'
 import { useImageUpload } from 'src/composables/useImageUpload'
@@ -127,31 +81,6 @@ const toolbarSurfaceStyle = computed(() => {
   }
 })
 
-const HIGHLIGHT_SWATCHES = [
-  { color: '#fef08a', label: 'Yellow' },
-  { color: '#bbf7d0', label: 'Green' },
-  { color: '#bfdbfe', label: 'Blue' },
-  { color: '#fbcfe8', label: 'Pink' },
-  { color: '#fed7aa', label: 'Orange' },
-  { color: '#e9d5ff', label: 'Purple' },
-  { color: '#fecaca', label: 'Red' },
-  { color: '#e5e7eb', label: 'Gray' },
-]
-
-const TEXT_COLOR_SWATCHES = [
-  { color: '#000000', label: 'Black' },
-  { color: '#ffffff', label: 'White' },
-  { color: '#dc2626', label: 'Red' },
-  { color: '#ea580c', label: 'Orange' },
-  { color: '#ca8a04', label: 'Yellow' },
-  { color: '#16a34a', label: 'Green' },
-  { color: '#2563eb', label: 'Blue' },
-  { color: '#9333ea', label: 'Purple' },
-  { color: '#6b7280', label: 'Gray' },
-]
-
-const showHighlightDialog = ref(false)
-const showTextColorDialog = ref(false)
 const showGlyphDialog = ref(false)
 const showTextStyleDialog = ref(false)
 
@@ -173,14 +102,6 @@ const onFileSelected = async (event) => {
   } catch (err) {
     Notify.create({ type: 'negative', message: err.message || 'Failed to upload image' })
   }
-}
-
-const onHighlightSelect = (color) => {
-  props.editor.chain().focus().setHighlight({ color }).run()
-}
-
-const onTextColorSelect = (color) => {
-  props.editor.chain().focus().setColor(color).run()
 }
 
 const onGlyphSelect = (char) => {
@@ -235,9 +156,15 @@ const canLiftListItem = () => {
 </script>
 
 <style scoped>
-/* position deliberately left unset on .rich-text-toolbar-wrap here — see
-   RichTextEditor.vue's .rich-text-toolbar-pinned, which sets
-   position: sticky via class passthrough onto this component's root. */
+.rich-text-toolbar-wrap {
+  position: sticky;
+  top: 107px;
+  z-index: 20;
+  margin-bottom: 8px;
+  padding: 0 0 2px;
+  border-bottom: 1px solid var(--color-border);
+}
+
 .rich-text-toolbar {
   padding: 4px 0;
 }

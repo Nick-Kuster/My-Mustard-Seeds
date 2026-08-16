@@ -16,6 +16,9 @@
           <q-icon v-if="entry.is_favorite" name="star" color="warning" size="16px" class="q-mr-xs" />
           {{ entry.title }}
         </q-item-label>
+        <q-item-label v-if="entryResourceContext(entry)" caption class="text-wrap entry-resource-context">
+          {{ entryResourceContext(entry) }}
+        </q-item-label>
         <q-item-label caption class="text-wrap">{{ formatDate(entry.updated_at || entry.created_at) }}</q-item-label>
       </q-item-section>
       <q-item-section side>
@@ -29,6 +32,7 @@
 </template>
 
 <script setup>
+import { getResourceTitle } from 'stores/journalData'
 import FavoriteButton from './FavoriteButton.vue'
 
 defineProps({
@@ -44,6 +48,14 @@ const formatDate = (dateString) => {
     month: 'short',
     day: 'numeric'
   })
+}
+
+const entryResourceContext = (entry) => {
+  if (entry?.type !== 'Devotional') return ''
+
+  const devotional = entry.resources?.find((resource) => resource.type === 'Devotional')
+  const title = devotional ? getResourceTitle(devotional) : ''
+  return title ? `From ${title}` : ''
 }
 </script>
 
@@ -61,6 +73,12 @@ const formatDate = (dateString) => {
 .text-wrap {
   white-space: normal !important;
   word-break: break-word;
+}
+
+.entry-resource-context {
+  color: var(--color-text-secondary);
+  font-size: 0.74rem;
+  font-weight: 500;
 }
 
 .q-item-section {

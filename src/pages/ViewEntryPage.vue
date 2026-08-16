@@ -137,8 +137,9 @@
                   </div>
                 </div>
 
-                <div class="row q-gutter-sm q-mt-sm">
+                <div class="row q-gutter-sm q-mt-sm entry-resource-chip-row">
                   <q-chip v-for="resource in entry.resources" :key="resource.id" clickable color="primary"
+                    class="entry-resource-chip"
                     text-color="white" @click="openResourceSearch(resource)">
                     {{ getResourceTitle(resource) }}
                   </q-chip>
@@ -784,6 +785,25 @@ watch(
   font-size: 0.86rem;
   font-weight: 550;
   line-height: 1.45;
+}
+
+.entry-resource-chip-row {
+  min-width: 0;
+}
+
+.entry-resource-chip {
+  max-width: 100%;
+  height: auto;
+  min-height: 32px;
+  white-space: normal;
+}
+
+.entry-resource-chip :deep(.q-chip__content) {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+  padding: 4px 0;
 }
 
 .entry-metadata-strip {
