@@ -36,4 +36,34 @@ describe('findInlineTriggers', () => {
       },
     }])
   })
+
+  it('resolves numbered Bible book shortcuts typed manually', () => {
+    expect(findInlineTriggers('Read ::1 John 3 today')).toEqual([{
+      type: 'verse',
+      start: 5,
+      end: 15,
+      raw: '::1 John 3',
+      verseRange: {
+        book: '1 John',
+        startChapter: 3,
+        startVerse: null,
+        endChapter: 3,
+        endVerse: null,
+      },
+    }])
+
+    expect(findInlineTriggers('Quote @2 Corinthians 5:17 here')).toEqual([{
+      type: 'verseQuote',
+      start: 6,
+      end: 25,
+      raw: '@2 Corinthians 5:17',
+      verseRange: {
+        book: '2 Corinthians',
+        startChapter: 5,
+        startVerse: 17,
+        endChapter: 5,
+        endVerse: 17,
+      },
+    }])
+  })
 })

@@ -1,5 +1,5 @@
 <template>
-  <div class="rich-text-toolbar-wrap">
+  <div class="rich-text-toolbar-wrap" :style="toolbarSurfaceStyle">
     <div class="row items-center q-gutter-xs rich-text-toolbar" data-tour="rich-text-toolbar">
       <q-btn flat dense round size="sm" :ripple="false" icon="undo" :disable="!canUndo()"
         @mousedown.prevent @click="editor.chain().focus().undo().run()">
@@ -93,8 +93,10 @@
     </div>
 
     <ColorPickerDialog v-model="showHighlightDialog" title="Highlight color" :swatches="HIGHLIGHT_SWATCHES"
+      :card-style="toolbarSurfaceStyle"
       @select="onHighlightSelect" @clear="editor.chain().focus().unsetHighlight().run()" />
     <ColorPickerDialog v-model="showTextColorDialog" title="Text color" :swatches="TEXT_COLOR_SWATCHES"
+      :card-style="toolbarSurfaceStyle"
       @select="onTextColorSelect" @clear="editor.chain().focus().unsetColor().run()" />
     <GlyphPickerDialog v-model="showGlyphDialog" @select="onGlyphSelect" @select-glyph="onGlyphNodeSelect" />
     <TextStyleDialog v-model="showTextStyleDialog" :editor="editor" />
@@ -102,15 +104,27 @@
 </template>
 
 <script setup>
-import { ref, onBeforeUnmount, onMounted } from 'vue'
+import { computed, ref, onBeforeUnmount, onMounted } from 'vue'
 import { Notify } from 'quasar'
 import ColorPickerDialog from './ColorPickerDialog.vue'
 import GlyphPickerDialog from './GlyphPickerDialog.vue'
 import TextStyleDialog from './TextStyleDialog.vue'
 import { useImageUpload } from 'src/composables/useImageUpload'
+import { getSectionStyle } from 'src/utils/sectionColors'
 
 const props = defineProps({
   editor: { type: Object, required: true },
+  sectionColor: { type: String, default: '' },
+  sectionTextColor: { type: String, default: '' },
+})
+
+const toolbarSurfaceStyle = computed(() => {
+  const style = getSectionStyle({ color: props.sectionColor, textColor: props.sectionTextColor })
+  return {
+    backgroundColor: style.backgroundColor || 'var(--color-surface-alt)',
+    color: style.color || 'var(--color-text)',
+    ...(style['--section-text-color'] ? { '--section-text-color': style['--section-text-color'] } : {}),
+  }
 })
 
 const HIGHLIGHT_SWATCHES = [

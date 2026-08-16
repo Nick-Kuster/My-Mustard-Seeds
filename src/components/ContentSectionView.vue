@@ -1,5 +1,5 @@
 <template>
-  <div class="content-section q-mb-lg">
+  <div class="content-section q-mb-lg" :style="sectionStyle">
     <div class="content-section-header row items-start no-wrap q-mb-sm">
       <div v-if="section.title?.trim()" class="content-section-title col">{{ section.title }}</div>
       <q-space v-else />
@@ -37,6 +37,7 @@ import { useQuasar } from 'quasar'
 import { useRouter } from 'vue-router'
 import { getListItems } from 'src/utils/sectionListUtils'
 import { formatSectionAsText } from 'src/utils/richTextContent'
+import { getSectionStyle } from 'src/utils/sectionColors'
 import InlineContent from 'components/InlineContent.vue'
 import RichTextViewer from 'components/richText/RichTextViewer.vue'
 import VerseDisplayModal from 'components/VerseDisplayModal.vue'
@@ -54,6 +55,7 @@ const $q = useQuasar()
 
 const listItems = computed(() => getListItems(props.section.content).filter((item) => item.trim()))
 const sectionText = computed(() => formatSectionAsText(props.section))
+const sectionStyle = computed(() => getSectionStyle(props.section))
 
 const copySection = async () => {
   try {
@@ -111,7 +113,7 @@ const onTagClick = (tag) => {
 
 .content-section-title {
   padding-bottom: 6px;
-  color: var(--q-primary);
+  color: var(--section-text-color, var(--q-primary));
   font-size: 1.05rem;
   font-weight: 800;
   line-height: 1.25;
@@ -141,6 +143,6 @@ const onTagClick = (tag) => {
 }
 
 .list-bullet {
-  color: var(--color-text-muted);
+  color: var(--section-text-color, var(--color-text-muted));
 }
 </style>

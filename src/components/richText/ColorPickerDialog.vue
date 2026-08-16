@@ -1,6 +1,6 @@
 <template>
   <q-dialog v-model="show">
-    <q-card style="min-width: 280px">
+    <q-card :style="[{ minWidth: '280px' }, cardStyle]">
       <q-card-section class="row items-center q-pb-none">
         <div class="text-subtitle1">{{ title }}</div>
         <q-space />
@@ -35,6 +35,7 @@ const props = defineProps({
   modelValue: { type: Boolean, default: false },
   title: { type: String, required: true },
   swatches: { type: Array, required: true },
+  cardStyle: { type: Object, default: () => ({}) },
 })
 
 const emit = defineEmits(['update:modelValue', 'select', 'clear'])

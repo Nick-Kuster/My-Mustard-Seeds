@@ -26,6 +26,22 @@
   --color-shadow-light: rgba(0, 0, 0, 0.06);
   --color-shadow-strong: rgba(0, 0, 0, 0.2);
   --color-surface-translucent: rgba(255, 255, 255, 0.9);
+  --section-bg-warm: #f4eee6;
+  --section-bg-yellow: #f2edcf;
+  --section-bg-green: #e6eee4;
+  --section-bg-blue: #e5edf4;
+  --section-bg-pink: #f1e5eb;
+  --section-bg-purple: #ede6f2;
+  --section-bg-slate: #e8edf1;
+  --section-bg-gray: #e9e7e4;
+  --section-text-ink: #1f2937;
+  --section-text-charcoal: #3f3f46;
+  --section-text-taupe: #57534e;
+  --section-text-red: #7f1d1d;
+  --section-text-gold: #854d0e;
+  --section-text-green: #166534;
+  --section-text-blue: #1e3a8a;
+  --section-text-purple: #581c87;
 }
 
 body.body--dark {
@@ -45,6 +61,22 @@ body.body--dark {
   --color-shadow-light: rgba(0, 0, 0, 0.35);
   --color-shadow-strong: rgba(0, 0, 0, 0.7);
   --color-surface-translucent: rgba(28, 33, 36, 0.9);
+  --section-bg-warm: #3a332d;
+  --section-bg-yellow: #3a3726;
+  --section-bg-green: #2d3a31;
+  --section-bg-blue: #2b3540;
+  --section-bg-pink: #3b2d34;
+  --section-bg-purple: #352f3d;
+  --section-bg-slate: #30373d;
+  --section-bg-gray: #343433;
+  --section-text-ink: #eef2f7;
+  --section-text-charcoal: #d6d3d1;
+  --section-text-taupe: #d6cfc7;
+  --section-text-red: #f0b3a7;
+  --section-text-gold: #e2c174;
+  --section-text-green: #9fc7a9;
+  --section-text-blue: #a9c2e8;
+  --section-text-purple: #c9b4e5;
 
   // The background image in MainLayout.vue is a light paper texture —
   // dim it in dark mode rather than maintaining a second dark texture asset.
@@ -262,4 +294,108 @@ body {
 
 .driver-popover-arrow {
   border-color: var(--color-surface) !important;
+}
+
+.shape-overlay {
+  position: relative;
+  display: inline-block;
+  padding: 0 0.08em;
+  isolation: isolate;
+}
+
+.shape-overlay::after {
+  position: absolute;
+  pointer-events: none;
+  z-index: -1;
+  color: var(--shape-overlay-color, currentColor);
+  opacity: 0.58;
+}
+
+.shape-overlay--triangle::after {
+  content: "△";
+  left: 50%;
+  top: 50%;
+  font-size: 1.7em;
+  line-height: 1;
+  transform: translate(-50%, -53%);
+}
+
+.shape-overlay--circle::after {
+  content: "";
+  inset: -0.08em -0.24em;
+  border: 2px solid currentColor;
+  border-radius: 999px;
+}
+
+.shape-overlay--box::after {
+  content: "";
+  inset: -0.06em -0.18em 0.02em;
+  border: 2px solid currentColor;
+  border-radius: 0.12em;
+}
+
+.shape-overlay--x-overlay::after {
+  content: "X";
+  left: 50%;
+  top: 50%;
+  font-size: 1.7em;
+  font-weight: 800;
+  line-height: 1;
+  transform: translate(-50%, -54%);
+  opacity: 0.5;
+}
+
+.shape-overlay--swoop-underline,
+.shape-overlay--dash-underline,
+.shape-overlay--wavy-underline {
+  padding-bottom: 0;
+}
+
+.shape-overlay--cross-underline::after {
+  content: "+";
+  left: 50%;
+  top: 50%;
+  font-size: 1.7em;
+  font-weight: 800;
+  line-height: 1;
+  transform: translate(-50%, -54%);
+  opacity: 0.5;
+}
+
+.shape-overlay--swoop-underline::after {
+  content: "";
+  left: -0.1em;
+  right: -0.18em;
+  bottom: -0.08em;
+  height: 0.42em;
+  border-bottom: 2px solid currentColor;
+  border-radius: 0 0 70% 40%;
+  transform: rotate(-2deg);
+  opacity: 0.68;
+}
+
+.shape-overlay--dash-underline::after {
+  content: "";
+  left: -0.04em;
+  right: -0.04em;
+  bottom: 0.02em;
+  height: 1.5px;
+  background: repeating-linear-gradient(
+    to right,
+    currentColor 0 0.28em,
+    transparent 0.28em 0.42em
+  );
+  opacity: 0.62;
+}
+
+.shape-overlay--wavy-underline {
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: var(--shape-overlay-color, currentColor);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.08em;
+}
+
+.shape-overlay--wavy-underline::after {
+  content: none;
 }

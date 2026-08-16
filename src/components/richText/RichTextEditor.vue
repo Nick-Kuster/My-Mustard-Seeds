@@ -1,7 +1,12 @@
 <template>
   <div class="rich-text-editor">
     <div class="rich-text-scroll-area">
-      <RichTextToolbar v-if="editor && !disable" :editor="editor" class="rich-text-toolbar-pinned" />
+      <RichTextToolbar v-if="editor && !disable" :editor="editor"
+        :section-color="sectionColor" :section-text-color="sectionTextColor"
+        class="rich-text-toolbar-pinned" />
+      <RichTextBubbleMenu v-if="editor && !disable" :editor="editor"
+        :section-color="sectionColor" :section-text-color="sectionTextColor"
+        :onVerseResolved="onVerseResolved" :onTagResolved="onTagResolved" />
       <editor-content :editor="editor" class="rich-text-body" />
     </div>
 
@@ -14,12 +19,14 @@
 <script setup>
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
+import { TextSelection } from '@tiptap/pm/state'
 import { useReferenceExtensions } from 'src/composables/useReferenceExtensions'
 import { legacyStringToDoc, EMPTY_RICH_DOC } from 'src/utils/richTextContent'
 import { scanEditorForTriggers } from 'src/utils/richTextInlineScan'
 import { useBibleDataStore } from 'stores/bibleData'
 import { resolveVerseMatch, resolveVerseQuoteMatch } from 'src/composables/useInlineReferenceResolver'
 import RichTextToolbar from './RichTextToolbar.vue'
+import RichTextBubbleMenu from './RichTextBubbleMenu.vue'
 import VerseDisplayModal from 'components/VerseDisplayModal.vue'
 import StrongsDisplayModal from 'components/StrongsDisplayModal.vue'
 
@@ -52,6 +59,8 @@ const props = defineProps({
   onVerseResolved: { type: Function, required: true },
   onTagResolved: { type: Function, required: true },
   onStrongsResolved: { type: Function, required: true },
+  sectionColor: { type: String, default: '' },
+  sectionTextColor: { type: String, default: '' },
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -106,18 +115,47 @@ let debounceTimer = null
 // together.
 const buildVerseQuoteContent = (resolved) => ({
   type: 'blockquote',
-  content: resolved.verses.map((v) => ({
-    type: 'paragraph',
-    content: [
-      { type: 'text', text: `${v.verse} `, marks: [{ type: 'bold' }] },
-      ...v.words.map((w) => ({
-        type: 'text',
-        text: w.text,
-        ...(w.strongsEntry ? { marks: [{ type: 'strongsWord', attrs: w.strongsEntry }] } : {}),
-      })),
-    ],
-  })),
+  content: resolved.verses.flatMap((v) => [
+    {
+      type: 'paragraph',
+      content: [
+        { type: 'text', text: `${v.verse} `, marks: [{ type: 'bold' }] },
+        ...v.words.map((w) => ({
+          type: 'text',
+          text: w.text,
+          ...(w.strongsEntry ? { marks: [{ type: 'strongsWord', attrs: w.strongsEntry }] } : {}),
+        })),
+      ],
+    },
+    {
+      type: 'paragraph',
+      content: [
+        { type: 'text', text: `- ${v.reference || resolved.display}`, marks: [{ type: 'bold' }] },
+      ],
+    },
+  ]),
 })
+
+const selectionStartsInsideMatch = (selection, match) =>
+  selection.from >= match.from && selection.from <= match.to
+
+const replaceMatchAndPreserveSelection = (ed, match, content) => {
+  const selection = ed.state.selection
+  const shouldRestoreSelection = !selectionStartsInsideMatch(selection, match)
+
+  ed.chain()
+    .insertContentAt({ from: match.from, to: match.to }, content, { updateSelection: false })
+    .command(({ tr }) => {
+      if (!shouldRestoreSelection) return true
+
+      const docEnd = tr.doc.content.size
+      const from = Math.max(0, Math.min(tr.mapping.map(selection.from, 1), docEnd))
+      const to = Math.max(0, Math.min(tr.mapping.map(selection.to, 1), docEnd))
+      tr.setSelection(TextSelection.create(tr.doc, from, to))
+      return true
+    })
+    .run()
+}
 
 // isLive: true for the ambient pause-debounce, false for the explicit
 // blur/save flush. A bare "Book Chapter" reference (no ":verse") is
@@ -155,15 +193,15 @@ const resolveVerseMatches = async (isLive) => {
 
     resolvedKeys.add(match.raw)
     if (match.type === 'verseQuote') {
-      ed.chain().insertContentAt({ from: match.from, to: match.to }, [
+      replaceMatchAndPreserveSelection(ed, match, [
         buildVerseQuoteContent(resolved),
         { type: 'paragraph' },
-      ]).run()
+      ])
     } else {
-      ed.chain().insertContentAt({ from: match.from, to: match.to }, [
+      replaceMatchAndPreserveSelection(ed, match, [
         { type: 'verseReference', attrs: resolved },
         { type: 'text', text: ' ' },
-      ]).run()
+      ])
     }
 
     props.onVerseResolved(resolved)
@@ -205,15 +243,13 @@ onBeforeUnmount(() => {
 }
 
 .rich-text-scroll-area {
-  max-height: 1360px;
-  overflow-y: auto;
+  overflow: visible;
 }
 
 .rich-text-toolbar-pinned {
   position: sticky;
-  top: 0;
-  z-index: 2;
-  background: var(--color-surface-alt);
+  top: 60px;
+  z-index: 6;
   margin-bottom: 8px;
 }
 

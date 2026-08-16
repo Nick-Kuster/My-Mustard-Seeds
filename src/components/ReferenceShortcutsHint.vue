@@ -36,6 +36,16 @@
 
           <q-item class="reference-shortcuts-item">
             <q-item-section avatar>
+              <q-icon name="format_quote" color="primary" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Block verses</q-item-label>
+              <q-item-label caption>Type @John 3:16 to insert the verse text as a quote.</q-item-label>
+            </q-item-section>
+          </q-item>
+
+          <q-item class="reference-shortcuts-item">
+            <q-item-section avatar>
               <q-icon name="translate" color="primary" />
             </q-item-section>
             <q-item-section>

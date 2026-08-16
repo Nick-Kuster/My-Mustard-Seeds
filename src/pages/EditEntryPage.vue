@@ -228,34 +228,36 @@
             <q-tab name="additional" label="Additional Content" />
           </q-tabs>
 
-          <q-tab-panels v-model="activeTab" animated class="bg-transparent" @touchstart="handleTouchStart"
-            @touchmove="handleTouchMove" @touchend="handleTouchEnd">
+          <q-tab-panels v-model="activeTab" animated class="bg-transparent">
             <!-- Main Content Tab -->
             <q-tab-panel name="main" class="q-pa-none">
               <!-- Dynamic Sections -->
               <ReferenceShortcutsHint />
               <div class="q-gutter-y-md">
                 <template v-for="section in regularContentSections" :key="section.id">
-                  <div class="section-container q-mb-md" :data-section-id="section.id">
+                  <div class="section-container q-mb-md" :data-section-id="section.id" :style="sectionStyle(section)">
                     <div class="row items-center q-mb-sm section-header">
                       <q-btn flat round dense size="sm"
                         :icon="isCollapsed(section.id) ? 'chevron_right' : 'expand_more'"
-                        class="q-mr-xs" @mousedown.prevent @click="toggleCollapse(section.id)" />
+                        class="q-mr-xs" @mousedown.prevent @click.stop="toggleCollapse(section.id)" />
                       <div class="col">
                         <q-input v-model="section.title" label="Section Title" dense borderless type="textarea"
                           autogrow class="section-title-input" />
                       </div>
                       <div class="col-auto">
                         <div class="row items-center no-wrap">
+                          <SectionColorButton v-model="section.color" v-model:text-color="section.textColor" />
                           <!-- Delete button -->
                           <q-btn v-if="regularContentSections.length > 1" round flat color="negative" icon="delete"
-                            size="sm" @mousedown.prevent @click="removeSection(section)" />
+                            size="sm" @mousedown.prevent @click.stop="removeSection(section)" />
                         </div>
                       </div>
                     </div>
                     <div v-show="!isCollapsed(section.id)">
                       <RichTextEditor v-if="section.fieldType !== 'list'" v-model="section.content"
                         :ref="(el) => setRichTextEditorRef(section.id, el)"
+                        :section-color="section.color"
+                        :section-text-color="section.textColor"
                         :on-verse-resolved="inlineResolver.pushResolvedVerse"
                         :on-tag-resolved="inlineResolver.pushResolvedTag"
                         :on-strongs-resolved="inlineResolver.pushResolvedStrongs" />
@@ -403,6 +405,7 @@ import draggable from 'vuedraggable'
 import { getListItems, setListItem, addListItem, removeListItem, insertListItemAfter } from 'src/utils/sectionListUtils'
 import LinkedVerses from 'components/LinkedVerses.vue'
 import RichTextEditor from 'src/components/richText/RichTextEditor.vue'
+import SectionColorButton from 'components/SectionColorButton.vue'
 import ReferenceShortcutsHint from 'components/ReferenceShortcutsHint.vue'
 import VerseDisplayModal from 'components/VerseDisplayModal.vue'
 import { openSafeExternalUrl } from 'src/utils/urlUtils'
@@ -410,6 +413,7 @@ import { useInlineReferenceResolver } from 'src/composables/useInlineReferenceRe
 import { EMPTY_RICH_DOC } from 'src/utils/richTextContent'
 import { deleteEntryDraft, entryDraftHasContent, getEntryDraft, saveEntryDraft } from 'src/utils/entryDrafts'
 import { formatVerseReference } from 'src/utils/verseUtils'
+import { getSectionStyle } from 'src/utils/sectionColors'
 
 const TagSelector = defineAsyncComponent(() => import('src/components/TagSelector.vue'))
 const QuoteSelector = defineAsyncComponent(() => import('src/components/QuoteSelector.vue'))
@@ -507,6 +511,8 @@ const createSection = (title = '', content = '', fieldType = 'longText', headerP
       : content,
   fieldType,
   headerProperty,
+  color: '',
+  textColor: '',
 })
 
 // Older saved entries (from before an `id` default-parameter bug was fixed)
@@ -515,9 +521,13 @@ const createSection = (title = '', content = '', fieldType = 'longText', headerP
 const ensureSectionIds = (sections) => {
   for (const section of sections || []) {
     if (!section.id) section.id = 'section-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9)
+    if (section.color == null) section.color = ''
+    if (section.textColor == null) section.textColor = ''
   }
   return sections
 }
+
+const sectionStyle = (section) => getSectionStyle(section)
 
 const getTodayDate = () => {
   const today = new Date()
@@ -1379,47 +1389,6 @@ const updateEntry = async () => {
   }
 }
 
-// Touch handlers for tab swiping
-const touchStart = ref({ x: 0, y: 0 })
-const touchEnd = ref({ x: 0, y: 0 })
-const minSwipeDistance = 50
-
-const handleTouchStart = (event) => {
-  touchStart.value = {
-    x: event.touches[0].clientX,
-    y: event.touches[0].clientY
-  }
-  touchEnd.value = { x: 0, y: 0 }
-}
-
-const handleTouchMove = (event) => {
-  touchEnd.value = {
-    x: event.touches[0].clientX,
-    y: event.touches[0].clientY
-  }
-}
-
-const handleTouchEnd = () => {
-  if (!touchStart.value.x || !touchEnd.value.x) return
-
-  const distanceX = touchEnd.value.x - touchStart.value.x
-  const distanceY = Math.abs(touchEnd.value.y - touchStart.value.y)
-
-  if (Math.abs(distanceX) > minSwipeDistance && distanceY < 100) {
-    const tabs = ['main', 'additional']
-    const currentIndex = tabs.indexOf(activeTab.value)
-
-    if (distanceX > 0 && currentIndex > 0) {
-      activeTab.value = tabs[currentIndex - 1]
-    } else if (distanceX < 0 && currentIndex < tabs.length - 1) {
-      activeTab.value = tabs[currentIndex + 1]
-    }
-  }
-
-  touchStart.value = { x: 0, y: 0 }
-  touchEnd.value = { x: 0, y: 0 }
-}
-
 const handleEditorShortcut = (event) => {
   if (!(event.ctrlKey || event.metaKey)) return
 
@@ -1559,9 +1528,16 @@ onUnmounted(() => {
 }
 
 .section-title-input :deep(textarea) {
+  color: var(--section-text-color, inherit);
   line-height: 1.25;
   font-weight: 650;
   resize: none;
+}
+
+.section-container :deep(.q-field__native),
+.section-container :deep(.q-field__control),
+.section-container :deep(.ProseMirror) {
+  color: var(--section-text-color, inherit);
 }
 
 .entry-additional-panel>div {
@@ -1721,7 +1697,7 @@ onUnmounted(() => {
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: var(--color-text-muted);
+  background: var(--section-text-color, var(--color-text-muted));
   opacity: 0.8;
 }
 

@@ -618,6 +618,51 @@ export const useJournalStore = defineStore('journalData', () => {
     }
   }
 
+  const updateEntryTitle = async (journalId, title) => {
+    const trimmedTitle = title.trim()
+    if (!trimmedTitle) throw new Error('Title is required')
+
+    const previous = new Map()
+    updateEveryCachedEntry((entry) => {
+      if (entry.id !== journalId) return
+      previous.set(entry, {
+        title: entry.title,
+        updated_at: entry.updated_at,
+      })
+      entry.title = trimmedTitle
+      entry.updated_at = new Date().toISOString()
+    })
+
+    try {
+      const { data, error } = await supabase
+        .from('journal_entries')
+        .update({
+          title: trimmedTitle,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', journalId)
+        .select('title, updated_at')
+        .single()
+
+      if (error) throw error
+
+      updateEveryCachedEntry((entry) => {
+        if (entry.id !== journalId) return
+        entry.title = data.title
+        entry.updated_at = data.updated_at
+      })
+
+      return data
+    } catch (error) {
+      previous.forEach((value, entry) => {
+        entry.title = value.title
+        entry.updated_at = value.updated_at
+      })
+      console.error('Error updating entry title:', error)
+      throw error
+    }
+  }
+
   // Add a quote to a journal entry
   const addQuote = async (journalId, quoteData) => {
     try {
@@ -805,6 +850,7 @@ export const useJournalStore = defineStore('journalData', () => {
     getEntry,
     refreshEntry,
     setEntryFavorite,
+    updateEntryTitle,
     addQuote,
     updateQuote,
     deleteQuote,

@@ -201,7 +201,7 @@ const richTextToolbarSteps = [
     page: '/entry/new',
     title: 'Type to link',
     description:
-      'Type :: followed by a reference (like ::John 3:16) to link a verse, # to tag as you write, or $ to look up a Strong\'s Hebrew or Greek word — all with live suggestions, no separate dialog needed.',
+      'Type :: followed by a reference (like ::John 3:16) to link a verse, @John 3:16 to insert a block verse quote, # to tag as you write, or $ to look up a Strong\'s Hebrew or Greek word — all with live suggestions, no separate dialog needed.',
   },
 ]
 

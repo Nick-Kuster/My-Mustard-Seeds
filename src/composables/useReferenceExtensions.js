@@ -8,6 +8,7 @@ import VerseReferenceNode from 'src/components/richText/VerseReferenceNode'
 import { createTagReferenceNode } from 'src/components/richText/TagReferenceNode'
 import { createStrongsReferenceNode } from 'src/components/richText/StrongsReferenceNode'
 import StrongsWordMark from 'src/components/richText/StrongsWordMark'
+import ShapeOverlayMark from 'src/components/richText/ShapeOverlayMark'
 import { createVerseBookSuggestion } from 'src/components/richText/VerseBookSuggestion'
 
 // A function, not a shared constant array — each reference node's
@@ -48,6 +49,7 @@ export function useReferenceExtensions({
     createTagReferenceNode({ onClick: onTagClick, onResolved: onTagResolved }),
     createStrongsReferenceNode({ onClick: onStrongsClick, onResolved: onStrongsResolved }),
     StrongsWordMark.configure({ onClick: onStrongsClick }),
+    ShapeOverlayMark,
     createVerseBookSuggestion(),
   ]
 }

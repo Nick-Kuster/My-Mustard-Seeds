@@ -14,21 +14,28 @@
                 <div class="col">
                   <!-- Bible -->
                   <div v-if="verseEntryTypes.includes(entry?.type)" class="q-mb-lg">
+                    <div class="entry-title-row q-mb-xs">
+                      <div class="entry-view-title">{{ entry?.title || mainVerse?.display }}</div>
+                      <q-btn flat round dense size="sm" icon="edit" color="primary" @click="openTitleEditor">
+                        <q-tooltip>Edit title</q-tooltip>
+                      </q-btn>
+                    </div>
                     <div v-if="mainVerse" class="q-mb-md">
-                      <div class="row items-center q-mb-sm">
-                        <div class="col">
-                          <a href="#" class="verse-link text-h5 text-primary text-weight-medium entry-view-title"
-                            style="text-decoration: none; line-height: 1.5"
-                            @click.prevent="showVerseDisplayModal = true">
-                            {{ mainVerse.display }}
-                          </a>
-                        </div>
-                      </div>
+                      <a href="#" class="verse-link text-primary text-weight-medium"
+                        style="text-decoration: none; line-height: 1.5"
+                        @click.prevent="showVerseDisplayModal = true">
+                        {{ mainVerse.display }}
+                      </a>
                       <VerseDisplayModal v-model="showVerseDisplayModal" :reference="mainVerse.display"
                         :startVerse="mainVerse.startVerse" :endVerse="mainVerse.endVerse" />
                     </div>
                   </div>
-                  <div v-else class="text-h5 entry-view-title">{{ entry?.title }}</div>
+                  <div v-else class="entry-title-row">
+                    <div class="text-h5 entry-view-title">{{ entry?.title }}</div>
+                    <q-btn flat round dense size="sm" icon="edit" color="primary" @click="openTitleEditor">
+                      <q-tooltip>Edit title</q-tooltip>
+                    </q-btn>
+                  </div>
                 </div>
               </div>
               <div v-if="entryMetadataItems.length" class="entry-metadata-strip q-mb-lg">
@@ -154,7 +161,9 @@
             </div>
             <div class="col-auto">
               <q-btn rounded unelevated color="primary" icon="edit" style="height: 40px"
-                @click="router.push(`/entry/${entry.id}/edit`)" />
+                @click="router.push(`/entry/${entry.id}/edit`)">
+                <q-tooltip>Edit full entry</q-tooltip>
+              </q-btn>
             </div>
             <div class="col-auto">
               <q-btn rounded unelevated color="negative" icon="delete" style="height: 40px" @click="confirmDelete" />
@@ -232,6 +241,28 @@
       </q-card>
     </q-dialog>
 
+    <q-dialog v-model="showTitleDialog">
+      <q-card style="width: 90vw; max-width: 420px">
+        <q-card-section>
+          <div class="text-h6">Edit Title</div>
+        </q-card-section>
+        <q-card-section class="q-pt-none">
+          <q-input
+            v-model="titleDraft"
+            label="Title"
+            outlined
+            autofocus
+            :rules="[val => !!val?.trim() || 'Title is required']"
+            @keyup.enter="saveTitle"
+          />
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" :disable="savingTitle" v-close-popup />
+          <q-btn color="primary" label="Save" :loading="savingTitle" :disable="!titleDraft.trim()" @click="saveTitle" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
     <!-- Verse Display Modal -->
     <VerseDisplayModal v-if="selectedVerse" v-model="showVerseDisplayModal" :reference="selectedVerse.display"
       :start-verse="selectedVerse.startVerse" :end-verse="selectedVerse.endVerse" />
@@ -275,6 +306,9 @@ const showVerseDisplayModal = ref(false)
 const selectedVerse = ref(null)
 const activeTab = ref('main')
 const mainVerse = ref({})
+const showTitleDialog = ref(false)
+const titleDraft = ref('')
+const savingTitle = ref(false)
 
 // Types that use the main-verse (passage) selector; 'Bible' kept for
 // entries created before the type rename migration
@@ -372,6 +406,30 @@ const copyEntryAsText = async () => {
     $q.notify({ type: 'positive', message: 'Note copied' })
   } catch {
     $q.notify({ type: 'negative', message: 'Could not copy note' })
+  }
+}
+
+const openTitleEditor = () => {
+  if (!entry.value) return
+  titleDraft.value = entry.value.title || ''
+  showTitleDialog.value = true
+}
+
+const saveTitle = async () => {
+  const nextTitle = titleDraft.value.trim()
+  if (!entry.value?.id || !nextTitle) return
+
+  savingTitle.value = true
+  try {
+    const updated = await journalStore.updateEntryTitle(entry.value.id, nextTitle)
+    entry.value.title = updated.title
+    entry.value.updated_at = updated.updated_at
+    showTitleDialog.value = false
+    $q.notify({ type: 'positive', message: 'Title updated' })
+  } catch (error) {
+    $q.notify({ type: 'negative', message: error.message || 'Failed to update title' })
+  } finally {
+    savingTitle.value = false
   }
 }
 
@@ -695,6 +753,17 @@ watch(
   font-size: 1.6rem;
   font-weight: 800;
   line-height: 1.25;
+}
+
+.entry-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.entry-title-row .entry-view-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .entry-resource-summary {

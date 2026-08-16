@@ -32,6 +32,20 @@ const buildVerseDisplay = (book, verseRange, startVerseNum, endVerseNum) => {
   return `${book} ${verseRange.startChapter}:${startVerseNum}-${verseRange.endChapter}:${endVerseNum}`
 }
 
+export const normalizeBookNameForReference = (name) =>
+  String(name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/^(first|i)\s+/, '1 ')
+    .replace(/^(second|ii)\s+/, '2 ')
+    .replace(/^(third|iii)\s+/, '3 ')
+
+const findBibleBook = (books, input) => {
+  const normalizedInput = normalizeBookNameForReference(input)
+  return books.find((b) => normalizeBookNameForReference(b.book) === normalizedInput)
+}
+
 // Resolves a scanned { verseRange } candidate to real verse IDs, or null if
 // the book/chapter/verse doesn't actually exist — same two-query pattern
 // VerseSelectionModal.vue and journalImport.js already use. Exported so
@@ -39,7 +53,7 @@ const buildVerseDisplay = (book, verseRange, startVerseNum, endVerseNum) => {
 // richTextInlineScan.js) can reuse it directly rather than duplicating
 // the lookup.
 export const resolveVerseMatch = async (match, bibleData) => {
-  const book = bibleData.books.find((b) => b.book.toLowerCase() === match.verseRange.book.toLowerCase())
+  const book = findBibleBook(bibleData.books, match.verseRange.book)
   if (!book) return null
 
   const { verseRange } = match
@@ -56,6 +70,7 @@ export const resolveVerseMatch = async (match, bibleData) => {
   if (!startVerseData || !endVerseData) return null
 
   return {
+    book: book.book,
     startVerseId: startVerseData.id,
     startVerse: startVerseData.verse_number,
     endVerseId: endVerseData.id,
@@ -82,7 +97,7 @@ export const resolveVerseQuoteMatch = async (match, bibleData) => {
 
   const { data: wordRows, error: wordsError } = await supabase
     .from('bible_verse_words')
-    .select('verse, position, word_text, strongs_number')
+    .select('chapter, verse, verse_number, position, word_text, strongs_number')
     .gte('verse_number', resolved.startVerse)
     .lte('verse_number', resolved.endVerse)
     .order('verse_number')
@@ -91,8 +106,15 @@ export const resolveVerseQuoteMatch = async (match, bibleData) => {
 
   const byVerse = new Map()
   for (const row of wordRows || []) {
-    if (!byVerse.has(row.verse)) byVerse.set(row.verse, [])
-    byVerse.get(row.verse).push({ text: row.word_text, strongsNumber: row.strongs_number })
+    const key = row.verse_number || `${row.chapter}:${row.verse}`
+    if (!byVerse.has(key)) {
+      byVerse.set(key, {
+        chapter: row.chapter,
+        verse: row.verse,
+        words: [],
+      })
+    }
+    byVerse.get(key).words.push({ text: row.word_text, strongsNumber: row.strongs_number })
   }
 
   const neededNumbers = [...new Set((wordRows || []).map((row) => row.strongs_number).filter(Boolean))]
@@ -108,9 +130,11 @@ export const resolveVerseQuoteMatch = async (match, bibleData) => {
 
   return {
     ...resolved,
-    verses: [...byVerse.entries()].map(([verse, words]) => ({
-      verse,
-      words: words.map((w) => ({ ...w, strongsEntry: w.strongsNumber ? entriesByNumber.get(w.strongsNumber) || null : null })),
+    verses: [...byVerse.values()].map((verse) => ({
+      chapter: verse.chapter,
+      verse: verse.verse,
+      reference: verse.chapter && verse.verse ? `${resolved.book} ${verse.chapter}:${verse.verse}` : resolved.display,
+      words: verse.words.map((w) => ({ ...w, strongsEntry: w.strongsNumber ? entriesByNumber.get(w.strongsNumber) || null : null })),
     })),
   }
 }
