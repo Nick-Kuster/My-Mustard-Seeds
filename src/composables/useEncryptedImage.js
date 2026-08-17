@@ -52,7 +52,7 @@ export function useEncryptedImage(imagePathRef, mimeTypeRef) {
       // flight — drop this result rather than flashing a stale image.
       if (token !== currentToken) return
 
-      const blob = new Blob([plainBytes], { type: mimeType })
+      const blob = new Blob([plainBytes], { type: mimeType || 'image/jpeg' })
       revokeCurrent()
       currentUrl = URL.createObjectURL(blob)
       objectUrl.value = currentUrl

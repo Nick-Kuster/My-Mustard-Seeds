@@ -1,10 +1,12 @@
 <template>
-  <div class="rich-text-editor">
+  <div class="rich-text-editor" :class="{ 'rich-text-editor--focus': focusMode }">
     <div class="rich-text-scroll-area">
       <RichTextToolbar v-if="editor && !disable" :editor="editor"
         :section-color="sectionColor" :section-text-color="sectionTextColor"
+        :on-verse-resolved="onVerseResolved" :on-tag-resolved="onTagResolved"
+        :focus-mode="focusMode"
         class="rich-text-toolbar-pinned" />
-      <RichTextBubbleMenu v-if="editor && !disable" :editor="editor"
+      <RichTextBubbleMenu v-if="editor && !disable && $q.screen.gt.xs" :editor="editor"
         :section-color="sectionColor" :section-text-color="sectionTextColor"
         :onVerseResolved="onVerseResolved" :onTagResolved="onTagResolved" />
       <editor-content :editor="editor" class="rich-text-body" />
@@ -20,6 +22,7 @@
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import { TextSelection } from '@tiptap/pm/state'
+import { useQuasar } from 'quasar'
 import { useReferenceExtensions } from 'src/composables/useReferenceExtensions'
 import { legacyStringToDoc, EMPTY_RICH_DOC } from 'src/utils/richTextContent'
 import { scanEditorForTriggers } from 'src/utils/richTextInlineScan'
@@ -61,10 +64,12 @@ const props = defineProps({
   onStrongsResolved: { type: Function, required: true },
   sectionColor: { type: String, default: '' },
   sectionTextColor: { type: String, default: '' },
+  focusMode: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue'])
 
+const $q = useQuasar()
 const bibleData = useBibleDataStore()
 
 const normalizeContent = (value) => (typeof value === 'string' ? legacyStringToDoc(value) : value)
@@ -101,6 +106,16 @@ const editor = useEditor({
 })
 
 watch(() => props.disable, (v) => editor.value?.setEditable(!v))
+
+watch(() => props.modelValue, (value) => {
+  const ed = editor.value
+  if (!ed) return
+
+  const nextContent = normalizeContent(value)
+  if (JSON.stringify(ed.getJSON()) === JSON.stringify(nextContent)) return
+
+  ed.commands.setContent(nextContent, false)
+}, { deep: true })
 
 const resolvedKeys = new Set()
 const failedKeys = new Set()
@@ -328,6 +343,16 @@ onBeforeUnmount(() => {
 
   .rich-text-body {
     padding: 8px 0 2px;
+  }
+
+  .rich-text-body :deep(.ProseMirror) {
+    min-height: 220px;
+    padding-bottom: 150px;
+  }
+
+  .rich-text-editor--focus .rich-text-body :deep(.ProseMirror) {
+    min-height: calc(100dvh - 156px);
+    padding-bottom: 178px;
   }
 }
 </style>

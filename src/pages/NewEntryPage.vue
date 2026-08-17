@@ -247,6 +247,10 @@
                       <div class="col-auto">
                         <div class="row items-center no-wrap">
                           <SectionColorButton v-model="section.color" v-model:text-color="section.textColor" />
+                          <q-btn v-if="section.fieldType !== 'list'" round flat icon="fullscreen" size="sm"
+                            @mousedown.prevent @click.stop="openSectionFocus(section)">
+                            <q-tooltip>Focus section</q-tooltip>
+                          </q-btn>
                           <!-- Delete button -->
                           <q-btn v-if="regularContentSections.length > 1" round flat color="negative" icon="delete"
                             size="sm" @mousedown.prevent @click.stop="removeSection(section)" />
@@ -361,6 +365,31 @@
       </div>
     </div>
   </q-page>
+
+  <q-dialog v-model="showSectionFocusDialog" maximized transition-show="slide-up" transition-hide="slide-down">
+    <q-card v-if="focusedSection" class="section-focus-card" :style="sectionStyle(focusedSection)">
+      <div class="section-focus-header">
+        <q-input v-model="focusedSection.title" dense borderless type="textarea" autogrow
+          placeholder="Section Title" class="section-title-input section-focus-title" />
+        <div class="section-focus-header-actions">
+          <SectionColorButton v-model="focusedSection.color" v-model:text-color="focusedSection.textColor" />
+          <q-btn flat round dense icon="fullscreen_exit" @click="closeSectionFocus">
+            <q-tooltip>Shrink section</q-tooltip>
+          </q-btn>
+        </div>
+      </div>
+      <div class="section-focus-body">
+        <RichTextEditor v-model="focusedSection.content"
+          :ref="(el) => setRichTextEditorRef(`focus-${focusedSection.id}`, el)"
+          :section-color="focusedSection.color"
+          :section-text-color="focusedSection.textColor"
+          :on-verse-resolved="inlineResolver.pushResolvedVerse"
+          :on-tag-resolved="inlineResolver.pushResolvedTag"
+          :on-strongs-resolved="inlineResolver.pushResolvedStrongs"
+          focus-mode />
+      </div>
+    </q-card>
+  </q-dialog>
 
   <q-dialog v-model="showDraftRestoreDialog" persistent>
     <q-card class="draft-restore-card">
@@ -538,6 +567,16 @@ const contentSections = ref([])
 const regularContentSections = computed(() => contentSections.value.filter(section => !section.headerProperty))
 const showReorderSectionsDialog = ref(false)
 const reorderSections = ref([])
+const focusedSectionId = ref(null)
+const focusedSection = computed(() =>
+  regularContentSections.value.find(section => section.id === focusedSectionId.value) || null
+)
+const showSectionFocusDialog = computed({
+  get: () => Boolean(focusedSection.value),
+  set: (value) => {
+    if (!value) focusedSectionId.value = null
+  },
+})
 const saving = ref(false)
 const linkedVerses = ref([])
 const selectedTags = ref([])
@@ -690,7 +729,20 @@ const setListItemRef = (sectionId, index, el) => {
 // saveEntry() below).
 const richTextEditorRefs = {}
 const setRichTextEditorRef = (sectionId, el) => {
-  if (el) richTextEditorRefs[sectionId] = el
+  if (el) {
+    richTextEditorRefs[sectionId] = el
+  } else {
+    delete richTextEditorRefs[sectionId]
+  }
+}
+
+const openSectionFocus = (section) => {
+  if (section.fieldType === 'list') return
+  focusedSectionId.value = section.id
+}
+
+const closeSectionFocus = () => {
+  focusedSectionId.value = null
 }
 
 const handleListItemEnter = async (section, index) => {
@@ -1488,6 +1540,45 @@ onUnmounted(() => {
 .section-container :deep(.q-field__control),
 .section-container :deep(.ProseMirror) {
   color: var(--section-text-color, inherit);
+}
+
+.section-focus-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--color-surface-alt);
+  color: var(--section-text-color, var(--color-text));
+}
+
+.section-focus-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: calc(8px + env(safe-area-inset-top)) 8px 6px;
+  border-bottom: 1px solid var(--color-border);
+  background: inherit;
+}
+
+.section-focus-title {
+  flex: 1;
+}
+
+.section-focus-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.section-focus-body {
+  flex: 1;
+  padding: 6px 8px 0;
+}
+
+.section-focus-body :deep(.rich-text-editor) {
+  min-height: 100%;
 }
 
 .entry-additional-panel>div {
